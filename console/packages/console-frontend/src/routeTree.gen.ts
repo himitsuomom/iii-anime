@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as WorkersRouteImport } from './routes/workers'
 import { Route as TriggersRouteImport } from './routes/triggers'
 import { Route as TracesRouteImport } from './routes/traces'
+import { Route as StudioRouteImport } from './routes/studio'
 import { Route as StreamsRouteImport } from './routes/streams'
 import { Route as StatesRouteImport } from './routes/states'
 import { Route as QueuesRouteImport } from './routes/queues'
@@ -35,6 +36,11 @@ const TriggersRoute = TriggersRouteImport.update({
 const TracesRoute = TracesRouteImport.update({
   id: '/traces',
   path: '/traces',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudioRoute = StudioRouteImport.update({
+  id: '/studio',
+  path: '/studio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StreamsRoute = StreamsRouteImport.update({
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/queues': typeof QueuesRoute
   '/states': typeof StatesRoute
   '/streams': typeof StreamsRoute
+  '/studio': typeof StudioRoute
   '/traces': typeof TracesRoute
   '/triggers': typeof TriggersRoute
   '/workers': typeof WorkersRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByTo {
   '/queues': typeof QueuesRoute
   '/states': typeof StatesRoute
   '/streams': typeof StreamsRoute
+  '/studio': typeof StudioRoute
   '/traces': typeof TracesRoute
   '/triggers': typeof TriggersRoute
   '/workers': typeof WorkersRoute
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/queues': typeof QueuesRoute
   '/states': typeof StatesRoute
   '/streams': typeof StreamsRoute
+  '/studio': typeof StudioRoute
   '/traces': typeof TracesRoute
   '/triggers': typeof TriggersRoute
   '/workers': typeof WorkersRoute
@@ -138,6 +147,7 @@ export interface FileRouteTypes {
     | '/queues'
     | '/states'
     | '/streams'
+    | '/studio'
     | '/traces'
     | '/triggers'
     | '/workers'
@@ -152,6 +162,7 @@ export interface FileRouteTypes {
     | '/queues'
     | '/states'
     | '/streams'
+    | '/studio'
     | '/traces'
     | '/triggers'
     | '/workers'
@@ -166,6 +177,7 @@ export interface FileRouteTypes {
     | '/queues'
     | '/states'
     | '/streams'
+    | '/studio'
     | '/traces'
     | '/triggers'
     | '/workers'
@@ -181,6 +193,7 @@ export interface RootRouteChildren {
   QueuesRoute: typeof QueuesRoute
   StatesRoute: typeof StatesRoute
   StreamsRoute: typeof StreamsRoute
+  StudioRoute: typeof StudioRoute
   TracesRoute: typeof TracesRoute
   TriggersRoute: typeof TriggersRoute
   WorkersRoute: typeof WorkersRoute
@@ -207,6 +220,13 @@ declare module '@tanstack/react-router' {
       path: '/traces'
       fullPath: '/traces'
       preLoaderRoute: typeof TracesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/studio': {
+      id: '/studio'
+      path: '/studio'
+      fullPath: '/studio'
+      preLoaderRoute: typeof StudioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/streams': {
@@ -285,6 +305,7 @@ const rootRouteChildren: RootRouteChildren = {
   QueuesRoute: QueuesRoute,
   StatesRoute: StatesRoute,
   StreamsRoute: StreamsRoute,
+  StudioRoute: StudioRoute,
   TracesRoute: TracesRoute,
   TriggersRoute: TriggersRoute,
   WorkersRoute: WorkersRoute,

@@ -4,6 +4,7 @@ import { clsx } from 'clsx'
 import {
   ChevronUp,
   Database,
+  Factory,
   GitBranch,
   Layers,
   ListOrdered,
@@ -32,6 +33,7 @@ const BASE_NAV_ITEMS = [
   { name: 'Queues', href: '/queues', icon: ListOrdered },
   { name: 'Traces', href: '/traces', icon: GitBranch },
   { name: 'Logs', href: '/logs', icon: Terminal },
+  { name: 'Studio', href: '/studio', icon: Factory },
   { name: 'Config', href: '/config', icon: Settings },
 ]
 
