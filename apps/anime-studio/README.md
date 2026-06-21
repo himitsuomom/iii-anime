@@ -68,6 +68,16 @@ Real generation (degrades to mock/procedural without keys): set
 `endpoint` / `model` / `api_key_env`. Real per-cut clips are then concatenated
 into `render/final.mp4`; otherwise the storyboard-panel animatic is used.
 
+Run the studio as a company — mass-produce a slate and keep a ledger:
+
+```bash
+uv run anime-studio batch --slate tests/fixtures/slate.yaml --concurrency 2
+cat output/_ledger.json          # production ledger: status, QA score, hook, BPM
+```
+
+A feedback loop (`operations/feedback.py`) reads post-publish metrics and biases
+the next slate's hook/BPM/platform toward what performed best.
+
 Other commands:
 
 ```bash
@@ -89,7 +99,9 @@ make engine-up                                      # from repo root
 cd apps/anime-studio
 III_URL=ws://localhost:49199 uv run python -m anime_studio.worker.main
 # registers: studio::run_pipeline, studio::render, studio::status,
-#            studio::script, studio::storyboard, studio::qa, studio::distribution
+#            studio::script, studio::storyboard, studio::qa, studio::distribution,
+#            studio::batch, studio::enqueue (queue), studio::record_metrics,
+#            studio::scheduled_batch (cron)
 ```
 
 Then drive the HTTP trigger (the repo test engine serves HTTP on `:3199`):

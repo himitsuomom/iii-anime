@@ -35,10 +35,18 @@ def test_setup_registers_all_studio_functions() -> None:
         "studio::storyboard",
         "studio::qa",
         "studio::distribution",
+        "studio::batch",
+        "studio::enqueue",
+        "studio::record_metrics",
+        "studio::scheduled_batch",
     }
     assert expected <= set(iii.functions)
 
-    http_paths = {t["config"]["api_path"] for t in iii.triggers}
-    assert "studio/run" in http_paths
-    assert "studio/status/:project_id" in http_paths
-    assert all(t["type"] == "http" for t in iii.triggers)
+    trigger_types = {t["type"] for t in iii.triggers}
+    assert "http" in trigger_types
+    assert "cron" in trigger_types  # scheduled_batch
+
+    http_paths = {t["config"].get("api_path") for t in iii.triggers if t["type"] == "http"}
+    assert {"studio/run", "studio/batch", "studio/enqueue", "studio/metrics"} <= http_paths
+    cron = next(t for t in iii.triggers if t["type"] == "cron")
+    assert cron["function_id"] == "studio::scheduled_batch"

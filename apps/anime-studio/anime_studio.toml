@@ -35,5 +35,11 @@ provider = "mock"
 provider = "mock"
 # provider = "hosted"  (real audio API), or "ffmpeg" (procedural BGM/SE).
 
+[operations]
+# Slate file auto-run by the scheduled batch (studio::scheduled_batch).
+slate = ""
+# Cron expression for the scheduled batch (6-field: sec min hour dom mon dow).
+cron = "0 0 9 * * *"
+
 [edit]
 provider = "mock"

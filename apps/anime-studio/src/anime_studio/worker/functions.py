@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 import uuid
+from pathlib import Path
 from typing import Any
 
 from ..agents import default_agents
@@ -13,6 +14,7 @@ from ..config import AnimeStudioConfig
 from ..knowledge.loader import default_knowledge_base
 from ..models.brief import ProjectBrief
 from ..models.job import PipelineJob, StageStatus
+from ..models.operations import VideoMetrics
 from ..pipeline.orchestrator import run_pipeline
 from ..providers.registry import build_providers
 from .progress import JobTracker
@@ -93,8 +95,62 @@ def setup(iii: Any, cfg: AnimeStudioConfig | None = None) -> None:
                 return {"statusCode": 200, "body": artifact.model_dump(mode="json")}
         return {"statusCode": 404, "body": {"error": f"unknown stage {stage_id}"}}
 
+    async def batch_fn(data: dict[str, Any]) -> dict[str, Any]:
+        from ..operations.batch import BatchRunner
+
+        body = (data or {}).get("body") or data or {}
+        videos = body.get("videos", body if isinstance(body, list) else [])
+        briefs = []
+        for item in videos:
+            item.setdefault("project_id", _new_project_id())
+            briefs.append(ProjectBrief.model_validate(item))
+        runner = BatchRunner(config, concurrency=int(body.get("concurrency", 2)) if isinstance(body, dict) else 2)
+        entries = await runner.run(briefs)
+        return {"statusCode": 201, "body": {"produced": len(entries), "summary": runner.ledger.summary()}}
+
+    async def enqueue_fn(data: dict[str, Any]) -> dict[str, Any]:
+        # Route a single brief onto a named queue for async mass production.
+        from iii import TriggerAction
+
+        body = (data or {}).get("body") or data or {}
+        body.setdefault("project_id", _new_project_id())
+        await iii.trigger_async(
+            {
+                "function_id": "studio::run_pipeline",
+                "payload": body,
+                "action": TriggerAction.Enqueue(queue="studio_jobs"),
+            }
+        )
+        return {"statusCode": 202, "body": {"project_id": body["project_id"], "queued": True}}
+
+    async def scheduled_batch_fn(_: dict[str, Any]) -> dict[str, Any]:
+        from ..operations.batch import BatchRunner, load_slate
+
+        slate_path = config.operations_slate
+        if not slate_path or not Path(slate_path).exists():
+            return {"statusCode": 204, "body": {"skipped": "no slate configured"}}
+        entries = await BatchRunner(config).run(load_slate(Path(slate_path)))
+        return {"statusCode": 201, "body": {"produced": len(entries)}}
+
+    async def record_metrics_fn(data: dict[str, Any]) -> dict[str, Any]:
+        body = (data or {}).get("body") or data or {}
+        metrics = VideoMetrics.model_validate(body)
+        key = f"{metrics.project_id}:{metrics.platform}"
+        await iii.trigger_async(
+            {"function_id": "state::set",
+             "payload": {"scope": "anime_studio_metrics", "key": key, "value": metrics.model_dump(mode="json")}}
+        )
+        return {"statusCode": 201, "body": {"recorded": key}}
+
     register("studio::run_pipeline", "studio/run", "POST", run_pipeline_fn, "Run the full anime pipeline")
     register("studio::render", "studio/render", "POST", render_fn, "Run the pipeline and render an animatic mp4")
+    register("studio::batch", "studio/batch", "POST", batch_fn, "Mass-produce a slate of videos")
+    register("studio::enqueue", "studio/enqueue", "POST", enqueue_fn, "Queue a brief for async production")
+    register("studio::record_metrics", "studio/metrics", "POST", record_metrics_fn, "Record post-publish metrics")
+    iii.register_function("studio::scheduled_batch", scheduled_batch_fn)
+    iii.register_trigger(
+        {"type": "cron", "function_id": "studio::scheduled_batch", "config": {"expression": config.operations_cron}}
+    )
     register("studio::status", "studio/status/:project_id", "GET", status_fn, "Get pipeline job status")
     register(
         "studio::script", "studio/script", "POST", lambda d: stage_fn(d, "script"), "Run the script department"

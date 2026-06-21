@@ -18,7 +18,10 @@ class PlanningAgent(BaseAgent):
         hooks = ctx.kb.hooks()
         stepps = ctx.kb.stepps()
         primary = brief.target_platforms[0] if brief.target_platforms else "youtube_shorts"
-        hook = hooks[0].id if hooks else "emotional"
+        # Honour a feedback-loop bias when present, else default to the top hook.
+        preferred = brief.constraints.get("preferred_hook")
+        valid_hooks = {h.id for h in hooks}
+        hook = preferred if preferred in valid_hooks else (hooks[0].id if hooks else "emotional")
         # Emotion + Stories are the strongest STEPPS levers for kids' anime.
         levers = [s["id"] for s in stepps if s["id"] in {"emotion", "stories", "social_currency"}]
 

@@ -51,6 +51,9 @@ class AnimeStudioConfig(BaseModel):
     hard_gates: list[str] = Field(default_factory=lambda: ["three_second_hook"])
     # When true, also render a playable animatic mp4 (needs the 'render' extra).
     render: bool = False
+    # Operations layer: a slate path for scheduled batches + the cron expression.
+    operations_slate: str = ""
+    operations_cron: str = "0 0 9 * * *"
     llm: LLMConfig = Field(default_factory=LLMConfig)
     image: ProviderConfig = Field(default_factory=ProviderConfig)
     video: ProviderConfig = Field(default_factory=ProviderConfig)
@@ -73,6 +76,8 @@ class AnimeStudioConfig(BaseModel):
             "max_revisions": general.get("max_revisions", 2),
             "hard_gates": general.get("hard_gates", ["three_second_hook"]),
             "render": data.get("render", {}).get("enabled", False),
+            "operations_slate": data.get("operations", {}).get("slate", ""),
+            "operations_cron": data.get("operations", {}).get("cron", "0 0 9 * * *"),
             "llm": data.get("llm", {}),
             "image": data.get("image", {}),
             "video": data.get("video", {}),

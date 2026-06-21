@@ -53,6 +53,26 @@ def _cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_batch(args: argparse.Namespace) -> int:
+    from .operations.batch import BatchRunner, load_slate
+
+    log = default_logger()
+    cfg = AnimeStudioConfig.load(args.config)
+    if args.output_dir:
+        cfg.output_dir = args.output_dir
+    if args.provider:
+        cfg.llm.provider = args.provider
+    briefs = load_slate(Path(args.slate))
+    runner = BatchRunner(cfg, concurrency=args.concurrency)
+    entries = asyncio.run(runner.run(briefs))
+    log.info("batch complete", {"produced": len(entries), **runner.ledger.summary()})
+    print(f"\nLedger:  {cfg.output_path / '_ledger.json'}")
+    for e in entries:
+        mark = "OK " if e.status == "completed" else "ERR"
+        print(f"  [{mark}] {e.project_id}  QA={e.qa_score}  hook={e.hook_archetype}")
+    return 0
+
+
 def _cmd_validate(args: argparse.Namespace) -> int:
     kb = default_knowledge_base()
     # Touch every typed accessor so a malformed YAML surfaces immediately.
@@ -90,6 +110,14 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--provider", help="Override LLM provider (anthropic|mock)")
     run.add_argument("--render", action="store_true", help="Also render a playable animatic mp4")
     run.set_defaults(func=_cmd_run)
+
+    batch = sub.add_parser("batch", help="Mass-produce a slate of videos")
+    batch.add_argument("--slate", required=True, help="Path to a slate YAML (list of briefs)")
+    batch.add_argument("--output-dir", help="Override output directory")
+    batch.add_argument("--config", help="Path to anime_studio.toml")
+    batch.add_argument("--provider", help="Override LLM provider (anthropic|mock)")
+    batch.add_argument("--concurrency", type=int, default=2, help="Max concurrent productions")
+    batch.set_defaults(func=_cmd_batch)
 
     validate = sub.add_parser("validate", help="Validate the knowledge base")
     validate.set_defaults(func=_cmd_validate)
