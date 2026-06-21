@@ -57,7 +57,16 @@ Render a playable animatic mp4 (needs the optional render extra):
 uv sync --extra dev --extra render   # or: uv sync --extra render
 uv run anime-studio run --brief tests/fixtures/sample_brief.yaml --render
 # -> output/demo-sheep/render/animatic.mp4 + storyboard_contactsheet.png
+
+# With procedural audio (BGM bed + leitmotif SE mixed in -> animatic_av.mp4):
+ANIME_STUDIO_AUDIO_PROVIDER=ffmpeg \
+  uv run anime-studio run --brief tests/fixtures/sample_brief.yaml --render
 ```
+
+Real generation (degrades to mock/procedural without keys): set
+`[image] [video] [audio]` `provider = "hosted"` in `anime_studio.toml` with
+`endpoint` / `model` / `api_key_env`. Real per-cut clips are then concatenated
+into `render/final.mp4`; otherwise the storyboard-panel animatic is used.
 
 Other commands:
 

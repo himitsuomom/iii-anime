@@ -31,7 +31,7 @@ def build_providers(cfg: AnimeStudioConfig) -> ProviderBundle:
         llm=_build_llm(cfg),
         image=_build_image(cfg),
         video=_build_video(cfg),
-        audio=MockAudioProvider(),
+        audio=_build_audio(cfg),
         edit=_build_edit(cfg),
     )
 
@@ -57,6 +57,19 @@ def _build_video(cfg: AnimeStudioConfig) -> VideoProvider:
 
         return HostedVideoProvider(cfg.video, fallback=MockVideoProvider())
     return MockVideoProvider()
+
+
+def _build_audio(cfg: AnimeStudioConfig) -> AudioProvider:
+    if cfg.audio.provider == "hosted":
+        from .ffmpeg.audio import FfmpegAudioProvider
+        from .hosted.audio import HostedAudioProvider
+
+        return HostedAudioProvider(cfg.audio, fallback=FfmpegAudioProvider())
+    if cfg.audio.provider == "ffmpeg":
+        from .ffmpeg.audio import FfmpegAudioProvider
+
+        return FfmpegAudioProvider()
+    return MockAudioProvider()
 
 
 def _build_edit(cfg: AnimeStudioConfig) -> EditProvider:

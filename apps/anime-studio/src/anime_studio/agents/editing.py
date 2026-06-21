@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from ..models.edit import AudioCue, EditPlan, EditSegment
 from ..models.storyboard import Storyboard
+from ..providers.types import GenSpec
 from .base import AgentContext, BaseAgent
 
 
@@ -26,14 +27,35 @@ class EditingAgent(BaseAgent):
             out = round(clock + cut.duration_s, 2)
             transition = "cut" if i % 4 != 3 else "swish"  # jet-cut rhythm
             segments.append(EditSegment(cut_index=cut.index, in_s=round(clock, 2), out_s=out, transition=transition))
-            if i == 0:
-                cues.append(AudioCue(at_s=0.0, kind="leitmotif", description=audio["leitmotif_note"]))
             clock = out
 
         total = round(clock, 2)
-        # Strategic silence right before the punchline, then a loop-back.
+        audio_dir = ctx.asset_dir("audio")
+
+        # Leitmotif SE on the lead's entrance (real asset when an audio provider is set).
+        leitmotif_se = await ctx.providers.audio.generate_se(
+            GenSpec(
+                kind="se",
+                prompt=audio["leitmotif_note"],
+                out_path=str(audio_dir / "se_leitmotif.wav"),
+                params={"se_kind": "leitmotif"},
+            )
+        )
+        cues.append(AudioCue(at_s=0.0, kind="leitmotif", description=audio["leitmotif_note"], uri=leitmotif_se.uri))
+
+        # Strategic silence right before the punchline.
         cues.append(AudioCue(at_s=max(total - 1.0, 0.0), kind="silence", description=audio["silence_note"]))
-        cues.append(AudioCue(at_s=0.0, kind="bgm", description=f"BPM {bpm} upbeat track, beat-matched cuts"))
+
+        # Beat-matched BGM bed for the whole piece.
+        bgm = await ctx.providers.audio.generate_bgm(
+            GenSpec(
+                kind="bgm",
+                prompt=f"BPM {bpm} upbeat children's anime track, beat-matched cuts",
+                out_path=str(audio_dir / "bgm.wav"),
+                params={"bpm": bpm, "duration_s": total},
+            )
+        )
+        cues.append(AudioCue(at_s=0.0, kind="bgm", description=bgm.prompt, uri=bgm.uri))
 
         return EditPlan(
             bpm=bpm,

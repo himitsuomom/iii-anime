@@ -16,6 +16,7 @@ class AudioCue(BaseModel):
     at_s: float
     kind: str  # "bgm" | "se" | "leitmotif" | "silence"
     description: str
+    uri: str | None = None  # set when a real/procedural audio asset was generated
 
 
 class EditPlan(BaseModel):

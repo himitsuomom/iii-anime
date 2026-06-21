@@ -64,6 +64,7 @@ async def run_pipeline(
         else:
             animatic_path = _render_animatic(brief, result.artifacts, project_dir, kb)
         if animatic_path is not None:
+            animatic_path = _mux_audio(animatic_path, result.artifacts) or animatic_path
             files.append(animatic_path)
 
     return PipelineOutput(
@@ -88,6 +89,18 @@ def _render_animatic(
         return result.mp4_path
     except RenderUnavailable:
         return None
+
+
+def _mux_audio(video_path: Path, artifacts: dict[str, Any]) -> Path | None:
+    """Mux generated audio onto the video; None when there's nothing to add."""
+    from ..models.edit import EditPlan
+    from ..render.audio_mix import mux_audio
+
+    edit = artifacts.get("editing")
+    if not isinstance(edit, EditPlan):
+        return None
+    out_path = video_path.with_name(f"{video_path.stem}_av.mp4")
+    return mux_audio(video_path, edit, out_path)
 
 
 __all__ = ["run_pipeline", "PipelineOutput"]
