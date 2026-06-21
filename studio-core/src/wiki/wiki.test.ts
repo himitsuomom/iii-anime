@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
-import type { Brain, JsonRequest, TextRequest } from '../brain/brain.js'
-import type { ProjectState } from '../types.js'
-import { askWiki, generateWikiPage } from './wiki.js'
+import type { Brain, JsonRequest, TextRequest } from '../brain.js'
+import { askWiki, generateWikiPage, type WikiSource } from './wiki.js'
 import { MemoryWikiStore } from './wiki-store.js'
 
 class FakeBrain implements Brain {
@@ -18,29 +17,21 @@ class FakeBrain implements Brain {
   }
 }
 
-const project = (over: Partial<ProjectState> = {}): ProjectState => ({
+const source = (): WikiSource => ({
   project_id: 'prj_abc',
-  idea: 'a health endpoint',
-  status: 'delivered',
-  iteration: 1,
-  max_iterations: 5,
-  workdir: '/w',
-  spec: { goal: 'Health endpoint', features: ['/health'], acceptance: ['200'], assumptions: [] },
-  plan: { app_type: 'web-node', stack: ['node'], tasks: [], build_cmd: 'true', test_cmd: 'node --test' },
-  artifacts: { files: ['server.js', 'test.js'], preview_cmd: 'node server.js' },
-  updated_at: new Date().toISOString(),
-  ...over,
+  title: 'Health endpoint',
+  body: '## Plan\n{"test_cmd":"node --test"}\n## Files\nserver.js\ntest.js',
 })
 
 describe('wiki page generation', () => {
-  test('produces a page with slug/title and includes project context in the prompt', async () => {
+  test('produces a page with slug/title and includes the source context in the prompt', async () => {
     const brain = new FakeBrain(() => '# Health endpoint\n## Overview\n...')
-    const page = await generateWikiPage(brain, project())
+    const page = await generateWikiPage(brain, source())
     assert.equal(page.slug, 'app-abc')
     assert.equal(page.title, 'Health endpoint')
     assert.equal(page.source_project_id, 'prj_abc')
     assert.match(page.content, /Overview/)
-    // The generation prompt must carry the files + plan so the doc is accurate.
+    // The generation prompt must carry the rendered body so the doc is accurate.
     assert.match(brain.lastText!.user, /server\.js/)
     assert.match(brain.lastText!.user, /node --test/)
   })

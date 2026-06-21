@@ -9,9 +9,9 @@ import { validatePlan, validateSpec } from '../brain/brain.js'
 import { execInWorkspace } from '../../../studio-core/src/sandbox/exec.js'
 import { ensureWorkspace, listWorkspaceFiles } from '../../../studio-core/src/sandbox/workspace.js'
 import type { Store } from '../runtime/store.js'
-import type { WikiStore } from '../wiki/wiki-store.js'
-import { generateWikiPage } from '../wiki/wiki.js'
-import { renderWikiContext, selectRelevantPages } from '../wiki/retrieval.js'
+import type { WikiStore } from '../../../studio-core/src/wiki/wiki-store.js'
+import { generateWikiPage } from '../../../studio-core/src/wiki/wiki.js'
+import { renderWikiContext, selectRelevantPages } from '../../../studio-core/src/wiki/retrieval.js'
 import type { PipelineEvent, Plan, ProjectState, QaResult, Spec } from '../types.js'
 
 export interface StudioDeps {
@@ -167,7 +167,16 @@ async function deliverPackage(deps: StudioDeps, projectId: string): Promise<Pipe
   // delivery because the wiki page couldn't be written.
   if (deps.wiki) {
     try {
-      const page = await generateWikiPage(deps.brain, updated)
+      const page = await generateWikiPage(deps.brain, {
+        project_id: updated.project_id,
+        title: updated.spec?.goal ?? updated.idea,
+        body:
+          `Project: ${updated.project_id}\n\n` +
+          `## Specification\n${JSON.stringify(updated.spec, null, 2)}\n\n` +
+          `## Plan\n${JSON.stringify(updated.plan, null, 2)}\n\n` +
+          `## Files\n${(updated.artifacts?.files ?? []).join('\n')}\n\n` +
+          `Run command: ${updated.artifacts?.preview_cmd ?? updated.plan?.run_cmd ?? '(none)'}`,
+      })
       await deps.wiki.put(page)
     } catch {
       /* wiki is best-effort */

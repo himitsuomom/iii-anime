@@ -1,31 +1,35 @@
-// LLM wiki: generate a documentation page for a delivered app, and answer
-// natural-language questions grounded in the accumulated pages.
-import type { Brain } from '../brain/brain.js'
-import type { ProjectState } from '../types.js'
+// LLM wiki: generate a documentation page for a delivered artifact, and answer
+// natural-language questions grounded in the accumulated pages. Domain-agnostic:
+// the factory renders `body` from its own state and passes a WikiSource.
+import type { Brain } from '../brain.js'
 import { slugForProject, type WikiPage, type WikiStore } from './wiki-store.js'
 
 const PAGE_SYSTEM =
   'You write a concise developer wiki page in GitHub-flavored Markdown for a delivered ' +
-  'application. Sections: # <title>, ## Overview, ## Features, ## How it works, ## Run it, ' +
-  '## Files. Be accurate to the spec/plan/files given; do not invent capabilities.'
+  'artifact. Sections: # <title>, ## Overview, ## Features, ## How it works, ## Run it, ' +
+  '## Files. Be accurate to the context given; do not invent capabilities.'
 
-/** Generate a wiki page documenting a delivered project. */
-export async function generateWikiPage(brain: Brain, project: ProjectState): Promise<WikiPage> {
-  const title = project.spec?.goal ?? project.idea
-  const user =
-    `Project: ${project.project_id}\n\n` +
-    `## Specification\n${JSON.stringify(project.spec, null, 2)}\n\n` +
-    `## Plan\n${JSON.stringify(project.plan, null, 2)}\n\n` +
-    `## Files\n${(project.artifacts?.files ?? []).join('\n')}\n\n` +
-    `Run command: ${project.artifacts?.preview_cmd ?? project.plan?.run_cmd ?? '(none)'}\n\n` +
-    `Write the wiki page now.`
-  const content = await brain.text({ system: PAGE_SYSTEM, user, maxTurns: 2 })
+export interface WikiSource {
+  /** Id of the producing project (used for the slug + provenance). */
+  project_id: string
+  title: string
+  /** Pre-rendered context (spec/plan/files/run command) the doc is written from. */
+  body: string
+}
+
+/** Generate a wiki page from a factory-rendered source. */
+export async function generateWikiPage(brain: Brain, src: WikiSource): Promise<WikiPage> {
+  const content = await brain.text({
+    system: PAGE_SYSTEM,
+    user: `${src.body}\n\nWrite the wiki page now.`,
+    maxTurns: 2,
+  })
   const now = new Date().toISOString()
   return {
-    slug: slugForProject(project.project_id),
-    title,
+    slug: slugForProject(src.project_id),
+    title: src.title,
     content,
-    source_project_id: project.project_id,
+    source_project_id: src.project_id,
     created_at: now,
     updated_at: now,
   }

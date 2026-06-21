@@ -9,7 +9,7 @@ import { advance } from '../orchestrator/apply.js'
 import { editInWorkspace } from '../../../studio-core/src/sandbox/edit.js'
 import { workspaceDir } from '../../../studio-core/src/sandbox/workspace.js'
 import { MemoryStore, initialProjectState } from '../runtime/store.js'
-import { MemoryWikiStore } from '../wiki/wiki-store.js'
+import { MemoryWikiStore } from '../../../studio-core/src/wiki/wiki-store.js'
 import type { Plan, Spec } from '../types.js'
 import type { StudioDeps } from './handlers.js'
 

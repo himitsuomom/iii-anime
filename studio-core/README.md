@@ -13,6 +13,9 @@ run on one engine and reuse the same mechanism.
   host-side secrets that never reach the sandbox.
 - `src/sandbox/` — the execution boundary (exec/edit/workspace/allowlist + the
   `unshare` isolation runner), shared by every factory.
+- `src/store.ts` (generic `KvStore<T>`), `src/idempotency.ts`, `src/brain.ts` +
+  `src/claude-cli-brain.ts`, `src/wiki/` (store/retrieval/iii-store + generic
+  `generateWikiPage`), `src/leader.ts` (HA), `src/alerts.ts` — the shared mechanism.
 
 See **[MULTI-FACTORY.md](./MULTI-FACTORY.md)** for the integration guide,
 production deployment, and the readiness checklist, and

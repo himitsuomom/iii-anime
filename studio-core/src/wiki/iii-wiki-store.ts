@@ -1,5 +1,5 @@
 // WikiStore backed by iii state (scope "studio-wiki"), keyed by slug.
-import type { TriggerFn } from '../runtime/iii-store.js'
+import type { TriggerFn } from '../iii.js'
 import type { WikiPage, WikiStore } from './wiki-store.js'
 
 const SCOPE = 'studio-wiki'

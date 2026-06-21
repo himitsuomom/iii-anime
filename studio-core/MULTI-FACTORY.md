@@ -103,11 +103,11 @@ Add a factory by adding its `iii-exec` line and its `FactoryDescriptor`.
 - [ ] **Stronger isolation for untrusted code** — `unshare` is on by opt-in; for
       hostile inputs consider a per-job MicroVM/rootfs (the engine's
       self-hosted sandbox path) rather than namespaces alone.
-- [x] **studio-core extraction (sandbox + store)** — `src/sandbox` and the
-      generic `KvStore<T>`/`MemoryKvStore<T>` (plus `idempotency`) live in
-      studio-core; app-studio's `Store = KvStore<ProjectState>`.
-- [ ] **studio-core extraction (wiki/brain)** — still typed against
-      `ProjectState`/`Spec`/`Plan`; generify their domain coupling, then move.
+- [x] **studio-core extraction (sandbox + store + wiki + brain)** — `src/sandbox`,
+      generic `KvStore<T>`, `idempotency`, the `Brain` interface + `ClaudeCliBrain`,
+      and the wiki (store/retrieval/iii-store + generic `generateWikiPage(WikiSource)`)
+      all live in studio-core. app-studio keeps only domain code (types, validators,
+      adapters, pipeline, machine). Both factories depend on `@iii/studio-core`.
 - [x] **CI** — `.github/workflows/studio-tests.yml` runs the `app-studio`,
       `studio-core`, and `video-studio` suites on every change.
 - [ ] **HA** — multiple worker replicas; a single leader for the sweep cron to

@@ -2,7 +2,7 @@
 // Runs `claude -p` headless (no API key; uses existing Claude Code login),
 // asks for JSON only, and validates the parsed result. Used by intake/design.
 import { spawn } from 'node:child_process'
-import { assetArgs, assetsFromEnv, type ClaudeAssets } from '../../../studio-core/src/assets.js'
+import { assetArgs, assetsFromEnv, type ClaudeAssets } from './assets.js'
 import type { Brain, JsonRequest, TextRequest } from './brain.js'
 
 export interface ClaudeCliBrainOptions {

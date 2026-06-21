@@ -1,29 +1,9 @@
-// The "brain" used by intake/design (and optional QA review). Like the build
-// backend, it is pluggable: ClaudeCliBrain drives `claude -p` (no API key), a
-// future ApiBrain could call the Anthropic SDK. Tests use a fake.
+// The Brain interface lives in studio-core (shared). This file keeps the
+// software-domain validators that narrow generated JSON to Spec/Plan.
 import { adapterIds } from '../adapters/registry.js'
 import type { Plan, Spec } from '../types.js'
 
-export interface JsonRequest<T> {
-  system: string
-  user: string
-  /** Validate + narrow the parsed JSON; throw on a bad shape. */
-  validate: (parsed: unknown) => T
-  maxTurns?: number
-}
-
-export interface TextRequest {
-  system: string
-  user: string
-  maxTurns?: number
-}
-
-export interface Brain {
-  readonly id: string
-  json<T>(req: JsonRequest<T>): Promise<T>
-  /** Free-text generation (used by the wiki feature). */
-  text(req: TextRequest): Promise<string>
-}
+export type { Brain, JsonRequest, TextRequest } from '../../../studio-core/src/brain.js'
 
 // --- Runtime validators (hand-rolled; avoids a zod dependency for P0) ---
 
