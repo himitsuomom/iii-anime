@@ -88,12 +88,15 @@ Add a factory by adding its `iii-exec` line and its `FactoryDescriptor`.
       and `/wiki/ask` unauthenticated on a public network.
 - [ ] **Secrets via iii Vault** — git push tokens, third-party API keys. Never
       in env that the sandbox can read, never in prompts/wiki.
-- [ ] **Durable adapters** — move `iii-state`/`iii-queue` from file-based KV to
-      redis/rabbitmq (or managed equivalents); back them up.
-- [ ] **Cost & concurrency controls** — per-factory queue concurrency, project
-      `max_iterations` caps, Task Budgets, and Claude rate-limit handling.
-- [ ] **Observability/alerting** — dashboards on iii traces + per-project token
-      usage/cost; alert on stuck projects and refusal spikes.
+- [x] **Durable adapters config** — [`deploy/multi-factory.prod.yml`](./deploy/multi-factory.prod.yml)
+      uses redis (state/stream) + rabbitmq (queue). Stand up the backing services
+      and point `REDIS_URL`/`AMQP_URL` at them; add backups.
+- [x] **Cost & concurrency controls** — per-project cost cap (`STUDIO_MAX_COST_USD`),
+      `max_iterations` caps, and queue concurrency (`STUDIO_BUILD_QUEUE`). Remaining:
+      Task Budgets passthrough and explicit Claude rate-limit/backoff handling.
+- [ ] **Observability/alerting** — per-project `usage` (cost/turns) is tracked and
+      every step is on iii traces; still need dashboards + alerts on stuck
+      projects and refusal spikes.
 - [ ] **Stronger isolation for untrusted code** — `unshare` is on by opt-in; for
       hostile inputs consider a per-job MicroVM/rootfs (the engine's
       self-hosted sandbox path) rather than namespaces alone.
@@ -102,8 +105,8 @@ Add a factory by adding its `iii-exec` line and its `FactoryDescriptor`.
       studio-core; app-studio's `Store = KvStore<ProjectState>`.
 - [ ] **studio-core extraction (wiki/brain)** — still typed against
       `ProjectState`/`Spec`/`Plan`; generify their domain coupling, then move.
-- [ ] **CI** — run the `app-studio`, `studio-core`, and `video-studio` test
-      suites on every change.
+- [x] **CI** — `.github/workflows/studio-tests.yml` runs the `app-studio`,
+      `studio-core`, and `video-studio` suites on every change.
 - [ ] **HA** — multiple worker replicas; a single leader for the sweep cron to
       avoid duplicate resumes.
 

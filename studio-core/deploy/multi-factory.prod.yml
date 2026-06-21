@@ -1,0 +1,64 @@
+# Production multi-factory deployment — durable adapters (redis + rabbitmq).
+# Run behind an auth gateway; set the hardening env before launch:
+#
+#   STUDIO_API_TOKEN=...            # require auth on data routes
+#   STUDIO_REQUIRE_APPROVAL=true    # human sign-off before deliver
+#   STUDIO_SANDBOX_ISOLATION=unshare
+#   STUDIO_BUILD_QUEUE=studio-build # per-factory concurrency via the queue
+#   STUDIO_MAX_COST_USD=20          # per-project cost ceiling
+#   STUDIO_SECRET_GIT_TOKEN=...     # host-side secrets (never reach the sandbox)
+#   STUDIO_MCP_CONFIG=... STUDIO_ADD_DIRS=... STUDIO_PLUGIN_DIRS=...  # your assets
+#   REDIS_URL=redis://... AMQP_URL=amqp://...
+#
+#   iii --config studio-core/deploy/multi-factory.prod.yml
+workers:
+  - name: iii-state
+    config:
+      adapter:
+        name: redis              # durable, shared across replicas
+        config:
+          redis_url: ${REDIS_URL:redis://localhost:6379}
+
+  - name: iii-stream
+    config:
+      adapter:
+        name: redis
+        config:
+          redis_url: ${REDIS_URL:redis://localhost:6379}
+
+  - name: iii-http
+    config:
+      port: ${STUDIO_HTTP_PORT:3111}
+      host: 0.0.0.0
+      default_timeout: 30000
+      cors:
+        allowed_origins: ["*"]   # tighten to your console origin in production
+        allowed_methods: [GET, POST, OPTIONS]
+
+  - name: iii-pubsub
+    config:
+      adapter:
+        name: local              # HA: move to a shared bus when running >1 replica
+
+  - name: iii-queue
+    config:
+      queue_configs:
+        studio-build: { max_retries: 1, concurrency: 4, type: standard }
+        video-render: { max_retries: 1, concurrency: 2, type: standard }
+      adapter:
+        name: rabbitmq           # durable, shared across replicas
+        config:
+          amqp_url: ${AMQP_URL:amqp://guest:guest@localhost:5672}
+
+  - name: iii-cron
+    config:
+      adapter:
+        name: kv                 # HA: run the sweep cron on a single leader replica
+
+  - name: iii-exec
+    config:
+      exec:
+        - cd app-studio && npm install
+        - cd app-studio && npm start
+        # - cd video-studio && npm install
+        # - cd video-studio && npm start
