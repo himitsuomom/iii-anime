@@ -68,7 +68,38 @@ curl -XPOST localhost:3111/projects -H 'content-type: application/json' \
 
 curl localhost:3111/projects/prj_...    # full project state (status, plan, last_qa, artifacts)
 curl localhost:3111/projects            # list all projects (summary)
+
+# approval gate (when a project was created with require_approval)
+curl -XPOST localhost:3111/projects/prj_.../approve
+curl -XPOST localhost:3111/projects/prj_.../reject
+
+# LLM wiki — every delivered app is auto-documented; ask questions across them
+curl localhost:3111/wiki                 # list wiki pages
+curl localhost:3111/wiki/app-...         # one page (markdown)
+curl -XPOST localhost:3111/wiki/ask -H 'content-type: application/json' \
+  -d '{"question":"which apps expose a /health endpoint?"}'
 ```
+
+### Approval gate
+
+Create a project with `{"idea":"...","require_approval":true}` (or set
+`STUDIO_REQUIRE_APPROVAL=true`). After QA passes it pauses at
+`awaiting_approval` until `POST /projects/:id/approve` (→ deliver) or `/reject`
+(→ failed).
+
+### LLM wiki
+
+When a project is delivered, the studio asks the LLM to write a Markdown wiki
+page documenting the app (overview / features / how it works / run / files) and
+stores it. `POST /wiki/ask` answers natural-language questions grounded only in
+those pages, citing the page slugs it used.
+
+### Verified live (P0 + P1)
+
+A static-web idea ran end-to-end on the engine (no API key): design picked the
+`static-web` adapter, QA passed (`test -f index.html` + `node --test`), the app
+was delivered, a wiki page was auto-generated, and `POST /wiki/ask` answered
+from it citing `[app-...]`.
 
 ### Build backend (pluggable brain)
 
