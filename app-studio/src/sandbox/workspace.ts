@@ -1,7 +1,7 @@
 // Workspace confinement: every sandbox operation is locked to a per-project
 // workdir. Paths are resolved lexically and re-checked against the root so a
 // crafted `path` (../, absolute, symlink) can never escape.
-import { mkdir, realpath } from 'node:fs/promises'
+import { mkdir, readdir, realpath } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 
@@ -49,6 +49,28 @@ export async function ensureWorkspace(projectId: string): Promise<string> {
   const dir = workspaceDir(projectId)
   await mkdir(dir, { recursive: true })
   return dir
+}
+
+/** List every file in the workspace as workdir-relative paths (skips node_modules/.git). */
+export async function listWorkspaceFiles(projectId: string): Promise<string[]> {
+  const root = workspaceDir(projectId)
+  const out: string[] = []
+  async function walk(dir: string): Promise<void> {
+    let entries: import('node:fs').Dirent[]
+    try {
+      entries = await readdir(dir, { withFileTypes: true })
+    } catch {
+      return
+    }
+    for (const e of entries) {
+      if (e.name === 'node_modules' || e.name === '.git') continue
+      const abs = path.join(dir, e.name)
+      if (e.isDirectory()) await walk(abs)
+      else out.push(path.relative(root, abs))
+    }
+  }
+  await walk(root)
+  return out.sort()
 }
 
 function isInside(root: string, p: string): boolean {

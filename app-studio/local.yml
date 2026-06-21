@@ -1,0 +1,49 @@
+# Engine config to run the app-studio worker locally.
+#   iii --config app-studio/local.yml
+# The iii-exec worker installs deps and starts the studio worker process, which
+# connects back to the engine and registers its functions/triggers.
+workers:
+  - name: iii-state
+    config:
+      adapter:
+        name: kv
+        config:
+          store_method: file_based
+          file_path: ./data/studio_state.db
+
+  - name: iii-http
+    config:
+      port: ${STUDIO_HTTP_PORT:3111}
+      host: 127.0.0.1
+      default_timeout: 30000
+      cors:
+        allowed_origins:
+          - "*"
+        allowed_methods:
+          - GET
+          - POST
+          - OPTIONS
+
+  - name: iii-pubsub
+    config:
+      adapter:
+        name: local
+
+  - name: iii-queue
+    config:
+      queue_configs:
+        studio-build:
+          max_retries: 1
+          concurrency: 2
+          type: standard
+      adapter:
+        name: builtin
+        config:
+          store_method: file_based
+          file_path: ./data/studio_queue
+
+  - name: iii-exec
+    config:
+      exec:
+        - cd app-studio && npm install
+        - cd app-studio && npm start

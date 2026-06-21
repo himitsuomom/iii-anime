@@ -1,0 +1,174 @@
+// Pipeline handlers — one per pipeline stage. Each does its work, persists the
+// result to the store, and returns the completion event that the orchestrator
+// feeds back into the state machine. Backend-agnostic: the build "brain" and
+// build backend are injected (see BUILD-BACKENDS.md).
+import type { BuildBackend } from '../build/backend.js'
+import type { Brain } from '../brain/brain.js'
+import { validatePlan, validateSpec } from '../brain/brain.js'
+import { execInWorkspace } from '../sandbox/exec.js'
+import { ensureWorkspace, listWorkspaceFiles } from '../sandbox/workspace.js'
+import type { Store } from '../runtime/store.js'
+import type { PipelineEvent, Plan, ProjectState, QaResult, Rubric, Spec } from '../types.js'
+
+export interface StudioDeps {
+  store: Store
+  brain: Brain
+  build: BuildBackend
+  /** Hard cap on build-agent turns per attempt. */
+  buildMaxTurns?: number
+}
+
+export type FunctionId =
+  | 'studio::intake::spec'
+  | 'studio::design::plan'
+  | 'studio::build::run'
+  | 'studio::qa::evaluate'
+  | 'studio::deliver::package'
+
+export function handlerFor(
+  deps: StudioDeps,
+  fn: FunctionId,
+): (projectId: string) => Promise<PipelineEvent> {
+  switch (fn) {
+    case 'studio::intake::spec':
+      return (id) => intakeSpec(deps, id)
+    case 'studio::design::plan':
+      return (id) => designPlan(deps, id)
+    case 'studio::build::run':
+      return (id) => buildRun(deps, id)
+    case 'studio::qa::evaluate':
+      return (id) => qaEvaluate(deps, id)
+    case 'studio::deliver::package':
+      return (id) => deliverPackage(deps, id)
+  }
+}
+
+const INTAKE_SYSTEM =
+  'You turn a rough product idea into a precise, buildable specification for a small web ' +
+  'application. Do not ask questions; choose sensible minimal defaults and record each in ' +
+  '"assumptions". "acceptance" must be concrete and checkable. Keep scope minimal. ' +
+  'Shape: {goal:string, features:string[], acceptance:string[], constraints?:string[], assumptions:string[]}.'
+
+const DESIGN_SYSTEM =
+  'You are a software architect. Given a specification, produce a minimal implementation plan ' +
+  'for a single-package web application (app_type "web-node"). test_cmd and build_cmd must be ' +
+  'single runnable commands and are exactly what QA runs to decide pass/fail. Do not over-engineer. ' +
+  'Shape: {app_type:"web-node", stack:string[], tasks:string[], build_cmd:string, test_cmd:string, run_cmd?:string}.'
+
+// Condensed from prompts/BUILD_SYSTEM_PROMPT.md (kept in sync there).
+const BUILD_SYSTEM =
+  'You are a senior engineer working autonomously in a sandboxed workspace (the current ' +
+  'directory). Implement the app from the spec and plan. Definition of done: the build command ' +
+  'exits 0, the test command exits 0, and every acceptance criterion holds — run these yourself ' +
+  'and read the output before claiming done. Work test-driven. Make small targeted edits. Build ' +
+  'the simplest thing that satisfies the spec; do not add unrequested features or abstractions. ' +
+  'Default to silence between tool calls. End only when the tests pass.'
+
+async function intakeSpec(deps: StudioDeps, projectId: string): Promise<PipelineEvent> {
+  const s = await must(deps.store, projectId)
+  const spec = await deps.brain.json<Spec>({
+    system: INTAKE_SYSTEM,
+    user: `Idea:\n${s.idea}\n\nProduce the specification.`,
+    validate: validateSpec,
+  })
+  await deps.store.update(projectId, { spec })
+  return { type: 'spec.ready' }
+}
+
+async function designPlan(deps: StudioDeps, projectId: string): Promise<PipelineEvent> {
+  const s = await must(deps.store, projectId)
+  const plan = await deps.brain.json<Plan>({
+    system: DESIGN_SYSTEM,
+    user: `Specification:\n${JSON.stringify(s.spec, null, 2)}\n\nProduce the plan.`,
+    validate: validatePlan,
+  })
+  await deps.store.update(projectId, { plan })
+  return { type: 'plan.ready' }
+}
+
+async function buildRun(deps: StudioDeps, projectId: string): Promise<PipelineEvent> {
+  const s = await must(deps.store, projectId)
+  await ensureWorkspace(projectId)
+  const feedback = s.last_qa?.failures?.length ? s.last_qa.failures.join('\n') : undefined
+  const out = await deps.build.run({
+    project_id: projectId,
+    workdir: s.workdir,
+    systemPrompt: BUILD_SYSTEM,
+    userPrompt: renderBuildPrompt(s, feedback),
+    maxTurns: deps.buildMaxTurns ?? 60,
+  })
+  const files = await listWorkspaceFiles(projectId)
+  await deps.store.update(projectId, {
+    artifacts: { ...(s.artifacts ?? {}), files },
+  })
+  // The backend completing isn't a guarantee tests pass — QA decides that next.
+  if (!out.ok) {
+    // Record the backend error so QA/feedback can see it, but still let QA run.
+    await deps.store.update(projectId, {
+      last_qa: { passed: false, failures: [out.error ?? 'build backend error'], score: 0 },
+    })
+  }
+  return { type: 'build.done' }
+}
+
+async function qaEvaluate(deps: StudioDeps, projectId: string): Promise<PipelineEvent> {
+  const s = await must(deps.store, projectId)
+  const rubric = rubricFromPlan(s.plan)
+  const failures: string[] = []
+  for (const check of rubric.hard) {
+    const r = await execInWorkspace({ project_id: projectId, cmd: check.cmd })
+    if (r.exit_code !== 0 || r.timed_out) {
+      failures.push(`[${check.id}] \`${check.cmd}\` exited ${r.exit_code}${r.timed_out ? ' (timeout)' : ''}: ${tail(r.stderr || r.stdout)}`)
+    }
+  }
+  const result: QaResult = {
+    passed: failures.length === 0,
+    failures,
+    score: failures.length === 0 ? 100 : 0,
+  }
+  await deps.store.update(projectId, { last_qa: result })
+  return { type: result.passed ? 'qa.passed' : 'qa.failed' }
+}
+
+async function deliverPackage(deps: StudioDeps, projectId: string): Promise<PipelineEvent> {
+  const s = await must(deps.store, projectId)
+  const files = await listWorkspaceFiles(projectId)
+  await deps.store.update(projectId, {
+    artifacts: { ...(s.artifacts ?? {}), files },
+  })
+  return { type: 'delivered' }
+}
+
+function rubricFromPlan(plan: Plan | undefined): Rubric {
+  if (!plan) return { hard: [] }
+  return {
+    hard: [
+      { id: 'build', cmd: plan.build_cmd, expect: 'exit0' },
+      { id: 'test', cmd: plan.test_cmd, expect: 'exit0' },
+    ],
+  }
+}
+
+function renderBuildPrompt(s: ProjectState, feedback?: string): string {
+  const spec = JSON.stringify(s.spec, null, 2)
+  const plan = JSON.stringify(s.plan, null, 2)
+  const head = feedback
+    ? `The previous attempt did not pass QA. Fix these failures:\n${feedback}\n\n`
+    : ''
+  return (
+    `${head}Implement the application in the current directory.\n\n` +
+    `## Specification\n${spec}\n\n## Plan\n${plan}\n\n` +
+    `Make \`${s.plan?.test_cmd ?? 'the tests'}\` pass.`
+  )
+}
+
+async function must(store: Store, projectId: string): Promise<ProjectState> {
+  const s = await store.get(projectId)
+  if (!s) throw new Error(`unknown project: ${projectId}`)
+  return s
+}
+
+function tail(s: string, n = 200): string {
+  const t = s.trim()
+  return t.length > n ? `…${t.slice(-n)}` : t
+}

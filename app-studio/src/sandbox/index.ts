@@ -9,6 +9,7 @@ export {
 } from './allowlist.js'
 export {
   ensureWorkspace,
+  listWorkspaceFiles,
   workspaceDir,
   workRoot,
   resolveInside,
