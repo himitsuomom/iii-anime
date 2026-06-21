@@ -1,5 +1,6 @@
 import type { Engine } from './engine'
 import { Logger } from './log'
+import { parseJsonFromContent } from './logic/artifacts'
 import {
   type ProviderBinding,
   type ResolveOptions,
@@ -55,19 +56,55 @@ export function registerProvider(engine: Engine): void {
   )
 
   // Deterministic in-process mock provider for stub mode (no API keys needed).
+  // Returns JSON keyed off the prompt so the artifact builders get real shapes.
   engine.register(
     STUB_FUNCTION_ID,
     async ({ model, messages }: { model?: string; messages?: unknown }) => ({
-      content: `[stub:${model ?? 'stub'}] ${JSON.stringify(messages ?? '').slice(0, 240)}`,
+      content: stubContent(messages),
       usage: { input_tokens: 0, output_tokens: 0 },
+      model: model ?? 'stub',
       stub: true,
     }),
     { description: 'Deterministic mock provider used in stub mode' },
   )
 }
 
+/** Produce deterministic JSON matching the contract embedded in the prompt. */
+function stubContent(messages: unknown): string {
+  const text = Array.isArray(messages)
+    ? messages
+        .map((m) => (m && typeof m === 'object' ? String((m as { content?: unknown }).content ?? '') : ''))
+        .join(' ')
+    : String(messages ?? '')
+  const has = (s: string) => text.toLowerCase().includes(s)
+
+  if (has('mermaid') || has('"source"')) return JSON.stringify({ source: 'graph TD; A[User]-->B[Director]-->C[Swarm]' })
+  if (has('components') || has('tokens'))
+    return JSON.stringify({
+      components: ['Button', 'Card', 'List'],
+      tokens: { colors: ['#ffffff', '#0079bf'], fonts: ['Inter'], spacing: [4, 8, 16] },
+      notes: 'stub analysis',
+    })
+  if (has('features') || has('datamodel'))
+    return JSON.stringify({
+      summary: 'Stub PRD',
+      features: ['boards', 'cards', 'labels'],
+      dataModel: ['users', 'boards', 'cards'],
+    })
+  if (has('files'))
+    return JSON.stringify({ files: ['frontend/app.tsx', 'backend/api.ts', 'backend/auth.ts'], notes: 'stub impl' })
+  if (has('pwa') || has('deployment') || has('"url"'))
+    return JSON.stringify({ url: 'https://stub.local', pwa: true, notes: 'stub deploy' })
+  return JSON.stringify({ note: 'stub' })
+}
+
 /** Resolve `role` then invoke the bound provider with the given messages. */
 export async function callRole(engine: Engine, role: Role, messages: unknown): Promise<unknown> {
   const binding = await engine.call<ProviderBinding>('provider::resolve', { role })
   return engine.call(binding.functionId, { model: binding.model, messages })
+}
+
+/** Like `callRole`, but parses the provider response into a JSON object. */
+export async function callRoleJson(engine: Engine, role: Role, messages: unknown): Promise<Record<string, unknown>> {
+  return parseJsonFromContent(await callRole(engine, role, messages))
 }

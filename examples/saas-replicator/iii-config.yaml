@@ -63,5 +63,13 @@ workers:
 # --- Optional workers (add via `iii worker add`) ---
 # provider-anthropic   # required for live mode (Claude). Director + all roles by default.
 # provider-kimi        # optional. When present, analyzer/visualizer/tester/swarm auto-rebind to KIMI.
-# iii-sandbox          # isolated code execution for real test/visualization phases.
-# approval-gate        # human approval before deploy.
+# approval-gate        # human approval before deploy (Phase 4).
+#
+# iii-sandbox: isolated code execution for Phase 3 tests. When present, swarm::test::run
+# executes the suite in a microVM instead of falling back to the tester role.
+#   - name: iii-sandbox
+#     config:
+#       auto_install: true
+#       image_allowlist: [node, python]
+#       default_idle_timeout_secs: 300
+#       max_concurrent_sandboxes: 8

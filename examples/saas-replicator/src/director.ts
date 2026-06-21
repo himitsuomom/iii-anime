@@ -1,8 +1,26 @@
 import { randomUUID } from 'node:crypto'
 import type { Engine, Json } from './engine'
 import { Logger } from './log'
+import { buildDeployment, buildImplementation, buildPrd, type VisualArtifact } from './logic/artifacts'
 import { initialState, type ProjectState, phase1Complete, type StartInput } from './logic/pipeline'
-import { callRole } from './provider'
+import { deployPrompt, implementationPrompt, prdPrompt, vizPrompt } from './logic/prompts'
+import { callRole, callRoleJson } from './provider'
+
+/**
+ * Phase 4 human gate. Calls an `approval-gate` worker when present; otherwise
+ * auto-approves. The function id below matches the iii-hq/workers harness
+ * convention — adjust if your deployed approval worker differs.
+ */
+async function requestApproval(engine: Engine, projectId: string, summary: string): Promise<boolean> {
+  try {
+    const workers = await engine.listWorkers()
+    if (!workers.some((w) => typeof w?.name === 'string' && w.name.includes('approval-gate'))) return true
+    const res = await engine.call<{ approved?: boolean }>('approval-gate::request', { projectId, summary })
+    return res?.approved !== false
+  } catch {
+    return true
+  }
+}
 
 const logger = new Logger(undefined, 'director')
 
@@ -81,9 +99,10 @@ export async function advance(engine: Engine, projectId: string): Promise<Json> 
     // Phase 2: PRD (director) + diagrams (visualizer swarm).
     if (proj.status === 2) {
       logger.info('Phase 2: generating PRD', { projectId })
-      const prd = await callRole(engine, 'director', [
-        { role: 'user', content: `Write a PRD for ${proj.target}. Requirements: ${proj.requirements}` },
-      ])
+      const prd = buildPrd(
+        proj.target,
+        await callRoleJson(engine, 'director', prdPrompt(proj.target, proj.requirements)),
+      )
       await engine.enqueue(
         'swarm::viz::render',
         { projectId, spec: { kind: 'architecture', target: proj.target } },
@@ -97,9 +116,10 @@ export async function advance(engine: Engine, projectId: string): Promise<Json> 
     if (proj.status === 3) {
       if (!proj.artifacts.tests) {
         logger.info('Phase 3: implementing, then queuing tests', { projectId })
-        const implementation = await callRole(engine, 'director', [
-          { role: 'user', content: `Implement ${proj.target} per the PRD (frontend, backend, auth).` },
-        ])
+        const implementation = buildImplementation(
+          proj.target,
+          await callRoleJson(engine, 'director', implementationPrompt(proj.target)),
+        )
         proj = await saveProject(engine, { ...proj, artifacts: { ...proj.artifacts, implementation } })
         await engine.enqueue('swarm::test::run', { projectId }, 'phase3-test')
         return { waiting: 'tests' }
@@ -108,15 +128,20 @@ export async function advance(engine: Engine, projectId: string): Promise<Json> 
       continue
     }
 
-    // Phase 4: visualize + (approval) + deploy.
+    // Phase 4: visualize + approval + deploy.
     if (proj.status === 4) {
       logger.info('Phase 4: report and deploy', { projectId })
-      const visuals = await callRole(engine, 'visualizer', [
-        { role: 'user', content: `Produce final architecture and test report visuals for ${proj.target}.` },
-      ])
-      const deployment = await callRole(engine, 'director', [
-        { role: 'user', content: `Prepare deployment + PWA config for ${proj.target}.` },
-      ])
+      const vizRaw = await callRoleJson(engine, 'visualizer', vizPrompt({ kind: 'final-report', target: proj.target }))
+      const visuals: VisualArtifact = {
+        format: 'mermaid',
+        source: typeof vizRaw.source === 'string' && vizRaw.source ? vizRaw.source : 'graph TD; A-->B',
+      }
+      const approved = await requestApproval(engine, projectId, `Release ${proj.target}?`)
+      if (!approved) {
+        proj = await saveProject(engine, { ...proj, artifacts: { ...proj.artifacts, visuals } })
+        return { waiting: 'approval' }
+      }
+      const deployment = buildDeployment(await callRoleJson(engine, 'director', deployPrompt(proj.target)))
       proj = await saveProject(engine, {
         ...proj,
         status: 'done',

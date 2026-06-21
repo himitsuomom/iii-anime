@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { MemoryEngine } from '../src/adapters/memoryEngine'
 import { startProject } from '../src/director'
+import type { Prd, ScreenAnalysis, TestReport } from '../src/logic/artifacts'
 import type { ProjectState } from '../src/logic/pipeline'
 import { registerOrchestrator } from '../src/orchestrator'
 
@@ -35,8 +36,46 @@ test('full run with screenshots reaches done with all artifacts (stub mode)', as
   assert.ok(proj.artifacts.deployment, 'deployment present')
 
   // All three screens were analyzed in Phase 1.
-  const analyzed = await engine.call<unknown[]>('state::list', { scope: `saas/${projectId}/phase1` })
+  const analyzed = await engine.call<ScreenAnalysis[]>('state::list', { scope: `saas/${projectId}/phase1` })
   assert.equal(analyzed.length, 3)
+
+  // Artifacts are structured (not raw strings).
+  const screen = analyzed[0] as ScreenAnalysis
+  assert.ok(Array.isArray(screen.components) && screen.components.length > 0, 'components parsed')
+  assert.ok(Array.isArray(screen.tokens.colors) && screen.tokens.colors.length > 0, 'design tokens parsed')
+
+  const prd = proj.artifacts.prd as Prd
+  assert.equal(prd.target, 'Trello')
+  assert.ok(Array.isArray(prd.features) && prd.features.length > 0, 'PRD features parsed')
+
+  // Without an iii-sandbox worker, tests use the role fallback.
+  const tests = proj.artifacts.tests as TestReport
+  assert.equal(tests.viaSandbox, false)
+})
+
+test('Phase 3 runs tests in iii-sandbox when the worker is present', async () => {
+  const engine = new MemoryEngine([{ name: 'iii-sandbox' }])
+  registerOrchestrator(engine)
+  // Fake sandbox that returns a parseable test summary.
+  engine.register('sandbox::run', async () => ({
+    stdout: 'TESTS total=3 passed=3 failed=0\n',
+    stderr: '',
+    exit_code: 0,
+    success: true,
+  }))
+
+  const { projectId } = await startProject(engine, {
+    target: 'Trello',
+    requirements: 'x',
+    screenshots: [{ id: 'board' }],
+  })
+  const proj = await runToCompletion(engine, projectId)
+  assert.equal(proj.status, 'done')
+
+  const tests = proj.artifacts.tests as TestReport
+  assert.equal(tests.viaSandbox, true)
+  assert.equal(tests.total, 3)
+  assert.equal(tests.passed, 3)
 })
 
 test('run with no screenshots skips Phase 1 and still completes', async () => {

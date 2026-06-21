@@ -282,8 +282,9 @@ examples/saas-replicator/
     orchestrator.ts    ← registerOrchestrator(engine)（全関数を登録）
     index.ts           ← 本番ブート（iii アダプタ + registerOrchestrator）
     log.ts             ← 最小ロガー
-    provider.ts        ← registerProvider + provider::resolve + stub + callRole
-    director.ts        ← startProject / advance（4-Phase 駆動）+ HTTP(saas::start/status)
+    sandbox.ts         ← runInSandbox / sandboxAvailable（iii-sandbox 連携）
+    provider.ts        ← registerProvider + provider::resolve + stub + callRole/callRoleJson
+    director.ts        ← startProject / advance（4-Phase 駆動）+ approval + HTTP(saas::start/status)
     swarm.ts           ← swarm::ui::analyze-screen / swarm::viz::render / swarm::test::run
     adapters/
       iiiEngine.ts     ← 本番アダプタ（Engine → iii バス：trigger/registerFunction/HTTP）
@@ -291,12 +292,16 @@ examples/saas-replicator/
     logic/
       roleBinding.ts   ← 役割→プロバイダ解決（純粋）
       pipeline.ts      ← 4-Phase 進行ロジック（純粋）
+      artifacts.ts     ← 成果物の型 + parseJsonFromContent + build*（純粋）
+      prompts.ts       ← 役割/Phase ごとの構造化プロンプト（純粋）
   tests/
-    roleBinding.test.ts / pipeline.test.ts        ← 純粋ロジックの単体テスト
-    integration.test.ts                           ← MemoryEngine で 4-Phase を end-to-end 実行
+    roleBinding.test.ts / pipeline.test.ts / artifacts.test.ts  ← 純粋ロジックの単体テスト
+    integration.test.ts                                         ← MemoryEngine で 4-Phase を end-to-end 実行（sandbox 経由/フォールバック含む）
 ```
 
-> **Engine 抽象 + 2 アダプタ**にした点が当初案からの改善。ハンドラは `Engine`（`call`/`enqueue`/`register`/`listWorkers`）に対してのみ書かれ、本番は `iiiEngine`、テストは `MemoryEngine` を注入する。これにより、**実エンジン・API キー無しで 4-Phase 全体を実際に走らせて検証**できる（`integration.test.ts`）。Phase ロジックは `logic/pipeline.ts`（純粋）に集約。
+> **Engine 抽象 + 2 アダプタ**にした点が当初案からの改善。ハンドラは `Engine`（`call`/`enqueue`/`register`/`listWorkers`）に対してのみ書かれ、本番は `iiiEngine`、テストは `MemoryEngine` を注入する。これにより、**実エンジン・API キー無しで 4-Phase 全体を実際に走らせて検証**できる（`integration.test.ts`）。
+>
+> **ステージ3で各 Phase を構造化**: 各役割は `prompts.ts` の JSON 出力契約付きプロンプトで呼ばれ、`callRoleJson` + `artifacts.ts` の `build*` で型付き成果物（`ScreenAnalysis`/`Prd`/`Implementation`/`TestReport`/`VisualArtifact`/`Deployment`）に変換される。Phase3 のテストは `iii-sandbox` があれば microVM で実行（`viaSandbox:true`）、無ければ tester ロールにフォールバック。Phase4 は `approval-gate` worker 検出時のみ承認を求める（既定 auto-approve）。
 
 例示スニペット（AGENTS.md 規約準拠: `::` 区切り、`api_path` 先頭 `/`、cron は `expression`）:
 
@@ -410,9 +415,10 @@ iii worker add provider-kimi                  # これを足すだけ
 
 ## 13. 段階的実装ロードマップ
 
-1. ✅ **Claude 単独の動く骨格** — 既定 role-binding = `provider-anthropic`。Phase 1〜4 を Engine 抽象 + `MemoryEngine` で end-to-end 検証済み（`integration.test.ts`）。
-2. **provider の live 配線** — `iiiEngine` アダプタ実装済み。残りは実エンジン起動 + `ANTHROPIC_API_KEY`（Claude）/ `provider-kimi` 追加での実行検証（起動時自動再束縛）。
-3. **各 Phase の実体化** — `iii-sandbox` での実テスト/作図、UI解析精度、PRD テンプレート、実装スキャフォルド、デプロイ連携を順次強化。
+1. ✅ **Claude 単独の動く骨格** — 既定 role-binding = `provider-anthropic`。Phase 1〜4 を Engine 抽象 + `MemoryEngine` で end-to-end 検証済み。
+2. ✅ **各 Phase の実体化** — 構造化プロンプト + 型付き成果物（`artifacts.ts`/`prompts.ts`）、Phase3 の `iii-sandbox` 実行（フォールバック付き）、Phase4 の approval フックを実装・検証済み（`integration.test.ts` / `artifacts.test.ts`、計18テスト）。
+3. **provider/エンジンの live 実行検証** — `iiiEngine` アダプタ実装済み。残りは実エンジン起動 + `ANTHROPIC_API_KEY`（Claude）での実走、`provider-kimi`/`iii-sandbox`/`approval-gate` 追加での挙動確認（本環境はエンジン未起動・`/dev/kvm` 無しのため未実走）。
+4. **今後の深掘り** — UI解析精度、PRD/実装スキャフォルドの実コード生成、実テストスイートの sandbox 実行、デプロイ連携。
 
 ---
 
