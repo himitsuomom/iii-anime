@@ -2,7 +2,7 @@
 // Runs `claude -p` headless (no API key; uses existing Claude Code login),
 // asks for JSON only, and validates the parsed result. Used by intake/design.
 import { spawn } from 'node:child_process'
-import type { Brain, JsonRequest } from './brain.js'
+import type { Brain, JsonRequest, TextRequest } from './brain.js'
 
 export interface ClaudeCliBrainOptions {
   bin?: string
@@ -39,6 +39,25 @@ export class ClaudeCliBrain implements Brain {
     const parsed = parseJson(stripFences(envelope.result))
     if (parsed === null) throw new Error(`model output was not JSON: ${envelope.result.slice(0, 300)}`)
     return req.validate(parsed)
+  }
+
+  async text(req: TextRequest): Promise<string> {
+    const args = [
+      '-p',
+      req.user,
+      '--append-system-prompt',
+      req.system,
+      '--output-format',
+      'json',
+      '--max-turns',
+      String(req.maxTurns ?? 2),
+    ]
+    const { stdout, stderr, code } = await this.spawn(args)
+    const envelope = parseJson(stdout)
+    if (!envelope || typeof envelope.result !== 'string') {
+      throw new Error(`claude returned no result (exit ${code}): ${stderr.slice(0, 300)}`)
+    }
+    return envelope.result
   }
 
   private spawn(args: string[]): Promise<{ stdout: string; stderr: string; code: number }> {

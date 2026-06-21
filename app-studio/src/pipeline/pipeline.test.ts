@@ -33,6 +33,9 @@ class FakeBrain implements Brain {
     const payload = req.user.includes('Produce the plan') ? this.plan : this.spec
     return req.validate(payload)
   }
+  async text(): Promise<string> {
+    return '# wiki\nstub'
+  }
 }
 
 // FakeBuildBackend writes a known file into the workdir and records call count.

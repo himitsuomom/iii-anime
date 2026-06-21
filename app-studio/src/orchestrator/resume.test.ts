@@ -36,6 +36,9 @@ class FakeBrain implements Brain {
   async json<T>(req: JsonRequest<T>): Promise<T> {
     return req.validate(req.user.includes('plan') ? PLAN : SPEC)
   }
+  async text(): Promise<string> {
+    return 'stub'
+  }
 }
 class FakeBuild implements BuildBackend {
   readonly id = 'fake'

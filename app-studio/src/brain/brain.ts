@@ -12,9 +12,17 @@ export interface JsonRequest<T> {
   maxTurns?: number
 }
 
+export interface TextRequest {
+  system: string
+  user: string
+  maxTurns?: number
+}
+
 export interface Brain {
   readonly id: string
   json<T>(req: JsonRequest<T>): Promise<T>
+  /** Free-text generation (used by the wiki feature). */
+  text(req: TextRequest): Promise<string>
 }
 
 // --- Runtime validators (hand-rolled; avoids a zod dependency for P0) ---

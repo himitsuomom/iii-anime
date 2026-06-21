@@ -14,6 +14,8 @@ import type { StudioDeps } from './pipeline/handlers.js'
 import { IiiStore } from './runtime/iii-store.js'
 import { projectIdFromKey, randomProjectId } from './runtime/idempotency.js'
 import { initialProjectState } from './runtime/store.js'
+import { IiiWikiStore } from './wiki/iii-wiki-store.js'
+import { askWiki } from './wiki/wiki.js'
 import { editInWorkspace } from './sandbox/edit.js'
 import { execInWorkspace } from './sandbox/exec.js'
 import { ensureWorkspace, workspaceDir } from './sandbox/workspace.js'
@@ -21,10 +23,13 @@ import { DEFAULT_MAX_ITERATIONS } from './types.js'
 
 const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 
+const brain = new ClaudeCliBrain()
+const wiki = new IiiWikiStore(iii)
 const deps: StudioDeps = {
   store: new IiiStore(iii),
-  brain: new ClaudeCliBrain(),
+  brain,
   build: await buildBackendFromEnv(),
+  wiki,
   buildMaxTurns: Number(process.env.STUDIO_BUILD_MAX_TURNS ?? 60),
 }
 
@@ -151,6 +156,48 @@ iii.registerTrigger({
   type: 'http',
   function_id: 'studio::project::list',
   config: { api_path: '/projects', http_method: 'GET' },
+})
+
+// --- LLM wiki: auto-generated per-app docs + natural-language Q&A ---
+iii.registerFunction('studio::wiki::list', async () => {
+  const pages = await wiki.list()
+  return {
+    status_code: 200,
+    body: {
+      pages: pages
+        .map((p) => ({ slug: p.slug, title: p.title, source_project_id: p.source_project_id, updated_at: p.updated_at }))
+        .sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)),
+    },
+  }
+})
+iii.registerTrigger({
+  type: 'http',
+  function_id: 'studio::wiki::list',
+  config: { api_path: '/wiki', http_method: 'GET' },
+})
+
+iii.registerFunction('studio::wiki::get', async (input) => {
+  const slug = (input as { path_params?: { slug?: string } }).path_params?.slug
+  if (!slug) return { status_code: 400, body: { error: 'slug required' } }
+  const page = await wiki.get(slug)
+  return page ? { status_code: 200, body: page } : { status_code: 404, body: { error: 'not found' } }
+})
+iii.registerTrigger({
+  type: 'http',
+  function_id: 'studio::wiki::get',
+  config: { api_path: '/wiki/:slug', http_method: 'GET' },
+})
+
+iii.registerFunction('studio::wiki::ask', async (input) => {
+  const question = (input as { body?: { question?: string } }).body?.question
+  if (!question) return { status_code: 400, body: { error: 'question is required' } }
+  const res = await askWiki(brain, wiki, question)
+  return { status_code: 200, body: res }
+})
+iii.registerTrigger({
+  type: 'http',
+  function_id: 'studio::wiki::ask',
+  config: { api_path: '/wiki/ask', http_method: 'POST' },
 })
 
 // --- crash recovery: periodically resume stuck, non-terminal projects ---

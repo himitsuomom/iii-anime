@@ -9,12 +9,16 @@ import { validatePlan, validateSpec } from '../brain/brain.js'
 import { execInWorkspace } from '../sandbox/exec.js'
 import { ensureWorkspace, listWorkspaceFiles } from '../sandbox/workspace.js'
 import type { Store } from '../runtime/store.js'
+import type { WikiStore } from '../wiki/wiki-store.js'
+import { generateWikiPage } from '../wiki/wiki.js'
 import type { PipelineEvent, Plan, ProjectState, QaResult, Spec } from '../types.js'
 
 export interface StudioDeps {
   store: Store
   brain: Brain
   build: BuildBackend
+  /** Optional wiki: when set, deliver auto-documents the app into it. */
+  wiki?: WikiStore
   /** Hard cap on build-agent turns per attempt. */
   buildMaxTurns?: number
 }
@@ -141,9 +145,19 @@ async function qaEvaluate(deps: StudioDeps, projectId: string): Promise<Pipeline
 async function deliverPackage(deps: StudioDeps, projectId: string): Promise<PipelineEvent> {
   const s = await must(deps.store, projectId)
   const files = await listWorkspaceFiles(projectId)
-  await deps.store.update(projectId, {
+  const updated = await deps.store.update(projectId, {
     artifacts: { ...(s.artifacts ?? {}), files, preview_cmd: s.plan?.run_cmd },
   })
+  // Wiki link-up: auto-document the delivered app. Best-effort — never fail
+  // delivery because the wiki page couldn't be written.
+  if (deps.wiki) {
+    try {
+      const page = await generateWikiPage(deps.brain, updated)
+      await deps.wiki.put(page)
+    } catch {
+      /* wiki is best-effort */
+    }
+  }
   return { type: 'delivered' }
 }
 
