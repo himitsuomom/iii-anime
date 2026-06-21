@@ -1,37 +1,16 @@
-// Project state store. The pipeline and orchestrator talk to this interface;
-// tests use MemoryStore, the iii worker wraps iii.state (see index.ts).
+// app-studio project state store: KvStore<ProjectState> from studio-core. The
+// generic store holds the mechanism; this file binds it to the software domain.
+import { MemoryKvStore, type KvStore } from '../../../studio-core/src/store.js'
 import type { ProjectState } from '../types.js'
 
-export interface Store {
-  get(projectId: string): Promise<ProjectState | null>
-  set(state: ProjectState): Promise<ProjectState>
-  update(projectId: string, patch: Partial<ProjectState>): Promise<ProjectState>
-  list(): Promise<ProjectState[]>
-}
+export type Store = KvStore<ProjectState>
 
-export class MemoryStore implements Store {
-  private map = new Map<string, ProjectState>()
-
-  async get(projectId: string): Promise<ProjectState | null> {
-    return this.map.get(projectId) ?? null
-  }
-
-  async set(state: ProjectState): Promise<ProjectState> {
-    // Full replace — store as given (caller controls updated_at). update() stamps.
-    this.map.set(state.project_id, state)
-    return state
-  }
-
-  async update(projectId: string, patch: Partial<ProjectState>): Promise<ProjectState> {
-    const cur = this.map.get(projectId)
-    if (!cur) throw new Error(`unknown project: ${projectId}`)
-    const next = { ...cur, ...patch, updated_at: new Date().toISOString() }
-    this.map.set(projectId, next)
-    return next
-  }
-
-  async list(): Promise<ProjectState[]> {
-    return [...this.map.values()]
+export class MemoryStore extends MemoryKvStore<ProjectState> {
+  constructor() {
+    super(
+      (s) => s.project_id,
+      (s) => ({ ...s, updated_at: new Date().toISOString() }),
+    )
   }
 }
 
