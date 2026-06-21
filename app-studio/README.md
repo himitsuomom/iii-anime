@@ -104,12 +104,24 @@ A static-web idea ran end-to-end on the engine (no API key): design picked the
 was delivered, a wiki page was auto-generated, and `POST /wiki/ask` answered
 from it citing `[app-...]`.
 
-### Build backend (pluggable brain)
+### Build backend (pluggable)
 
 | `STUDIO_BUILD_BACKEND` | Backend | Auth |
 |---|---|---|
 | `claude-code` (default) | local `claude -p` | host's Claude Code login — no API key |
 | `api` | Anthropic Messages API + our tool-use loop + our sandbox | `ANTHROPIC_API_KEY` (install `@anthropic-ai/sdk`) |
+
+### Brain — intake / design / wiki (pluggable)
+
+| `STUDIO_BRAIN` | Brain | Auth |
+|---|---|---|
+| `claude` (default) | local `claude -p` | host's Claude Code login — no API key |
+| `ollama` | a local Ollama model (`STUDIO_OLLAMA_MODEL`, `STUDIO_OLLAMA_HOST`) | **none — fully local, offline, no cost** |
+
+Hybrid (Ollama brain + Claude build) is a good default; full-Ollama is
+free/offline at lower quality on small CPU models. **Verified**: with
+`STUDIO_BRAIN=ollama` and `ANTHROPIC_API_KEY` unset, `llama3.2:1b` generated a
+valid spec locally on CPU (~15s).
 
 ### App types (adapters)
 
