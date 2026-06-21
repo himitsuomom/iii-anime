@@ -135,9 +135,14 @@ interface AppTypeAdapter {
 **推奨**: まず**案B**で動くものを作り、必要に応じて重い/機密な工程を**案A(iii-exec)**へ移す。
 iii は両案で共通して「**オーケストレーション・カタログ・可観測性**」の背骨を担う。
 
-> **決定（2026-06-21）: 案A（iii-exec で自前実行）を採用。**
-> 実装ワーカーは Claude API + tool use（bash/edit）を iii サンドボックス内で実行し、
+> **決定（2026-06-21）: 案A（iii で自前実行）を採用。**
 > 生成↔QA ループは自前（orchestrator）で構築する。詳細は [`P0-DETAIL.md`](./P0-DETAIL.md)。
+>
+> **「頭脳」は差し替え可能（[`BUILD-BACKENDS.md`](./BUILD-BACKENDS.md)）**:
+> - **ClaudeCodeBackend（P0 既定）**: ローカルの `claude -p` を駆動。Claude Code 自身の
+>   sandbox/ツール/ループと**既存ログイン認証**を再利用 → **API キー配線も従量課金も不要**で
+>   「この Claude Code から」動く（本リポ環境で実証済み）。
+> - **ApiBackend（将来）**: Anthropic API + 自前 tool-use ループ + 自前 sandbox（`ANTHROPIC_API_KEY` 必須）。
 
 ---
 
