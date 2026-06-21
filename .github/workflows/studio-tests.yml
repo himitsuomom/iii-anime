@@ -1,0 +1,35 @@
+name: studio tests
+
+on:
+  push:
+    paths:
+      - 'studio-core/**'
+      - 'app-studio/**'
+      - 'video-studio/**'
+      - '.github/workflows/studio-tests.yml'
+  pull_request:
+    paths:
+      - 'studio-core/**'
+      - 'app-studio/**'
+      - 'video-studio/**'
+      - '.github/workflows/studio-tests.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        pkg: [studio-core, app-studio, video-studio]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      # tsx (used to run the node:test suites) comes from the repo's root install.
+      - run: pnpm install --frozen-lockfile
+      - name: test ${{ matrix.pkg }}
+        working-directory: ${{ matrix.pkg }}
+        run: pnpm exec tsx --test $(find src -name '*.test.ts' | sort)
