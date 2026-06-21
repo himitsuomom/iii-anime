@@ -88,9 +88,12 @@ Add a factory by adding its `iii-exec` line and its `FactoryDescriptor`.
       and `/wiki/ask` unauthenticated on a public network.
 - [ ] **Secrets via iii Vault** — git push tokens, third-party API keys. Never
       in env that the sandbox can read, never in prompts/wiki.
-- [x] **Durable adapters config** — [`deploy/multi-factory.prod.yml`](./deploy/multi-factory.prod.yml)
-      uses redis (state/stream) + rabbitmq (queue). Stand up the backing services
-      and point `REDIS_URL`/`AMQP_URL` at them; add backups.
+- [x] **Durable adapters** — [`deploy/multi-factory.prod.yml`](./deploy/multi-factory.prod.yml)
+      uses redis (state/stream) + rabbitmq (queue). **Verified live**: a project's
+      state is written to redis (`state:studio`) and **survives an engine restart**
+      (GET returns it after a full stop/start); the rabbitmq `studio-build` queue
+      consumer starts cleanly. Point `REDIS_URL`/`AMQP_URL` at managed services and
+      add backups for production.
 - [x] **Cost & concurrency controls** — per-project cost cap (`STUDIO_MAX_COST_USD`),
       `max_iterations` caps, and queue concurrency (`STUDIO_BUILD_QUEUE`). Remaining:
       Task Budgets passthrough and explicit Claude rate-limit/backoff handling.
