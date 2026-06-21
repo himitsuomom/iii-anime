@@ -12,6 +12,7 @@ export function DescriptionGenerator() {
   const [tone, setTone] = useState('プロフェッショナルかつ親しみやすい')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<GeneratedDescription | null>(null)
+  const [source, setSource] = useState<'claude' | 'template'>('claude')
   const ids = { name: useId(), features: useId(), keywords: useId(), tone: useId() }
 
   async function onSubmit(e: FormEvent) {
@@ -24,8 +25,9 @@ export function DescriptionGenerator() {
     setResult(null)
     try {
       const data = await generateDescription({ productName, features, keywords, tone })
-      setResult(data)
-      toast.success('商品説明を生成しました。')
+      setResult(data.result)
+      setSource(data.source)
+      toast.success(data.source === 'template' ? 'テンプレートで生成しました。' : '商品説明を生成しました。')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '生成に失敗しました。')
     } finally {
@@ -99,17 +101,17 @@ export function DescriptionGenerator() {
           )}
           {loading && (
             <div className="flex h-full min-h-[16rem] items-center justify-center text-sm text-muted">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Claude が生成しています…
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 生成しています…
             </div>
           )}
-          {result && <Result data={result} />}
+          {result && <Result data={result} source={source} />}
         </Card>
       </div>
     </div>
   )
 }
 
-function Result({ data }: { data: GeneratedDescription }) {
+function Result({ data, source }: { data: GeneratedDescription; source: 'claude' | 'template' }) {
   function copyAll() {
     const text = [
       data.title,
@@ -128,6 +130,11 @@ function Result({ data }: { data: GeneratedDescription }) {
 
   return (
     <div className="space-y-4">
+      {source === 'template' && (
+        <div className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+          テンプレート生成（APIキー未設定）。Claude を使うと、より自然で訴求力の高い文章になります。
+        </div>
+      )}
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-base font-semibold">{data.title}</h3>
         <button

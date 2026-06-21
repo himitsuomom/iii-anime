@@ -23,7 +23,12 @@ export async function fetchHealth(): Promise<{ ok: boolean; hasApiKey: boolean }
   return res.json()
 }
 
-export async function generateDescription(input: GenerateInput): Promise<GeneratedDescription> {
+export interface GenerateResult {
+  result: GeneratedDescription
+  source: 'claude' | 'template'
+}
+
+export async function generateDescription(input: GenerateInput): Promise<GenerateResult> {
   const res = await fetch('/api/generate-description', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -31,7 +36,7 @@ export async function generateDescription(input: GenerateInput): Promise<Generat
   })
   if (!res.ok) throw new Error(await readError(res))
   const data = await res.json()
-  return data.result as GeneratedDescription
+  return { result: data.result as GeneratedDescription, source: data.source === 'claude' ? 'claude' : 'template' }
 }
 
 /**

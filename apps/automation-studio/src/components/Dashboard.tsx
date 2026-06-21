@@ -1,4 +1,4 @@
-import { Clock, MessageSquare, Package, Sparkles, TrendingUp } from 'lucide-react'
+import { Calculator, Clock, Map as MapIcon, MessageSquare, Package, Sparkles, TrendingUp } from 'lucide-react'
 import type { View } from './Sidebar.tsx'
 import { Card, PageHeader } from './ui.tsx'
 
@@ -54,6 +54,18 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: View) => void }) 
           title="問い合わせAIアシスタント"
           body="お客様からの質問に24時間自動応答。一次対応を80%自動化します。"
           onClick={() => onNavigate('assistant')}
+        />
+        <ActionCard
+          icon={Calculator}
+          title="利益計算機"
+          body="仕入・販売価格・手数料から、転売・物販の利益と損益分岐を即試算（API不要）。"
+          onClick={() => onNavigate('profit')}
+        />
+        <ActionCard
+          icon={MapIcon}
+          title="実践ロードマップ"
+          body="「週4時間」体制へ向けた5ステップを、進捗チェックしながら実行。"
+          onClick={() => onNavigate('roadmap')}
         />
       </div>
     </div>
