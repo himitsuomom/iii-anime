@@ -2,13 +2,14 @@
 // result to the store, and returns the completion event that the orchestrator
 // feeds back into the state machine. Backend-agnostic: the build "brain" and
 // build backend are injected (see BUILD-BACKENDS.md).
+import { designGuidanceBlock, rubricFor } from '../adapters/registry.js'
 import type { BuildBackend } from '../build/backend.js'
 import type { Brain } from '../brain/brain.js'
 import { validatePlan, validateSpec } from '../brain/brain.js'
 import { execInWorkspace } from '../sandbox/exec.js'
 import { ensureWorkspace, listWorkspaceFiles } from '../sandbox/workspace.js'
 import type { Store } from '../runtime/store.js'
-import type { PipelineEvent, Plan, ProjectState, QaResult, Rubric, Spec } from '../types.js'
+import type { PipelineEvent, Plan, ProjectState, QaResult, Spec } from '../types.js'
 
 export interface StudioDeps {
   store: Store
@@ -52,13 +53,13 @@ const INTAKE_SYSTEM =
   'Shape: {goal:string, features:string[], acceptance:string[], constraints?:string[], assumptions:string[]}.'
 
 const DESIGN_SYSTEM =
-  'You are a software architect. Given a specification, produce a minimal implementation plan ' +
-  'for a single-package web app (app_type "web-node"). ' +
-  'HARD CONSTRAINTS for P0: use ONLY the Node.js standard library — no npm dependencies and no ' +
-  'install step. The app must run with `node` alone. build_cmd must be a fast no-op check such as ' +
-  '"node --check server.js" (NOT pnpm/npm). test_cmd MUST be "node --test" (Node\'s built-in test ' +
-  'runner over *.test.js). These commands are exactly what QA runs to decide pass/fail. ' +
-  'Shape: {app_type:"web-node", stack:string[], tasks:string[], build_cmd:string, test_cmd:string, run_cmd?:string}.'
+  'You are a software architect. Given a specification, produce a minimal implementation plan. ' +
+  'Choose the single best app_type from the catalog below and follow ITS guidance exactly — ' +
+  'build_cmd and test_cmd are what QA runs to decide pass/fail. Do not over-engineer.\n\n' +
+  'App types:\n' +
+  designGuidanceBlock() +
+  '\n\nShape: {app_type:string (one of the ids above), stack:string[], tasks:string[], ' +
+  'build_cmd:string, test_cmd:string, run_cmd?:string}.'
 
 // Condensed from prompts/BUILD_SYSTEM_PROMPT.md (kept in sync there).
 const BUILD_SYSTEM =
@@ -120,7 +121,7 @@ async function buildRun(deps: StudioDeps, projectId: string): Promise<PipelineEv
 
 async function qaEvaluate(deps: StudioDeps, projectId: string): Promise<PipelineEvent> {
   const s = await must(deps.store, projectId)
-  const rubric = rubricFromPlan(s.plan)
+  const rubric = rubricFor(s.plan)
   const failures: string[] = []
   for (const check of rubric.hard) {
     const r = await execInWorkspace({ project_id: projectId, cmd: check.cmd })
@@ -144,16 +145,6 @@ async function deliverPackage(deps: StudioDeps, projectId: string): Promise<Pipe
     artifacts: { ...(s.artifacts ?? {}), files },
   })
   return { type: 'delivered' }
-}
-
-function rubricFromPlan(plan: Plan | undefined): Rubric {
-  if (!plan) return { hard: [] }
-  return {
-    hard: [
-      { id: 'build', cmd: plan.build_cmd, expect: 'exit0' },
-      { id: 'test', cmd: plan.test_cmd, expect: 'exit0' },
-    ],
-  }
 }
 
 function renderBuildPrompt(s: ProjectState, feedback?: string): string {

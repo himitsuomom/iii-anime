@@ -20,7 +20,8 @@ export interface Spec {
 }
 
 export interface Plan {
-  app_type: 'web-node'
+  /** App-type id; validated against the adapter registry. */
+  app_type: string
   stack: string[]
   tasks: string[]
   build_cmd: string

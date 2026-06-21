@@ -1,6 +1,7 @@
 // The "brain" used by intake/design (and optional QA review). Like the build
 // backend, it is pluggable: ClaudeCliBrain drives `claude -p` (no API key), a
 // future ApiBrain could call the Anthropic SDK. Tests use a fake.
+import { adapterIds } from '../adapters/registry.js'
 import type { Plan, Spec } from '../types.js'
 
 export interface JsonRequest<T> {
@@ -32,9 +33,12 @@ export function validateSpec(u: unknown): Spec {
 
 export function validatePlan(u: unknown): Plan {
   const o = asObject(u, 'plan')
-  if (o.app_type !== 'web-node') throw new Error(`plan.app_type must be "web-node"`)
+  const appType = str(o.app_type, 'app_type')
+  if (!adapterIds().includes(appType)) {
+    throw new Error(`plan.app_type "${appType}" is not a known app type (${adapterIds().join(', ')})`)
+  }
   const plan: Plan = {
-    app_type: 'web-node',
+    app_type: appType,
     stack: strArray(o.stack, 'stack'),
     tasks: strArray(o.tasks, 'tasks'),
     build_cmd: str(o.build_cmd, 'build_cmd'),
