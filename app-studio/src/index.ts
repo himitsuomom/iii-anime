@@ -7,7 +7,7 @@
 // app-studio/BUILD-BACKENDS.md.
 import { registerWorker, TriggerAction } from 'iii-sdk'
 import { ClaudeCliBrain } from './brain/claude-cli-brain.js'
-import { ClaudeCodeBackend } from './build/claude-code-backend.js'
+import { buildBackendFromEnv } from './build/factory.js'
 import { advance } from './orchestrator/apply.js'
 import type { StudioDeps } from './pipeline/handlers.js'
 import { IiiStore } from './runtime/iii-store.js'
@@ -22,7 +22,7 @@ const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 const deps: StudioDeps = {
   store: new IiiStore(iii),
   brain: new ClaudeCliBrain(),
-  build: new ClaudeCodeBackend(),
+  build: await buildBackendFromEnv(),
   buildMaxTurns: Number(process.env.STUDIO_BUILD_MAX_TURNS ?? 60),
 }
 
