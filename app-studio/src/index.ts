@@ -69,5 +69,40 @@ iii.registerTrigger({
   config: { api_path: '/projects', http_method: 'POST' },
 })
 
+// --- DX: inspect projects ---
+iii.registerFunction('studio::project::get', async (input) => {
+  const id = (input as { path_params?: { id?: string } }).path_params?.id
+  if (!id) return { status_code: 400, body: { error: 'id required' } }
+  const s = await deps.store.get(id)
+  if (!s) return { status_code: 404, body: { error: 'not found' } }
+  return { status_code: 200, body: s }
+})
+iii.registerTrigger({
+  type: 'http',
+  function_id: 'studio::project::get',
+  config: { api_path: '/projects/:id', http_method: 'GET' },
+})
+
+iii.registerFunction('studio::project::list', async () => {
+  const all = await deps.store.list()
+  const summary = all
+    .map((s) => ({
+      project_id: s.project_id,
+      status: s.status,
+      iteration: s.iteration,
+      goal: s.spec?.goal,
+      app_type: s.plan?.app_type,
+      passed: s.last_qa?.passed,
+      updated_at: s.updated_at,
+    }))
+    .sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))
+  return { status_code: 200, body: { projects: summary } }
+})
+iii.registerTrigger({
+  type: 'http',
+  function_id: 'studio::project::list',
+  config: { api_path: '/projects', http_method: 'GET' },
+})
+
 // eslint-disable-next-line no-console
 console.log('app-studio worker registered (sandbox::*, studio::intake::create, studio::orch::run)')

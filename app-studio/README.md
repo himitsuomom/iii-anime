@@ -65,7 +65,22 @@ iii --config app-studio/local.yml
 curl -XPOST localhost:3111/projects -H 'content-type: application/json' \
   -d '{"idea":"a web page with a click counter"}'
 # -> { "project_id": "prj_..." }  (pipeline runs in the background)
+
+curl localhost:3111/projects/prj_...    # full project state (status, plan, last_qa, artifacts)
+curl localhost:3111/projects            # list all projects (summary)
 ```
+
+### Build backend (pluggable brain)
+
+| `STUDIO_BUILD_BACKEND` | Backend | Auth |
+|---|---|---|
+| `claude-code` (default) | local `claude -p` | host's Claude Code login — no API key |
+| `api` | Anthropic Messages API + our tool-use loop + our sandbox | `ANTHROPIC_API_KEY` (install `@anthropic-ai/sdk`) |
+
+### App types (adapters)
+
+`web-node` (zero-dependency Node, the P0 default) and `static-web` (HTML/CSS/JS).
+Add a type by dropping an adapter in `src/adapters/` and calling `register()`.
 
 ## Layout
 
