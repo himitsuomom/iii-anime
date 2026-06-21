@@ -10,7 +10,7 @@ export {
   workspaceDir,
   parseCommand,
   SandboxCommandError,
-} from '../../app-studio/src/sandbox/index.js'
+} from '../../studio-core/src/sandbox/index.js'
 
 /** Executables the render agent may run in a workdir. */
 export const VIDEO_ALLOWLIST: ReadonlySet<string> = new Set([

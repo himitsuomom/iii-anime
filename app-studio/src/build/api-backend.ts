@@ -4,10 +4,10 @@
 // workdir confinement). Needs ANTHROPIC_API_KEY (metered). The Anthropic client
 // is injected structurally so the loop is testable without the SDK or a key.
 import type { BuildBackend, BuildOutcome, BuildRequest } from './backend.js'
-import type { EditInput } from '../sandbox/edit.js'
-import { editInWorkspace } from '../sandbox/edit.js'
-import { execInWorkspace } from '../sandbox/exec.js'
-import { ensureWorkspace } from '../sandbox/workspace.js'
+import type { EditInput } from '../../../studio-core/src/sandbox/edit.js'
+import { editInWorkspace } from '../../../studio-core/src/sandbox/edit.js'
+import { execInWorkspace } from '../../../studio-core/src/sandbox/exec.js'
+import { ensureWorkspace } from '../../../studio-core/src/sandbox/workspace.js'
 
 export interface ToolUseBlock {
   type: 'tool_use'

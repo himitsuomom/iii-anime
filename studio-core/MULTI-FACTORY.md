@@ -56,11 +56,13 @@ prefix/scope collisions at startup.
                 └──────────── studio-core (shared) ──────────┘
 ```
 
-`studio-core` owns the cross-factory code. Today: **asset integration** and the
-**factory registry**. The execution sandbox, store, wiki, brain, and build
-backends are shared in practice (video-studio already reuses app-studio's
-sandbox) and are slated to physically move under `studio-core` next (see
-checklist) so the dependency direction is clean (`factory → studio-core`).
+`studio-core` owns the cross-factory code. Today: **asset integration**, the
+**factory registry**, **auth + secrets**, and the **execution sandbox**
+(`src/sandbox` — exec/edit/workspace/allowlist + the `unshare` runner; both
+factories import it from here). The store, wiki, and brain still live in
+app-studio because they are typed against the software domain (`ProjectState` /
+`Spec` / `Plan`); moving them cleanly needs a generification pass (parameterize
+the state type) — that's the remaining extraction step.
 
 Deployment config: [`deploy/multi-factory.local.yml`](./deploy/multi-factory.local.yml)
 runs one engine with state/http/pubsub/queue and starts the factory worker(s).
@@ -95,8 +97,10 @@ Add a factory by adding its `iii-exec` line and its `FactoryDescriptor`.
 - [ ] **Stronger isolation for untrusted code** — `unshare` is on by opt-in; for
       hostile inputs consider a per-job MicroVM/rootfs (the engine's
       self-hosted sandbox path) rather than namespaces alone.
-- [ ] **studio-core physical extraction** — relocate sandbox/store/wiki/brain/
-      backends into this package; factories depend only on `@iii/studio-core`.
+- [x] **studio-core physical extraction (sandbox)** — `src/sandbox` now lives in
+      studio-core; both factories import it from here.
+- [ ] **studio-core extraction (store/wiki/brain)** — generify over the state
+      type first (these are typed against `ProjectState`/`Spec`/`Plan`), then move.
 - [ ] **CI** — run the `app-studio`, `studio-core`, and `video-studio` test
       suites on every change.
 - [ ] **HA** — multiple worker replicas; a single leader for the sweep cron to

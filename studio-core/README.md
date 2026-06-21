@@ -9,6 +9,10 @@ run on one engine and reuse the same mechanism.
   flags; `assetsFromEnv()` reads a default bundle from env.
 - `src/factory.ts` — `FactoryDescriptor` + registry: per-factory namespacing
   (route prefix / state scope / queue) with collision checks.
+- `src/auth.ts` — HTTP auth gate (`STUDIO_API_TOKEN`); `src/secrets.ts` —
+  host-side secrets that never reach the sandbox.
+- `src/sandbox/` — the execution boundary (exec/edit/workspace/allowlist + the
+  `unshare` isolation runner), shared by every factory.
 
 See **[MULTI-FACTORY.md](./MULTI-FACTORY.md)** for the integration guide,
 production deployment, and the readiness checklist, and
@@ -16,9 +20,9 @@ production deployment, and the readiness checklist, and
 one-engine, multi-factory config.
 
 ```bash
-cd studio-core && pnpm exec tsx --test "src/**/*.test.ts"   # 5 tests
+cd studio-core && pnpm exec tsx --test "src/**/*.test.ts"   # 32 tests (assets, factory, auth, secrets, sandbox, runner)
 ```
 
-> Roadmap: the execution sandbox, store, wiki, brain, and build backends are
-> shared in practice and will physically move under this package next, so
-> factories depend only on `@iii/studio-core`.
+> Roadmap: the sandbox now lives here. The store, wiki, and brain remain in
+> app-studio because they're typed against the software domain
+> (`ProjectState`/`Spec`/`Plan`); they move here after a generification pass.
