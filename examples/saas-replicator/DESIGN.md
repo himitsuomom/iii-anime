@@ -278,21 +278,25 @@ examples/saas-replicator/
   package.json         ← iii-sdk 依存 + scripts（dev/start/typecheck/test）
   tsconfig.json
   src/
-    iii.ts             ← registerWorker
+    engine.ts          ← Engine 抽象（register/call/enqueue/listWorkers）
+    orchestrator.ts    ← registerOrchestrator(engine)（全関数を登録）
+    index.ts           ← 本番ブート（iii アダプタ + registerOrchestrator）
     log.ts             ← 最小ロガー
-    hooks.ts           ← useApi（HTTP トリガ登録）
-    state.ts           ← state::* ラッパ
-    provider.ts        ← provider::resolve + stub プロバイダ + callRole
-    director.ts        ← director::plan(HTTP /saas/replicate) + director::advance(4-Phase 駆動)
+    provider.ts        ← registerProvider + provider::resolve + stub + callRole
+    director.ts        ← startProject / advance（4-Phase 駆動）+ HTTP(saas::start/status)
     swarm.ts           ← swarm::ui::analyze-screen / swarm::viz::render / swarm::test::run
+    adapters/
+      iiiEngine.ts     ← 本番アダプタ（Engine → iii バス：trigger/registerFunction/HTTP）
+      memoryEngine.ts  ← インメモリ・アダプタ（state ストア + queue ドレイン；テスト用）
     logic/
       roleBinding.ts   ← 役割→プロバイダ解決（純粋）
       pipeline.ts      ← 4-Phase 進行ロジック（純粋）
   tests/
-    roleBinding.test.ts / pipeline.test.ts   ← node:test（エンジン不要）
+    roleBinding.test.ts / pipeline.test.ts        ← 純粋ロジックの単体テスト
+    integration.test.ts                           ← MemoryEngine で 4-Phase を end-to-end 実行
 ```
 
-> Phase ロジックは `logic/pipeline.ts`（純粋・テスト対象）に集約し、`director.ts` がそれを駆動する構成にした（当初案の `phases/*.ts` 分割より凝集度が高い）。
+> **Engine 抽象 + 2 アダプタ**にした点が当初案からの改善。ハンドラは `Engine`（`call`/`enqueue`/`register`/`listWorkers`）に対してのみ書かれ、本番は `iiiEngine`、テストは `MemoryEngine` を注入する。これにより、**実エンジン・API キー無しで 4-Phase 全体を実際に走らせて検証**できる（`integration.test.ts`）。Phase ロジックは `logic/pipeline.ts`（純粋）に集約。
 
 例示スニペット（AGENTS.md 規約準拠: `::` 区切り、`api_path` 先頭 `/`、cron は `expression`）:
 
@@ -406,9 +410,9 @@ iii worker add provider-kimi                  # これを足すだけ
 
 ## 13. 段階的実装ロードマップ
 
-1. **Claude 単独の動く骨格** — 既定 role-binding = `provider-anthropic`。Phase 1〜4 を end-to-end でつなぐ（各 Phase は最小実装/スタブ可）。
-2. **`provider-kimi` 追加による段階的強化** — 起動時自動再束縛で分析/可視化/テストを KIMI に委譲。
-3. **各 Phase の実体化** — UI解析の精度、PRD テンプレート、実装スキャフォルド、デプロイ連携を順次強化。
+1. ✅ **Claude 単独の動く骨格** — 既定 role-binding = `provider-anthropic`。Phase 1〜4 を Engine 抽象 + `MemoryEngine` で end-to-end 検証済み（`integration.test.ts`）。
+2. **provider の live 配線** — `iiiEngine` アダプタ実装済み。残りは実エンジン起動 + `ANTHROPIC_API_KEY`（Claude）/ `provider-kimi` 追加での実行検証（起動時自動再束縛）。
+3. **各 Phase の実体化** — `iii-sandbox` での実テスト/作図、UI解析精度、PRD テンプレート、実装スキャフォルド、デプロイ連携を順次強化。
 
 ---
 
