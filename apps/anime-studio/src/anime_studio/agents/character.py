@@ -26,17 +26,19 @@ class CharacterDesignAgent(BaseAgent):
             temperature=ctx.config.llm.temperature,
         )
         visual = resp.text
+        name = brief.title_idea.split()[0] if brief.title_idea else "Hero"
 
-        # Attach a (mock) reference-art descriptor for LoRA training input.
+        # Generate (or mock) a reference image — also serves as a LoRA/init input.
         art = await ctx.providers.image.generate(
             GenSpec(
                 kind="image",
                 prompt=f"{visual}, {palette['prompt']}, rule of thirds, clear staging",
+                out_path=str(ctx.asset_dir("characters") / f"{_slug(name)}.png"),
                 params={"aspect": "1:1", "purpose": "lora_reference"},
             )
         )
         protagonist = CharacterDesign(
-            name=brief.title_idea.split()[0] if brief.title_idea else "Hero",
+            name=name,
             role="protagonist",
             visual_description=visual,
             palette=list(palette.get("colors", [])),
@@ -44,3 +46,8 @@ class CharacterDesignAgent(BaseAgent):
             reference_art=[art],
         )
         return CharacterSheet(characters=[protagonist])
+
+
+def _slug(name: str) -> str:
+    safe = "".join(c if c.isalnum() else "_" for c in name).strip("_")
+    return safe or "character"

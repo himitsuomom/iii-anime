@@ -32,6 +32,17 @@ class LLMConfig(BaseModel):
 
 class ProviderConfig(BaseModel):
     provider: str = "mock"
+    # Hosted-API adapter settings (used when provider == "hosted").
+    endpoint: str = ""
+    model: str = ""
+    api_key_env: str = ""
+    timeout: float = 120.0
+    poll_interval: float = 2.0
+    params: dict[str, Any] = Field(default_factory=dict)
+
+    @property
+    def api_key(self) -> str | None:
+        return os.environ.get(self.api_key_env) if self.api_key_env else None
 
 
 class AnimeStudioConfig(BaseModel):

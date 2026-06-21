@@ -23,4 +23,8 @@ class GenSpec(BaseModel):
     kind: Literal["image", "video", "bgm", "se"]
     prompt: str
     negative_prompt: str | None = None
+    # Optional reference image (e.g. a character ref used as an init image for
+    # image-to-video) and a target file path for the downloaded asset.
+    init_image: str | None = None
+    out_path: str | None = None
     params: dict[str, Any] = Field(default_factory=dict)

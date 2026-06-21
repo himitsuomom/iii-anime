@@ -21,12 +21,19 @@ temperature = 0.7
 
 [image]
 provider = "mock"
+# To use a hosted image API (degrades to mock without the key):
+#   provider = "hosted"
+#   endpoint = "https://api.replicate.com/v1/predictions"
+#   model = "black-forest-labs/flux-schnell"
+#   api_key_env = "REPLICATE_API_TOKEN"
 
 [video]
 provider = "mock"
+# provider = "hosted"; endpoint = "..."; model = "wan-2.5"; api_key_env = "FAL_KEY"
 
 [audio]
 provider = "mock"
+# provider = "hosted"  (real audio API), or "ffmpeg" (procedural BGM/SE).
 
 [edit]
 provider = "mock"

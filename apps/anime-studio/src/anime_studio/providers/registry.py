@@ -29,7 +29,7 @@ class ProviderBundle(BaseModel):
 def build_providers(cfg: AnimeStudioConfig) -> ProviderBundle:
     return ProviderBundle(
         llm=_build_llm(cfg),
-        image=MockImageProvider(),
+        image=_build_image(cfg),
         video=MockVideoProvider(),
         audio=MockAudioProvider(),
         edit=MockEditProvider(),
@@ -41,3 +41,11 @@ def _build_llm(cfg: AnimeStudioConfig) -> LLMProvider:
     if cfg.llm.provider == "anthropic":
         return AnthropicLLMProvider(cfg.llm.model, cfg.anthropic_api_key, fallback=mock)
     return mock
+
+
+def _build_image(cfg: AnimeStudioConfig) -> ImageProvider:
+    if cfg.image.provider == "hosted":
+        from .hosted.image import HostedImageProvider
+
+        return HostedImageProvider(cfg.image, fallback=MockImageProvider())
+    return MockImageProvider()

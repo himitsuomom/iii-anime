@@ -8,6 +8,7 @@ async to match the iii SDK handler model and to allow real provider calls.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any, Awaitable, Callable, ClassVar
 
 from pydantic import BaseModel, ConfigDict
@@ -37,6 +38,12 @@ class AgentContext(BaseModel):
     def revision_feedback(self) -> str:
         """Feedback injected by the director when a quality gate fails."""
         return str(self.artifacts.get("_revision_feedback", ""))
+
+    def asset_dir(self, subdir: str) -> Path:
+        """Project-scoped asset directory (created on demand) for generated files."""
+        path = self.config.output_path / str(self.brief.project_id) / "assets" / subdir
+        path.mkdir(parents=True, exist_ok=True)
+        return path
 
 
 class BaseAgent(ABC):

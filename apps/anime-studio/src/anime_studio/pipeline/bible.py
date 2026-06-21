@@ -58,6 +58,9 @@ def render_bible(brief: ProjectBrief, artifacts: dict[str, Any]) -> str:
             w(f"- {c.visual_description}")
             w(f"- **Palette**: {', '.join(c.palette)}")
             w(f"- **Consistency**: {c.consistency_notes}")
+            for art in c.reference_art:
+                ref = art.uri or f"({art.status} — not yet generated)"
+                w(f"- **Reference art**: {ref}")
         w("")
 
     storyboard = artifacts.get("storyboard")
