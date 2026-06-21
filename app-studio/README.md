@@ -133,6 +133,10 @@ most relevant prior app docs into the build prompt so patterns get reused.
   QA at `awaiting_approval` until `POST /projects/:id/approve` (or `/reject`).
 - `idempotency_key` (POST body): a duplicate submission maps to the same project.
 - A 1-minute cron sweep resumes any stuck, non-terminal project.
+- `STUDIO_SANDBOX_ISOLATION=unshare`: run sandbox commands in kernel namespaces
+  (mount/uts/ipc/pid + unprivileged user-ns + no network) instead of the default
+  direct spawn. Falls back to direct if `unshare` is unavailable. Set
+  `STUDIO_SANDBOX_NET=1` to allow network inside the isolated namespace.
 
 ## Layout
 
