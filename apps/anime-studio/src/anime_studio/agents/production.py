@@ -22,8 +22,12 @@ class ProductionAgent(BaseAgent):
         characters: CharacterSheet = self._require(ctx, "character")
         principles = ctx.kb.animation_principles()
         tool = ctx.kb.recommended_video_tool()
-        char_desc = characters.characters[0].visual_description if characters.characters else "the character"
+        lead = characters.characters[0] if characters.characters else None
+        char_desc = lead.visual_description if lead else "the character"
+        # Reuse the character reference as the image-to-video init frame (consistency).
+        init_image = next((a.uri for a in (lead.reference_art if lead else []) if a.uri), None)
         palette = ctx.kb.color_palette("triadic_warm")["prompt"]
+        cuts_dir = ctx.asset_dir("cuts")
 
         prompts: list[GenerationPrompt] = []
         for cut in storyboard.cuts:
@@ -44,6 +48,8 @@ class ProductionAgent(BaseAgent):
                     kind="video",
                     prompt=positive,
                     negative_prompt=_NEGATIVE,
+                    init_image=init_image,
+                    out_path=str(cuts_dir / f"cut_{cut.index:02d}.mp4"),
                     params={"duration_s": cut.duration_s, "aspect": "9:16", "recommended_tool": tool},
                 )
             )

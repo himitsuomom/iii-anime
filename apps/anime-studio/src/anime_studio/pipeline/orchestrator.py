@@ -12,6 +12,7 @@ from ..config import AnimeStudioConfig
 from ..knowledge.loader import KnowledgeBase, default_knowledge_base
 from ..models.brief import ProjectBrief
 from ..providers.registry import ProviderBundle, build_providers
+from ..render.clips import assemble_final_video
 from .bible import render_bible
 from .writer import write_artifacts
 
@@ -56,7 +57,12 @@ async def run_pipeline(
 
     animatic_path: Path | None = None
     if cfg.render:
-        animatic_path = _render_animatic(brief, result.artifacts, project_dir, kb)
+        # Prefer concatenating real per-cut clips; fall back to the panel animatic.
+        final = await assemble_final_video(result.artifacts, providers.edit)
+        if final is not None and final.uri is not None:
+            animatic_path = Path(final.uri)
+        else:
+            animatic_path = _render_animatic(brief, result.artifacts, project_dir, kb)
         if animatic_path is not None:
             files.append(animatic_path)
 
