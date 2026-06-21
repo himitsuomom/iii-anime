@@ -24,6 +24,7 @@ import { DEFAULT_MAX_ITERATIONS } from './types.js'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { checkAuth, unauthorizedResponse } from '../../studio-core/src/auth.js'
+import { LeaderLock, RedisCliLockBackend } from '../../studio-core/src/leader.js'
 
 const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 
@@ -52,6 +53,14 @@ const deps: StudioDeps = {
 // queue (per-factory concurrency via the queue's config) instead of inline.
 const BUILD_QUEUE = process.env.STUDIO_BUILD_QUEUE
 const runAction = BUILD_QUEUE ? TriggerAction.Enqueue({ queue: BUILD_QUEUE }) : TriggerAction.Void()
+
+// HA: when running >1 replica, only the leader runs the singleton sweep cron.
+// STUDIO_LEADER_REDIS=redis://... enables redis-based leader election; otherwise
+// this replica is always the leader (single-replica deployments).
+const REPLICA_ID = `${process.pid}-${Math.random().toString(36).slice(2, 8)}`
+const leader = process.env.STUDIO_LEADER_REDIS
+  ? new LeaderLock(new RedisCliLockBackend(process.env.STUDIO_LEADER_REDIS), 'studio:leader:sweep', REPLICA_ID)
+  : undefined
 
 // Auth guard for HTTP routes. No-op unless STUDIO_API_TOKEN is set.
 function denied(input: unknown): ReturnType<typeof unauthorizedResponse> | null {
@@ -249,7 +258,9 @@ iii.registerTrigger({
 })
 
 // --- crash recovery: periodically resume stuck, non-terminal projects ---
+// HA-safe: only the elected leader sweeps, so N replicas don't double-resume.
 iii.registerFunction('studio::orch::sweep', async () => {
+  if (leader && !(await leader.tryBecomeLeader())) return { skipped: 'not leader' }
   const resumed = await sweep(deps, { stuckMs: Number(process.env.STUDIO_STUCK_MS ?? 5 * 60_000) })
   if (resumed.length) console.log(`[sweep] resumed: ${resumed.join(', ')}`)
   return { resumed }
