@@ -1,0 +1,22 @@
+# Audio / BGM design rules.
+# Source: report 1 §7 (音響・BGM).
+bpm_emotion:
+  - range: [120, 140]
+    mood: high-energy / entertainment / children
+  - range: [100, 120]
+    mood: explanatory / educational
+  - range: [80, 100]
+    mood: calm / emotional
+se_mapping:
+  impact: ["don", "ban"]      # surprise / key point
+  swish: ["shu", "hyu"]       # caption appear / transition
+  pop: ["pon", "pin"]         # light emphasis / list
+  sparkle: ["kira"]           # success / positive
+  comical: ["boyon"]          # failure / tsukkomi
+volume_balance:
+  narration_db: [-6, -3]
+  bgm_db: [-18, -12]
+  se_db: [-12, -6]
+  silent_anime_note: "For silent anime, make SE/BGM the lead: BGM ~ -12dB, SE ~ -6dB."
+leitmotif_note: "Assign each character a 3-5 note jingle played on every entrance."
+silence_note: "Insert 0.5-1s of silence right before the punchline for impact."

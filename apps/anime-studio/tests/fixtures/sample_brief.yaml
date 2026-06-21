@@ -1,0 +1,12 @@
+project_id: demo-sheep
+title_idea: もこもこ羊の大冒険
+logline: A shy little sheep loses its favorite scarf in the wind and learns to ask friends for help.
+target_platforms:
+  - youtube_shorts
+  - tiktok
+target_duration_s: 60
+tone: heartwarming
+genre: silent children's comedy
+audience: children and parents
+constraints:
+  no_dialogue: true

@@ -1,0 +1,40 @@
+# AI tool selection per stage + model comparison.
+# Source: report 2 (AIアニメ動画作成自動化の完全ガイド) appendix A.
+stage_tools:
+  script: ["Claude", "ChatGPT", "Gemini", "HoLLMwood"]
+  character_design: ["Midjourney", "Stable Diffusion", "Flux"]
+  storyboard: ["StoryWeaver", "CogCartoon", "Storyboarder.ai"]
+  production: ["AniSora", "WAN 2.5", "Kling 3.0", "ToonCrafter"]
+  editing: ["CapCut", "DaVinci Resolve", "FFmpeg"]
+  audio: ["VidMuse", "Stable Audio 3.0", "YouTube Audio Library"]
+video_models:
+  - name: AniSora
+    vendor: Tencent/Bilibili
+    max_seconds: 8
+    open_weight: true
+    silent_anime_fit: 5
+    strength: anime-specialized, 3D character rotation
+  - name: WAN 2.5
+    vendor: Alibaba
+    max_seconds: 10
+    open_weight: true
+    silent_anime_fit: 4
+    strength: top open-weight, self-host
+  - name: Kling 3.0
+    vendor: Kuaishou
+    max_seconds: 10
+    open_weight: false
+    silent_anime_fit: 4
+    strength: motion control, JP-anime style
+  - name: LTX-2.3
+    vendor: Lightricks
+    max_seconds: 20
+    open_weight: true
+    silent_anime_fit: 3
+    strength: 4K/50fps, long clips
+consistency:
+  technique: "ControlNet + LoRA"
+  lora_reference_images: [10, 30]
+  lora_train_minutes: [15, 30]
+  note: "10-30 reference images train a character LoRA in 15-30 min to fix identity across shots."
+default_recommended_tool: AniSora

@@ -1,0 +1,15 @@
+# Lighting moods for emotional staging.
+# Source: report 1 §5 (ライティングの感情演出).
+moods:
+  top_light:
+    prompt: "top-down lighting, shadow straight below"
+    emotion: mystery / unease
+  back_light:
+    prompt: "backlight silhouette, rim glow"
+    emotion: hope / spotlight
+  soft_light:
+    prompt: "soft warm lighting, golden hour glow"
+    emotion: safe / peaceful
+  hard_light:
+    prompt: "dramatic side lighting, strong shadows"
+    emotion: tension / drama

@@ -1,0 +1,13 @@
+# The knowledge base YAML is source, not generated data — the root .gitignore's
+# `data/` rule would otherwise drop it.
+!src/anime_studio/knowledge/data/
+!src/anime_studio/knowledge/data/**
+
+output/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage

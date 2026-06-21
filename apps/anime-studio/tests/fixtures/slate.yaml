@@ -1,0 +1,15 @@
+videos:
+  - project_id: slate-sheep
+    title_idea: もこもこ羊の大冒険
+    logline: A shy sheep loses its scarf in the wind and learns to ask friends for help.
+    target_platforms: [youtube_shorts, tiktok]
+    target_duration_s: 60
+    tone: heartwarming
+    genre: silent children's comedy
+  - project_id: slate-cat
+    title_idea: いたずら子猫の一日
+    logline: A mischievous kitten tips over a plant and races to fix it before its owner wakes.
+    target_platforms: [tiktok, instagram_reels]
+    target_duration_s: 45
+    tone: playful
+    genre: silent children's comedy

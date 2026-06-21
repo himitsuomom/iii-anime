@@ -1,0 +1,45 @@
+# anime-studio default configuration.
+# Every value can be overridden by environment variables (see config.py / README).
+
+[general]
+output_dir = "./output"
+max_revisions = 2
+# Gates that ABORT the pipeline when they keep failing. Others are advisory.
+hard_gates = ["three_second_hook"]
+
+[render]
+# Render a playable animatic mp4 (needs the 'render' extra). Off by default;
+# enable with `--render` or ANIME_STUDIO_RENDER=1.
+enabled = false
+
+[llm]
+# "anthropic" degrades to "mock" automatically when no API key / network.
+provider = "anthropic"
+model = "claude-opus-4-8"
+max_tokens = 4096
+temperature = 0.7
+
+[image]
+provider = "mock"
+# To use a hosted image API (degrades to mock without the key):
+#   provider = "hosted"
+#   endpoint = "https://api.replicate.com/v1/predictions"
+#   model = "black-forest-labs/flux-schnell"
+#   api_key_env = "REPLICATE_API_TOKEN"
+
+[video]
+provider = "mock"
+# provider = "hosted"; endpoint = "..."; model = "wan-2.5"; api_key_env = "FAL_KEY"
+
+[audio]
+provider = "mock"
+# provider = "hosted"  (real audio API), or "ffmpeg" (procedural BGM/SE).
+
+[operations]
+# Slate file auto-run by the scheduled batch (studio::scheduled_batch).
+slate = ""
+# Cron expression for the scheduled batch (6-field: sec min hour dom mon dow).
+cron = "0 0 9 * * *"
+
+[edit]
+provider = "mock"

@@ -1,0 +1,41 @@
+# Save the Cat 15-beat compressed to a 5-beat Shorts structure.
+# Source: report 1 §1 (脚本・ストーリー構成) + §6 (3秒フック).
+framework: save_the_cat_shorts
+description: 15-beat Save the Cat compressed to a 5-beat Shorts structure.
+total_target_seconds: 60
+beats:
+  - id: hook
+    label: フック (Hook)
+    order: 1
+    target_seconds: [0, 3]
+    purpose: Stop the scroll in <=3s; pose the curiosity gap.
+    must_include: [visual_shock_or_question]
+    maps_to_stc: [opening_image, theme_stated]
+  - id: problem
+    label: 問題提示 (Problem)
+    order: 2
+    target_seconds: [3, 12]
+    purpose: Establish the character's want and the obstacle.
+    must_include: [character_want, obstacle]
+    maps_to_stc: [setup, catalyst]
+  - id: development
+    label: 展開 (Development)
+    order: 3
+    target_seconds: [12, 40]
+    purpose: Escalate stakes; midpoint reversal.
+    must_include: [escalation, midpoint_reversal]
+    maps_to_stc: [fun_and_games, midpoint, bad_guys_close_in]
+  - id: resolution
+    label: 解決 (Resolution)
+    order: 4
+    target_seconds: [40, 54]
+    purpose: Payoff of the gap; emotional peak.
+    must_include: [emotional_peak]
+    maps_to_stc: [finale]
+  - id: punchline
+    label: オチ／ループ (Punchline/Loop)
+    order: 5
+    target_seconds: [54, 60]
+    purpose: Twist or loop-back that rewards a rewatch (boosts completion).
+    must_include: [twist_or_loop]
+    maps_to_stc: [final_image]
