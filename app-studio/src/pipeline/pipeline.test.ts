@@ -9,6 +9,7 @@ import { advance } from '../orchestrator/apply.js'
 import { editInWorkspace } from '../sandbox/edit.js'
 import { workspaceDir } from '../sandbox/workspace.js'
 import { MemoryStore, initialProjectState } from '../runtime/store.js'
+import { MemoryWikiStore } from '../wiki/wiki-store.js'
 import type { Plan, Spec } from '../types.js'
 import type { StudioDeps } from './handlers.js'
 
@@ -42,8 +43,10 @@ class FakeBrain implements Brain {
 class FakeBuildBackend implements BuildBackend {
   readonly id = 'fake-build'
   calls = 0
+  lastUserPrompt = ''
   async run(req: BuildRequest): Promise<BuildOutcome> {
     this.calls++
+    this.lastUserPrompt = req.userPrompt
     await editInWorkspace({
       project_id: req.project_id,
       command: 'create',
@@ -123,6 +126,38 @@ describe('pipeline end-to-end (fakes + real sandbox)', () => {
     await advance(deps, pid, { type: 'approved' })
     s = await deps.store.get(pid)
     assert.equal(s?.status, 'delivered')
+  })
+
+  test('relevant wiki knowledge is fed into the build prompt', async () => {
+    const build = new FakeBuildBackend()
+    const wiki = new MemoryWikiStore()
+    await wiki.put({
+      slug: 'app-health',
+      title: 'Health endpoint server',
+      content: 'A node:http server exposing GET /health returning {status:ok}.',
+      source_project_id: 'prj_old',
+      created_at: 'now',
+      updated_at: 'now',
+    })
+    const deps: StudioDeps = {
+      store: new MemoryStore(),
+      brain: new FakeBrain(
+        { goal: 'a health endpoint', features: ['/health'], acceptance: ['200'], assumptions: [] },
+        planWith('true', 'true'),
+      ),
+      build,
+      wiki,
+      buildMaxTurns: 4,
+    }
+    const pid = 'prj_reuse'
+    await deps.store.set(initialProjectState(pid, 'a health endpoint server', workspaceDir(pid), 5))
+
+    await advance(deps, pid, { type: 'project.created' })
+
+    assert.match(build.lastUserPrompt, /prior work/i)
+    assert.match(build.lastUserPrompt, /Health endpoint server \(app-health\)/)
+    // its own future page (same project) must never be fed back in — n/a here,
+    // but the source filter is exercised by excluding prj_reuse.
   })
 
   test('duplicate project.created after delivery is a no-op', async () => {

@@ -11,6 +11,7 @@ import { ensureWorkspace, listWorkspaceFiles } from '../sandbox/workspace.js'
 import type { Store } from '../runtime/store.js'
 import type { WikiStore } from '../wiki/wiki-store.js'
 import { generateWikiPage } from '../wiki/wiki.js'
+import { renderWikiContext, selectRelevantPages } from '../wiki/retrieval.js'
 import type { PipelineEvent, Plan, ProjectState, QaResult, Spec } from '../types.js'
 
 export interface StudioDeps {
@@ -102,11 +103,12 @@ async function buildRun(deps: StudioDeps, projectId: string): Promise<PipelineEv
   const s = await must(deps.store, projectId)
   await ensureWorkspace(projectId)
   const feedback = s.last_qa?.failures?.length ? s.last_qa.failures.join('\n') : undefined
+  const priorWork = await relevantPriorWork(deps, projectId, s)
   const out = await deps.build.run({
     project_id: projectId,
     workdir: s.workdir,
     systemPrompt: BUILD_SYSTEM,
-    userPrompt: renderBuildPrompt(s, feedback),
+    userPrompt: renderBuildPrompt(s, feedback, priorWork),
     maxTurns: deps.buildMaxTurns ?? 60,
   })
   const files = await listWorkspaceFiles(projectId)
@@ -161,14 +163,31 @@ async function deliverPackage(deps: StudioDeps, projectId: string): Promise<Pipe
   return { type: 'delivered' }
 }
 
-function renderBuildPrompt(s: ProjectState, feedback?: string): string {
+/** Pull relevant prior app docs from the wiki to seed the build (best-effort). */
+async function relevantPriorWork(
+  deps: StudioDeps,
+  projectId: string,
+  s: ProjectState,
+): Promise<string> {
+  if (!deps.wiki) return ''
+  try {
+    const pages = (await deps.wiki.list()).filter((p) => p.source_project_id !== projectId)
+    const query = `${s.spec?.goal ?? s.idea} ${(s.spec?.features ?? []).join(' ')}`
+    return renderWikiContext(selectRelevantPages(pages, query, 3))
+  } catch {
+    return ''
+  }
+}
+
+function renderBuildPrompt(s: ProjectState, feedback?: string, priorWork?: string): string {
   const spec = JSON.stringify(s.spec, null, 2)
   const plan = JSON.stringify(s.plan, null, 2)
   const head = feedback
     ? `The previous attempt did not pass QA. Fix these failures:\n${feedback}\n\n`
     : ''
+  const prior = priorWork ? `${priorWork}\n\n` : ''
   return (
-    `${head}Implement the application in the current directory.\n\n` +
+    `${head}${prior}Implement the application in the current directory.\n\n` +
     `## Specification\n${spec}\n\n## Plan\n${plan}\n\n` +
     `Make \`${s.plan?.test_cmd ?? 'the tests'}\` pass.`
   )

@@ -113,6 +113,27 @@ from it citing `[app-...]`.
 `web-node` (zero-dependency Node, the P0 default) and `static-web` (HTML/CSS/JS).
 Add a type by dropping an adapter in `src/adapters/` and calling `register()`.
 
+### LLM wiki
+
+Every delivered app is auto-documented into a wiki page. Browse and query it:
+
+```
+curl localhost:3111/wiki                      # list pages
+curl localhost:3111/wiki/app-...              # one page (markdown)
+curl -XPOST localhost:3111/wiki/ask -H 'content-type: application/json' \
+  -d '{"question":"which apps expose a /health route?"}'   # grounded LLM answer
+```
+
+The wiki feeds back into builds: before implementing, the studio injects the
+most relevant prior app docs into the build prompt so patterns get reused.
+
+### Other knobs
+
+- `require_approval` (POST body) or `STUDIO_REQUIRE_APPROVAL=true`: pause after
+  QA at `awaiting_approval` until `POST /projects/:id/approve` (or `/reject`).
+- `idempotency_key` (POST body): a duplicate submission maps to the same project.
+- A 1-minute cron sweep resumes any stuck, non-terminal project.
+
 ## Layout
 
 ```
