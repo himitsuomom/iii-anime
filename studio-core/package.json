@@ -1,0 +1,13 @@
+{
+  "name": "@iii/studio-core",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "description": "Shared core for iii AI factories — Claude asset integration (skills/MCP/plugins) and factory descriptors. See MULTI-FACTORY.md.",
+  "scripts": {
+    "test": "tsx --test src/**/*.test.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

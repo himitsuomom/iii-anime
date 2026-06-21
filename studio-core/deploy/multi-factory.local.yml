@@ -1,0 +1,61 @@
+# Multi-factory deployment: one iii engine running one or more AI factories.
+#
+#   STUDIO_MCP_CONFIG=... STUDIO_ADD_DIRS=... \
+#   iii --config studio-core/deploy/multi-factory.local.yml
+#
+# Asset env vars (see MULTI-FACTORY.md Part 1) are read by the factory workers
+# and given to every Claude agent: STUDIO_MCP_CONFIG, STUDIO_ADD_DIRS,
+# STUDIO_PLUGIN_DIRS, STUDIO_PLUGIN_URLS, STUDIO_AGENTS_JSON,
+# STUDIO_CLAUDE_SETTINGS, STUDIO_EXTRA_TOOLS, STUDIO_MODEL, STUDIO_FALLBACK_MODEL.
+# Production knobs: STUDIO_SANDBOX_ISOLATION=unshare, STUDIO_REQUIRE_APPROVAL=true.
+workers:
+  - name: iii-state
+    config:
+      adapter:
+        name: kv
+        config:
+          store_method: file_based
+          file_path: ./data/studio_state.db
+      # Production: switch to a durable adapter (redis/managed KV).
+
+  - name: iii-http
+    config:
+      port: ${STUDIO_HTTP_PORT:3111}
+      host: 127.0.0.1
+      default_timeout: 30000
+      cors:
+        allowed_origins: ["*"]
+        allowed_methods: [GET, POST, OPTIONS]
+      # Production: put this behind an auth gateway; the studio routes are open.
+
+  - name: iii-pubsub
+    config:
+      adapter:
+        name: local
+
+  - name: iii-queue
+    config:
+      queue_configs:
+        studio-build: { max_retries: 1, concurrency: 2, type: standard }
+        video-render: { max_retries: 1, concurrency: 1, type: standard }
+      adapter:
+        name: builtin
+        config:
+          store_method: file_based
+          file_path: ./data/studio_queue
+      # Production: switch to rabbitmq/managed queue.
+
+  - name: iii-cron
+    config:
+      adapter:
+        name: kv
+
+  - name: iii-exec
+    config:
+      exec:
+        # Factory 1 — software (app-studio). Route prefix "" (root).
+        - cd app-studio && npm install
+        - cd app-studio && npm start
+        # Factory 2 — video (video-studio). Add its worker entrypoint when ready:
+        # - cd video-studio && npm install
+        # - cd video-studio && npm start

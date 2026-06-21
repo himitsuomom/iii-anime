@@ -8,10 +8,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "declaration": false,
-    "outDir": "dist",
-    "rootDir": "src",
+    "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src"],
+  "include": ["src", "../studio-core/src"],
   "exclude": ["dist", "node_modules", "**/*.test.ts"]
 }

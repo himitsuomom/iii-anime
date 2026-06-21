@@ -2,21 +2,26 @@
 // Runs `claude -p` headless (no API key; uses existing Claude Code login),
 // asks for JSON only, and validates the parsed result. Used by intake/design.
 import { spawn } from 'node:child_process'
+import { assetArgs, assetsFromEnv, type ClaudeAssets } from '../../../studio-core/src/assets.js'
 import type { Brain, JsonRequest, TextRequest } from './brain.js'
 
 export interface ClaudeCliBrainOptions {
   bin?: string
   timeoutMs?: number
+  /** Existing Claude assets (model/MCP/skills/...) for spec/design/wiki gen. */
+  assets?: ClaudeAssets
 }
 
 export class ClaudeCliBrain implements Brain {
   readonly id = 'claude-cli'
   private bin: string
   private timeoutMs: number
+  private assets: ClaudeAssets
 
   constructor(opts: ClaudeCliBrainOptions = {}) {
     this.bin = opts.bin ?? 'claude'
     this.timeoutMs = opts.timeoutMs ?? 5 * 60_000
+    this.assets = opts.assets ?? assetsFromEnv()
   }
 
   async json<T>(req: JsonRequest<T>): Promise<T> {
@@ -30,6 +35,7 @@ export class ClaudeCliBrain implements Brain {
       'json',
       '--max-turns',
       String(req.maxTurns ?? 2),
+      ...assetArgs(this.assets),
     ]
     const { stdout, stderr, code } = await this.spawn(args)
     const envelope = parseJson(stdout)
@@ -51,6 +57,7 @@ export class ClaudeCliBrain implements Brain {
       'json',
       '--max-turns',
       String(req.maxTurns ?? 2),
+      ...assetArgs(this.assets),
     ]
     const { stdout, stderr, code } = await this.spawn(args)
     const envelope = parseJson(stdout)
