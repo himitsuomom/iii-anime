@@ -1,0 +1,80 @@
+// Shared domain types for the app-studio pipeline. See app-studio/P0-DETAIL.md
+// and app-studio/SANDBOX-AND-BUILD-LOOP.md for the design these encode.
+
+export type Status =
+  | 'intake'
+  | 'design'
+  | 'building'
+  | 'qa'
+  | 'revising'
+  | 'delivering'
+  | 'delivered'
+  | 'failed'
+
+export interface Spec {
+  goal: string
+  features: string[]
+  acceptance: string[]
+  constraints?: string[]
+  assumptions: string[]
+}
+
+export interface Plan {
+  app_type: 'web-node'
+  stack: string[]
+  tasks: string[]
+  build_cmd: string
+  test_cmd: string
+  run_cmd?: string
+}
+
+export interface RubricCheck {
+  id: string
+  cmd: string
+  expect: 'exit0'
+}
+
+export interface Rubric {
+  hard: RubricCheck[]
+  soft?: Array<{ id: string; check: string }>
+}
+
+export interface QaResult {
+  passed: boolean
+  failures: string[]
+  score: number
+  logs_ref?: string
+}
+
+export interface Artifacts {
+  files: string[]
+  repo_url?: string
+  preview_url?: string
+}
+
+export interface ProjectState {
+  project_id: string
+  idea: string
+  status: Status
+  iteration: number
+  max_iterations: number
+  workdir: string
+  spec?: Spec
+  plan?: Plan
+  last_qa?: QaResult
+  artifacts?: Artifacts
+  trace_id?: string
+  updated_at: string
+}
+
+export type PipelineEvent =
+  | { type: 'project.created' }
+  | { type: 'spec.ready' }
+  | { type: 'plan.ready' }
+  | { type: 'build.done' }
+  | { type: 'qa.passed' }
+  | { type: 'qa.failed' }
+  | { type: 'delivered' }
+  | { type: 'error'; reason?: string }
+
+export const DEFAULT_MAX_ITERATIONS = 5
