@@ -24,6 +24,7 @@ class PipelineOutput:
     stage_revisions: dict[str, int]
     bible_path: Path
     files: list[Path] = field(default_factory=list)
+    animatic_path: Path | None = None
 
 
 async def run_pipeline(
@@ -53,6 +54,12 @@ async def run_pipeline(
     bible_path.write_text(render_bible(brief, result.artifacts), encoding="utf-8")
     files.append(bible_path)
 
+    animatic_path: Path | None = None
+    if cfg.render:
+        animatic_path = _render_animatic(brief, result.artifacts, project_dir, kb)
+        if animatic_path is not None:
+            files.append(animatic_path)
+
     return PipelineOutput(
         project_id=brief.project_id,
         output_dir=project_dir,
@@ -60,7 +67,21 @@ async def run_pipeline(
         stage_revisions=result.stage_revisions,
         bible_path=bible_path,
         files=files,
+        animatic_path=animatic_path,
     )
+
+
+def _render_animatic(
+    brief: ProjectBrief, artifacts: dict[str, Any], project_dir: Path, kb: KnowledgeBase
+) -> Path | None:
+    """Render the animatic mp4; never fail the pipeline if the extra is absent."""
+    from ..render import RenderUnavailable, render_animatic
+
+    try:
+        result = render_animatic(brief, artifacts, project_dir / "render", kb)
+        return result.mp4_path
+    except RenderUnavailable:
+        return None
 
 
 __all__ = ["run_pipeline", "PipelineOutput"]

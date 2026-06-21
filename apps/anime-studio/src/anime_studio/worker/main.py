@@ -21,7 +21,7 @@ def main() -> None:
         ),
     )
     setup(iii, cfg)
-    print("anime-studio worker registered: studio::run_pipeline, status, script, storyboard, qa, distribution")
+    print("anime-studio worker registered: studio::run_pipeline, render, status, script, storyboard, qa, distribution")
 
 
 if __name__ == "__main__":

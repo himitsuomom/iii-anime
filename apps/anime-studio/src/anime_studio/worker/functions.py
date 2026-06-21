@@ -58,6 +58,16 @@ def setup(iii: Any, cfg: AnimeStudioConfig | None = None) -> None:
             await tracker.save_job(job)
             return {"statusCode": 500, "body": {"project_id": brief.project_id, "error": str(exc)}}
 
+    async def render_fn(data: dict[str, Any]) -> dict[str, Any]:
+        body = (data or {}).get("body") or data or {}
+        body.setdefault("project_id", _new_project_id())
+        brief = ProjectBrief.model_validate(body)
+        render_cfg = config.model_copy(update={"render": True})
+        output = await run_pipeline(brief, render_cfg, emit=tracker.emitter(brief.project_id))
+        if output.animatic_path is None:
+            return {"statusCode": 501, "body": {"error": "render extra not installed", "project_id": brief.project_id}}
+        return {"statusCode": 201, "body": {"project_id": brief.project_id, "animatic": str(output.animatic_path)}}
+
     async def status_fn(data: dict[str, Any]) -> dict[str, Any]:
         path_params = (data or {}).get("pathParams") or (data or {}).get("path_params") or {}
         project_id = path_params.get("project_id")
@@ -84,6 +94,7 @@ def setup(iii: Any, cfg: AnimeStudioConfig | None = None) -> None:
         return {"statusCode": 404, "body": {"error": f"unknown stage {stage_id}"}}
 
     register("studio::run_pipeline", "studio/run", "POST", run_pipeline_fn, "Run the full anime pipeline")
+    register("studio::render", "studio/render", "POST", render_fn, "Run the pipeline and render an animatic mp4")
     register("studio::status", "studio/status/:project_id", "GET", status_fn, "Get pipeline job status")
     register(
         "studio::script", "studio/script", "POST", lambda d: stage_fn(d, "script"), "Run the script department"

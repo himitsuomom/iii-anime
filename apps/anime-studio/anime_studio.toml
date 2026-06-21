@@ -7,6 +7,11 @@ max_revisions = 2
 # Gates that ABORT the pipeline when they keep failing. Others are advisory.
 hard_gates = ["three_second_hook"]
 
+[render]
+# Render a playable animatic mp4 (needs the 'render' extra). Off by default;
+# enable with `--render` or ANIME_STUDIO_RENDER=1.
+enabled = false
+
 [llm]
 # "anthropic" degrades to "mock" automatically when no API key / network.
 provider = "anthropic"

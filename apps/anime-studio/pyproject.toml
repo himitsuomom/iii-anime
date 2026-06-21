@@ -19,6 +19,9 @@ dependencies = [
 
 [project.optional-dependencies]
 anthropic = ["anthropic>=0.40"]
+# Animatic rendering. imageio-ffmpeg bundles a static ffmpeg binary, so no
+# system ffmpeg install is required.
+render = ["Pillow>=10.0", "imageio-ffmpeg>=0.5"]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
@@ -26,6 +29,8 @@ dev = [
     "mypy>=1.8",
     "ruff>=0.2",
     "types-PyYAML",
+    "Pillow>=10.0",
+    "imageio-ffmpeg>=0.5",
 ]
 
 [tool.uv.sources]
@@ -54,7 +59,7 @@ strict = true
 
 # Optional / stub-less third-party modules.
 [[tool.mypy.overrides]]
-module = ["tomllib", "tomli", "anthropic", "iii", "iii.*", "iii_observability"]
+module = ["tomllib", "tomli", "anthropic", "iii", "iii.*", "iii_observability", "imageio_ffmpeg"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

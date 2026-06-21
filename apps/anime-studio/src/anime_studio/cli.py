@@ -33,6 +33,8 @@ def _cmd_run(args: argparse.Namespace) -> int:
         cfg.output_dir = args.output_dir
     if args.provider:
         cfg.llm.provider = args.provider
+    if args.render:
+        cfg.render = True
     brief = _load_brief(Path(args.brief))
 
     async def emit(event: ProgressEvent) -> None:
@@ -43,6 +45,11 @@ def _cmd_run(args: argparse.Namespace) -> int:
     print(f"\nProduction bible: {output.bible_path}")
     print(f"Output dir:       {output.output_dir}")
     print(f"Revisions:        {output.stage_revisions}")
+    if cfg.render:
+        if output.animatic_path is not None:
+            print(f"Animatic mp4:     {output.animatic_path}")
+        else:
+            print("Animatic mp4:     skipped (install the 'render' extra: uv sync --extra render)")
     return 0
 
 
@@ -81,6 +88,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--output-dir", help="Override output directory")
     run.add_argument("--config", help="Path to anime_studio.toml")
     run.add_argument("--provider", help="Override LLM provider (anthropic|mock)")
+    run.add_argument("--render", action="store_true", help="Also render a playable animatic mp4")
     run.set_defaults(func=_cmd_run)
 
     validate = sub.add_parser("validate", help="Validate the knowledge base")

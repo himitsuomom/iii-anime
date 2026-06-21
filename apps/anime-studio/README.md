@@ -34,9 +34,13 @@ LLM adapter** that transparently degrades to mock when there's no API key or
 network. Real image/video/audio/edit adapters (AniSora / WAN / Kling, etc.) slot
 into `providers/registry.py` later without touching the agents.
 
-The current deliverable is a complete **production bible** (`production_bible.md`)
-plus structured JSON artifacts — not yet a rendered `.mp4` (the video/edit seam is
-left in place for that).
+The core deliverable is a complete **production bible** (`production_bible.md`) plus
+structured JSON artifacts. With the optional **`render` extra** the studio also
+produces a **playable animatic** — a real `.mp4` built from the storyboard (one
+9:16 panel per cut, held for its beat-matched duration) plus a storyboard contact
+sheet. `imageio-ffmpeg` bundles a static ffmpeg binary, so **no system ffmpeg
+install is required**. (Photoreal per-cut video via AniSora/WAN/Kling remains the
+provider seam to fill next.)
 
 ## Quickstart (standalone, no engine)
 
@@ -45,6 +49,14 @@ make install-anime              # from repo root, or: uv sync --extra dev
 cd apps/anime-studio
 uv run anime-studio run --brief tests/fixtures/sample_brief.yaml --output-dir ./output
 cat output/demo-sheep/production_bible.md
+```
+
+Render a playable animatic mp4 (needs the optional render extra):
+
+```bash
+uv sync --extra dev --extra render   # or: uv sync --extra render
+uv run anime-studio run --brief tests/fixtures/sample_brief.yaml --render
+# -> output/demo-sheep/render/animatic.mp4 + storyboard_contactsheet.png
 ```
 
 Other commands:
@@ -67,8 +79,8 @@ ANIME_STUDIO_LLM_PROVIDER=anthropic ANTHROPIC_API_KEY=sk-... \
 make engine-up                                      # from repo root
 cd apps/anime-studio
 III_URL=ws://localhost:49199 uv run python -m anime_studio.worker.main
-# registers: studio::run_pipeline, studio::status, studio::script,
-#            studio::storyboard, studio::qa, studio::distribution
+# registers: studio::run_pipeline, studio::render, studio::status,
+#            studio::script, studio::storyboard, studio::qa, studio::distribution
 ```
 
 Then drive the HTTP trigger (the repo test engine serves HTTP on `:3199`):

@@ -38,6 +38,8 @@ class AnimeStudioConfig(BaseModel):
     output_dir: str = "./output"
     max_revisions: int = 2
     hard_gates: list[str] = Field(default_factory=lambda: ["three_second_hook"])
+    # When true, also render a playable animatic mp4 (needs the 'render' extra).
+    render: bool = False
     llm: LLMConfig = Field(default_factory=LLMConfig)
     image: ProviderConfig = Field(default_factory=ProviderConfig)
     video: ProviderConfig = Field(default_factory=ProviderConfig)
@@ -59,6 +61,7 @@ class AnimeStudioConfig(BaseModel):
             "output_dir": general.get("output_dir", "./output"),
             "max_revisions": general.get("max_revisions", 2),
             "hard_gates": general.get("hard_gates", ["three_second_hook"]),
+            "render": data.get("render", {}).get("enabled", False),
             "llm": data.get("llm", {}),
             "image": data.get("image", {}),
             "video": data.get("video", {}),
@@ -74,6 +77,8 @@ class AnimeStudioConfig(BaseModel):
             self.output_dir = v
         if v := env.get("ANIME_STUDIO_MAX_REVISIONS"):
             self.max_revisions = int(v)
+        if v := env.get("ANIME_STUDIO_RENDER"):
+            self.render = v.lower() in ("1", "true", "yes", "on")
         if v := env.get("ANIME_STUDIO_LLM_PROVIDER"):
             self.llm.provider = v
         if v := env.get("ANIME_STUDIO_LLM_MODEL"):

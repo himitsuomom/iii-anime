@@ -29,6 +29,7 @@ def test_setup_registers_all_studio_functions() -> None:
 
     expected = {
         "studio::run_pipeline",
+        "studio::render",
         "studio::status",
         "studio::script",
         "studio::storyboard",
