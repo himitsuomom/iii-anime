@@ -136,6 +136,12 @@ most relevant prior app docs into the build prompt so patterns get reused.
   QA at `awaiting_approval` until `POST /projects/:id/approve` (or `/reject`).
 - `idempotency_key` (POST body): a duplicate submission maps to the same project.
 - A 1-minute cron sweep resumes any stuck, non-terminal project.
+- `STUDIO_API_TOKEN`: when set, the data routes (`/projects*`, `/wiki*`) require
+  `Authorization: Bearer <token>` (or `x-api-key`). Unset = open (dev). The
+  dashboard page itself stays public; its API calls need the token.
+- `STUDIO_SECRET_<NAME>`: host-side secrets (e.g. a git push token) read via
+  `EnvSecretStore`; never injected into the sandbox env. See
+  [studio-core/MULTI-FACTORY.md](../studio-core/MULTI-FACTORY.md).
 - `STUDIO_SANDBOX_ISOLATION=unshare`: run sandbox commands in kernel namespaces
   (mount/uts/ipc/pid + unprivileged user-ns + no network) instead of the default
   direct spawn. Falls back to direct if `unshare` is unavailable. Set

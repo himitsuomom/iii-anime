@@ -23,6 +23,7 @@ import { DEFAULT_MAX_ITERATIONS } from './types.js'
 
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { checkAuth, unauthorizedResponse } from '../../studio-core/src/auth.js'
 
 const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 
@@ -44,6 +45,12 @@ const deps: StudioDeps = {
   build: await buildBackendFromEnv(),
   wiki,
   buildMaxTurns: Number(process.env.STUDIO_BUILD_MAX_TURNS ?? 60),
+}
+
+// Auth guard for HTTP routes. No-op unless STUDIO_API_TOKEN is set.
+function denied(input: unknown): ReturnType<typeof unauthorizedResponse> | null {
+  const headers = (input as { headers?: Record<string, string | string[]> }).headers ?? {}
+  return checkAuth(headers) ? null : unauthorizedResponse()
 }
 
 // --- sandbox (case A foundation; also used by QA and the future API backend) ---
@@ -69,6 +76,8 @@ iii.registerTrigger({ type: 'http', function_id: 'studio::ui', config: { api_pat
 
 // --- HTTP intake: POST /projects { idea } -> 202 { project_id } ---
 iii.registerFunction('studio::intake::create', async (input) => {
+  const d = denied(input)
+  if (d) return d
   const body =
     (
       input as {
@@ -117,6 +126,8 @@ iii.registerTrigger({
 
 // --- DX: inspect projects ---
 iii.registerFunction('studio::project::get', async (input) => {
+  const d = denied(input)
+  if (d) return d
   const id = (input as { path_params?: { id?: string } }).path_params?.id
   if (!id) return { status_code: 400, body: { error: 'id required' } }
   const s = await deps.store.get(id)
@@ -141,6 +152,8 @@ async function decide(projectId: string, type: 'approved' | 'rejected') {
   return { status_code: 200, body: { project_id: projectId, status: after?.status } }
 }
 iii.registerFunction('studio::project::approve', async (input) => {
+  const d = denied(input)
+  if (d) return d
   const id = (input as { path_params?: { id?: string } }).path_params?.id
   return id ? decide(id, 'approved') : { status_code: 400, body: { error: 'id required' } }
 })
@@ -150,6 +163,8 @@ iii.registerTrigger({
   config: { api_path: '/projects/:id/approve', http_method: 'POST' },
 })
 iii.registerFunction('studio::project::reject', async (input) => {
+  const d = denied(input)
+  if (d) return d
   const id = (input as { path_params?: { id?: string } }).path_params?.id
   return id ? decide(id, 'rejected') : { status_code: 400, body: { error: 'id required' } }
 })
@@ -159,7 +174,9 @@ iii.registerTrigger({
   config: { api_path: '/projects/:id/reject', http_method: 'POST' },
 })
 
-iii.registerFunction('studio::project::list', async () => {
+iii.registerFunction('studio::project::list', async (input) => {
+  const d = denied(input)
+  if (d) return d
   const all = await deps.store.list()
   const summary = all
     .map((s) => ({
@@ -181,7 +198,9 @@ iii.registerTrigger({
 })
 
 // --- LLM wiki: auto-generated per-app docs + natural-language Q&A ---
-iii.registerFunction('studio::wiki::list', async () => {
+iii.registerFunction('studio::wiki::list', async (input) => {
+  const d = denied(input)
+  if (d) return d
   const pages = await wiki.list()
   return {
     status_code: 200,
@@ -199,6 +218,8 @@ iii.registerTrigger({
 })
 
 iii.registerFunction('studio::wiki::get', async (input) => {
+  const d = denied(input)
+  if (d) return d
   const slug = (input as { path_params?: { slug?: string } }).path_params?.slug
   if (!slug) return { status_code: 400, body: { error: 'slug required' } }
   const page = await wiki.get(slug)
@@ -211,6 +232,8 @@ iii.registerTrigger({
 })
 
 iii.registerFunction('studio::wiki::ask', async (input) => {
+  const d = denied(input)
+  if (d) return d
   const question = (input as { body?: { question?: string } }).body?.question
   if (!question) return { status_code: 400, body: { error: 'question is required' } }
   const res = await askWiki(brain, wiki, question)
