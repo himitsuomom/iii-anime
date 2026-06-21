@@ -1,0 +1,67 @@
+# iii engine config for the SaaS Replicator orchestrator.
+# Start with: iii --config iii-config.yaml
+workers:
+  - name: iii-state
+    config:
+      adapter:
+        name: kv
+        config:
+          store_method: file_based
+          file_path: ./data/state_store.db
+
+  - name: iii-http
+    config:
+      port: 3111
+      host: 127.0.0.1
+      default_timeout: 60000
+      cors:
+        allowed_origins: ["*"]
+        allowed_methods: [GET, POST, PUT, DELETE, OPTIONS]
+
+  - name: iii-observability
+    config:
+      enabled: true
+      service_name: saas-replicator
+      exporter: memory
+      metrics_enabled: true
+      logs_enabled: true
+
+  - name: iii-queue
+    config:
+      queue_configs:
+        # The "swarm": raise concurrency to fan Phase 1 analysis out in parallel.
+        phase1-ui:
+          max_retries: 3
+          concurrency: 20
+          type: standard
+        viz:
+          max_retries: 3
+          concurrency: 5
+          type: standard
+        phase3-test:
+          max_retries: 3
+          concurrency: 5
+          type: standard
+        default:
+          max_retries: 5
+          concurrency: 10
+          type: standard
+      adapter:
+        name: builtin
+        config:
+          store_method: file_based
+          file_path: ./data/queue_store
+
+  # Run the orchestrator worker as part of `iii` startup.
+  - name: iii-exec
+    config:
+      watch:
+        - src/**/*.ts
+      exec:
+        - npm run start
+
+# --- Optional workers (add via `iii worker add`) ---
+# provider-anthropic   # required for live mode (Claude). Director + all roles by default.
+# provider-kimi        # optional. When present, analyzer/visualizer/tester/swarm auto-rebind to KIMI.
+# iii-sandbox          # isolated code execution for real test/visualization phases.
+# approval-gate        # human approval before deploy.

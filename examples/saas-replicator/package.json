@@ -1,0 +1,21 @@
+{
+  "name": "saas-replicator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Claude×KIMI SaaS-replication orchestrator built on iii (Worker/Function/Trigger). Runs on Claude alone; KIMI is optional.",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "iii-sdk": "^0.19.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

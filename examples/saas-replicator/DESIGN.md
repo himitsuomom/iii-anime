@@ -1,6 +1,8 @@
 # SaaS Replicator on iii — Claude×KIMI オーケストレーション再設計書
 
-> 元設計 `assets/original-report.md`（Claude×KIMI マルチエージェント・オーケストレーション）を、**iii のプリミティブ（Worker / Function / Trigger）上で動作する**ように再設計したもの。スコープは**設計のみ**（実コードは含まない）。実装言語は TypeScript（`iii-sdk`）を前提とする。
+> 元設計 `assets/original-report.md`（Claude×KIMI マルチエージェント・オーケストレーション）を、**iii のプリミティブ（Worker / Function / Trigger）上で動作する**ように再設計したもの。実装言語は TypeScript（`iii-sdk`）。
+>
+> **実装状況**: ロードマップ §13 の**ステージ1（Claude単独で動く骨格）を実装済み**。`src/` 配下に `director` / `swarm-executor` ワーカーと純粋ロジック（`logic/`）、`tests/` に単体テストがある。セットアップ・実行は [README.md](./README.md) を参照。
 
 ---
 
@@ -265,26 +267,32 @@ sequenceDiagram
 
 ---
 
-## 10. 実装時の推奨構成（参考・このフェーズではコードを書かない）
+## 10. 実装構成（ステージ1・実装済み）
 
 ```
 examples/saas-replicator/
   DESIGN.md            ← 本書
-  README.md            ← 概要・起動手順
+  README.md            ← 概要・セットアップ・起動手順
   assets/              ← 元コンセプト図（参照用）
-  （後続実装で追加）
-  iii-config.yaml      ← engine 設定（ワーカー一覧 / ポート / queue concurrency）
-  package.json         ← iii-sdk 依存
+  iii-config.yaml      ← engine 設定（ワーカー一覧 / queue concurrency = スウォーム並列度）
+  package.json         ← iii-sdk 依存 + scripts（dev/start/typecheck/test）
+  tsconfig.json
   src/
-    director.ts        ← director::* 関数 + HTTP トリガ
-    swarm.ts           ← swarm::* 関数 + queue(durable:subscriber) トリガ
-    provider.ts        ← provider::resolve（role-binding）
-    phases/
-      phase1.ts        ← UI分析（fan-out → 集約）
-      phase2.ts        ← PRD/設計
-      phase3.ts        ← 実装 + sandbox テスト
-      phase4.ts        ← 可視化 + approval + deploy
+    iii.ts             ← registerWorker
+    log.ts             ← 最小ロガー
+    hooks.ts           ← useApi（HTTP トリガ登録）
+    state.ts           ← state::* ラッパ
+    provider.ts        ← provider::resolve + stub プロバイダ + callRole
+    director.ts        ← director::plan(HTTP /saas/replicate) + director::advance(4-Phase 駆動)
+    swarm.ts           ← swarm::ui::analyze-screen / swarm::viz::render / swarm::test::run
+    logic/
+      roleBinding.ts   ← 役割→プロバイダ解決（純粋）
+      pipeline.ts      ← 4-Phase 進行ロジック（純粋）
+  tests/
+    roleBinding.test.ts / pipeline.test.ts   ← node:test（エンジン不要）
 ```
+
+> Phase ロジックは `logic/pipeline.ts`（純粋・テスト対象）に集約し、`director.ts` がそれを駆動する構成にした（当初案の `phases/*.ts` 分割より凝集度が高い）。
 
 例示スニペット（AGENTS.md 規約準拠: `::` 区切り、`api_path` 先頭 `/`、cron は `expression`）:
 
