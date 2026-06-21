@@ -1,27 +1,36 @@
-// Store backed by iii's state worker (iii.state). Used by the running worker;
-// tests use MemoryStore. Typed structurally against the state API so it doesn't
-// depend on a specific exported SDK type name.
+// Store backed by iii's state worker. State ops are invoked as engine functions
+// (`state::get` / `state::set` / `state::list`) via iii.trigger — there is no
+// `iii.state` accessor on ISdk. Used by the running worker; tests use MemoryStore.
 import type { ProjectState } from '../types.js'
 import type { Store } from './store.js'
 
 const SCOPE = 'studio'
 
-export interface StateApi {
-  get<T>(input: { scope: string; key: string }): Promise<T | null>
-  set<T>(input: { scope: string; key: string; value: T }): Promise<unknown>
-  list<T>(input: { scope: string }): Promise<T[]>
+/** Minimal structural view of the SDK we need (avoids a hard ISdk import). */
+export interface TriggerFn {
+  trigger<TInput, TOutput>(request: {
+    function_id: string
+    payload: TInput
+  }): Promise<TOutput>
 }
 
 export class IiiStore implements Store {
-  constructor(private state: StateApi) {}
+  constructor(private iii: TriggerFn) {}
 
   async get(projectId: string): Promise<ProjectState | null> {
-    return (await this.state.get<ProjectState>({ scope: SCOPE, key: projectId })) ?? null
+    const v = await this.iii.trigger<{ scope: string; key: string }, ProjectState | null>({
+      function_id: 'state::get',
+      payload: { scope: SCOPE, key: projectId },
+    })
+    return v ?? null
   }
 
   async set(state: ProjectState): Promise<ProjectState> {
     const next = { ...state, updated_at: new Date().toISOString() }
-    await this.state.set({ scope: SCOPE, key: state.project_id, value: next })
+    await this.iii.trigger<{ scope: string; key: string; value: ProjectState }, unknown>({
+      function_id: 'state::set',
+      payload: { scope: SCOPE, key: state.project_id, value: next },
+    })
     return next
   }
 
@@ -29,11 +38,18 @@ export class IiiStore implements Store {
     const cur = await this.get(projectId)
     if (!cur) throw new Error(`unknown project: ${projectId}`)
     const next = { ...cur, ...patch, updated_at: new Date().toISOString() }
-    await this.state.set({ scope: SCOPE, key: projectId, value: next })
+    await this.iii.trigger<{ scope: string; key: string; value: ProjectState }, unknown>({
+      function_id: 'state::set',
+      payload: { scope: SCOPE, key: projectId, value: next },
+    })
     return next
   }
 
   async list(): Promise<ProjectState[]> {
-    return await this.state.list<ProjectState>({ scope: SCOPE })
+    const v = await this.iii.trigger<{ scope: string }, ProjectState[]>({
+      function_id: 'state::list',
+      payload: { scope: SCOPE },
+    })
+    return v ?? []
   }
 }

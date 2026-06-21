@@ -20,7 +20,7 @@ import { DEFAULT_MAX_ITERATIONS } from './types.js'
 const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 
 const deps: StudioDeps = {
-  store: new IiiStore(iii.state as never),
+  store: new IiiStore(iii),
   brain: new ClaudeCliBrain(),
   build: new ClaudeCodeBackend(),
   buildMaxTurns: Number(process.env.STUDIO_BUILD_MAX_TURNS ?? 60),
