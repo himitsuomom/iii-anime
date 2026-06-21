@@ -25,6 +25,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { checkAuth, unauthorizedResponse } from '../../studio-core/src/auth.js'
 import { LeaderLock, RedisCliLockBackend } from '../../studio-core/src/leader.js'
+import { detectAlerts } from '../../studio-core/src/alerts.js'
 
 const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 
@@ -255,6 +256,23 @@ iii.registerTrigger({
   type: 'http',
   function_id: 'studio::wiki::ask',
   config: { api_path: '/wiki/ask', http_method: 'POST' },
+})
+
+// --- observability: operational alerts derived from project state ---
+iii.registerFunction('studio::alerts', async (input) => {
+  const d = denied(input)
+  if (d) return d
+  const all = await deps.store.list()
+  const alerts = detectAlerts(
+    all.map((s) => ({ project_id: s.project_id, status: s.status, updated_at: s.updated_at })),
+    { stuckMs: Number(process.env.STUDIO_STUCK_MS ?? 10 * 60_000) },
+  )
+  return { status_code: 200, body: alerts }
+})
+iii.registerTrigger({
+  type: 'http',
+  function_id: 'studio::alerts',
+  config: { api_path: '/alerts', http_method: 'GET' },
 })
 
 // --- crash recovery: periodically resume stuck, non-terminal projects ---
