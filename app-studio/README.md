@@ -69,6 +69,9 @@ curl -XPOST localhost:3111/projects -H 'content-type: application/json' \
 curl localhost:3111/projects/prj_...    # full project state (status, plan, last_qa, artifacts)
 curl localhost:3111/projects            # list all projects (summary)
 
+# dashboard UI — submit ideas, watch the pipeline, approve/reject, browse/ask the wiki
+open http://localhost:3111/            # single-file UI (ui/dashboard.html), also at /ui
+
 # approval gate (when a project was created with require_approval)
 curl -XPOST localhost:3111/projects/prj_.../approve
 curl -XPOST localhost:3111/projects/prj_.../reject

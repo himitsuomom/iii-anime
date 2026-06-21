@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>iii App Studio</title>
+    <style>
+      :root {
+        --bg: #0f1115; --panel: #171a21; --line: #262b36; --fg: #e7ecf3;
+        --muted: #93a0b4; --accent: #6ea8fe; --ok: #3fb950; --warn: #d29922;
+        --bad: #f85149; --chip: #21262d;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--fg);
+        font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+      header { padding: 16px 24px; border-bottom: 1px solid var(--line);
+        display: flex; align-items: baseline; gap: 12px; }
+      header h1 { font-size: 18px; margin: 0; }
+      header .sub { color: var(--muted); font-size: 12px; }
+      main { display: grid; grid-template-columns: 1fr 380px; gap: 16px; padding: 16px 24px; }
+      @media (max-width: 920px) { main { grid-template-columns: 1fr; } }
+      .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+      .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em;
+        color: var(--muted); margin: 0 0 10px; }
+      textarea, input[type=text] { width: 100%; background: #0d1017; color: var(--fg);
+        border: 1px solid var(--line); border-radius: 8px; padding: 9px; font: inherit; resize: vertical; }
+      button { background: var(--accent); color: #07101f; border: 0; border-radius: 8px;
+        padding: 8px 12px; font-weight: 600; cursor: pointer; }
+      button.ghost { background: var(--chip); color: var(--fg); }
+      button.bad { background: var(--bad); color: #1a0000; }
+      button.ok { background: var(--ok); color: #04140a; }
+      .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+      label.chk { color: var(--muted); display: flex; gap: 6px; align-items: center; }
+      .card { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+      .card .top { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+      .id { font-family: ui-monospace, monospace; font-size: 12px; color: var(--muted); }
+      .goal { margin: 4px 0; }
+      .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--chip); }
+      .badge.delivered { background: #14361f; color: var(--ok); }
+      .badge.failed { background: #3a1413; color: var(--bad); }
+      .badge.awaiting_approval { background: #3a2e10; color: var(--warn); }
+      .badge.building, .badge.revising, .badge.qa, .badge.design, .badge.intake,
+      .badge.delivering { background: #102438; color: var(--accent); }
+      .meta { color: var(--muted); font-size: 12px; margin-top: 4px; }
+      pre { background: #0d1017; border: 1px solid var(--line); border-radius: 8px; padding: 10px;
+        overflow: auto; font-size: 12px; max-height: 240px; }
+      .detail { margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 8px; display: none; }
+      .detail.open { display: block; }
+      .answer { white-space: pre-wrap; background: #0d1017; border: 1px solid var(--line);
+        border-radius: 8px; padding: 10px; margin-top: 8px; }
+      a { color: var(--accent); }
+      .empty { color: var(--muted); font-style: italic; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>iii App Studio</h1>
+      <span class="sub">idea → spec → design → build → QA → deliver · <span id="count">0</span> projects</span>
+    </header>
+    <main>
+      <section>
+        <div class="panel">
+          <h2>New project</h2>
+          <textarea id="idea" rows="2" placeholder="Describe an app idea…"></textarea>
+          <div class="row" style="margin-top:8px">
+            <button id="submit">Build it</button>
+            <label class="chk"><input type="checkbox" id="approval" /> require approval</label>
+            <span id="msg" class="meta"></span>
+          </div>
+        </div>
+        <div class="panel" style="margin-top:16px">
+          <h2>Projects</h2>
+          <div id="projects"><div class="empty">No projects yet.</div></div>
+        </div>
+      </section>
+      <aside>
+        <div class="panel">
+          <h2>Ask the wiki</h2>
+          <input type="text" id="q" placeholder="e.g. which apps expose /health?" />
+          <div class="row" style="margin-top:8px"><button id="ask" class="ghost">Ask</button></div>
+          <div id="answer" class="answer" style="display:none"></div>
+        </div>
+        <div class="panel" style="margin-top:16px">
+          <h2>Wiki pages</h2>
+          <div id="wiki"><div class="empty">No pages yet.</div></div>
+        </div>
+      </aside>
+    </main>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+      const open = new Set();
+
+      async function api(path, opts) {
+        const r = await fetch(path, opts);
+        const t = await r.text();
+        try { return { ok: r.ok, status: r.status, body: JSON.parse(t) }; }
+        catch { return { ok: r.ok, status: r.status, body: t }; }
+      }
+
+      async function submit() {
+        const idea = $('idea').value.trim();
+        if (!idea) return;
+        $('msg').textContent = 'submitting…';
+        const r = await api('/projects', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ idea, require_approval: $('approval').checked }),
+        });
+        $('msg').textContent = r.body && r.body.project_id ? 'started ' + r.body.project_id : 'error';
+        $('idea').value = '';
+        refresh();
+      }
+
+      async function act(id, action) {
+        await api('/projects/' + id + '/' + action, { method: 'POST' });
+        refresh();
+      }
+
+      async function toggle(id) {
+        if (open.has(id)) open.delete(id); else open.add(id);
+        renderDetail(id);
+      }
+
+      async function renderDetail(id) {
+        const el = document.getElementById('d-' + id);
+        if (!el) return;
+        if (!open.has(id)) { el.classList.remove('open'); return; }
+        el.classList.add('open');
+        const r = await api('/projects/' + id);
+        const s = r.body || {};
+        const files = (s.artifacts && s.artifacts.files) || [];
+        el.innerHTML =
+          (s.plan ? '<div class="meta">stack: ' + esc((s.plan.stack || []).join(', ')) +
+            ' · test: <code>' + esc(s.plan.test_cmd) + '</code></div>' : '') +
+          (s.last_qa && s.last_qa.failures && s.last_qa.failures.length
+            ? '<pre>' + esc(s.last_qa.failures.join('\n')) + '</pre>' : '') +
+          (files.length ? '<div class="meta">files:</div><pre>' + esc(files.join('\n')) + '</pre>' : '') +
+          (s.artifacts && s.artifacts.preview_cmd
+            ? '<div class="meta">run: <code>' + esc(s.artifacts.preview_cmd) + '</code></div>' : '');
+      }
+
+      async function refresh() {
+        const r = await api('/projects');
+        const list = (r.body && r.body.projects) || [];
+        $('count').textContent = list.length;
+        const box = $('projects');
+        if (!list.length) { box.innerHTML = '<div class="empty">No projects yet.</div>'; return; }
+        box.innerHTML = list.map((p) => {
+          const awaiting = p.status === 'awaiting_approval';
+          return '<div class="card">' +
+            '<div class="top"><span class="badge ' + esc(p.status) + '">' + esc(p.status) + '</span>' +
+            '<span class="id">' + esc(p.project_id) + '</span></div>' +
+            '<div class="goal">' + esc(p.goal || '(working…)') + '</div>' +
+            '<div class="meta">' + esc(p.app_type || '—') + ' · iter ' + esc(p.iteration) +
+            (p.passed === true ? ' · QA ✓' : p.passed === false ? ' · QA ✗' : '') + '</div>' +
+            '<div class="row" style="margin-top:8px">' +
+            '<button class="ghost" onclick="toggle(\'' + p.project_id + '\')">details</button>' +
+            (awaiting ? '<button class="ok" onclick="act(\'' + p.project_id + '\',\'approve\')">approve</button>' +
+              '<button class="bad" onclick="act(\'' + p.project_id + '\',\'reject\')">reject</button>' : '') +
+            '</div><div class="detail" id="d-' + p.project_id + '"></div></div>';
+        }).join('');
+        open.forEach(renderDetail);
+      }
+
+      async function refreshWiki() {
+        const r = await api('/wiki');
+        const pages = (r.body && r.body.pages) || [];
+        $('wiki').innerHTML = pages.length
+          ? pages.map((p) => '<div class="card"><div class="goal">' + esc(p.title) +
+              '</div><div class="id">' + esc(p.slug) + '</div></div>').join('')
+          : '<div class="empty">No pages yet.</div>';
+      }
+
+      async function ask() {
+        const q = $('q').value.trim();
+        if (!q) return;
+        const out = $('answer');
+        out.style.display = 'block';
+        out.textContent = 'thinking…';
+        const r = await api('/wiki/ask', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ question: q }),
+        });
+        const b = r.body || {};
+        out.textContent = (b.answer || JSON.stringify(b)) +
+          (b.sources && b.sources.length ? '\n\nsources: ' + b.sources.join(', ') : '');
+      }
+
+      $('submit').onclick = submit;
+      $('ask').onclick = ask;
+      refresh(); refreshWiki();
+      setInterval(refresh, 3000);
+      setInterval(refreshWiki, 8000);
+    </script>
+  </body>
+</html>

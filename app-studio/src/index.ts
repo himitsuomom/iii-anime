@@ -21,7 +21,20 @@ import { execInWorkspace } from './sandbox/exec.js'
 import { ensureWorkspace, workspaceDir } from './sandbox/workspace.js'
 import { DEFAULT_MAX_ITERATIONS } from './types.js'
 
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
 const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
+
+// Self-contained dashboard UI, served by the worker. (A panel that can later be
+// embedded into the iii Console SPA; standalone here for zero-build operation.)
+const DASHBOARD_HTML = (() => {
+  try {
+    return readFileSync(fileURLToPath(new URL('../ui/dashboard.html', import.meta.url)), 'utf8')
+  } catch {
+    return '<!doctype html><title>iii App Studio</title><p>dashboard.html not found</p>'
+  }
+})()
 
 const brain = new ClaudeCliBrain()
 const wiki = new IiiWikiStore(iii)
@@ -44,6 +57,15 @@ iii.registerFunction('studio::orch::run', async (input) => {
   const s = await deps.store.get(project_id)
   return { project_id, status: s?.status, artifacts: s?.artifacts, last_qa: s?.last_qa }
 })
+
+// --- dashboard UI ---
+iii.registerFunction('studio::ui', async () => ({
+  status_code: 200,
+  headers: { 'content-type': 'text/html; charset=utf-8' },
+  body: DASHBOARD_HTML,
+}))
+iii.registerTrigger({ type: 'http', function_id: 'studio::ui', config: { api_path: '/', http_method: 'GET' } })
+iii.registerTrigger({ type: 'http', function_id: 'studio::ui', config: { api_path: '/ui', http_method: 'GET' } })
 
 // --- HTTP intake: POST /projects { idea } -> 202 { project_id } ---
 iii.registerFunction('studio::intake::create', async (input) => {
