@@ -167,5 +167,7 @@ src/
 |---|---|---|
 | `STUDIO_WORK_ROOT` | `<tmp>/iii-studio-work` | base dir for per-project workdirs |
 | `STUDIO_BUILD_MAX_TURNS` | `60` | hard cap on build-agent turns per attempt |
+| `STUDIO_MAX_COST_USD` | (none) | per-project build cost ceiling; the project fails when exceeded |
+| `STUDIO_BUILD_QUEUE` | (none) | run pipelines through this named queue for per-factory concurrency |
 | `STUDIO_HTTP_PORT` | `3111` | HTTP intake port (local.yml) |
 | `III_URL` | `ws://localhost:49134` | engine websocket |

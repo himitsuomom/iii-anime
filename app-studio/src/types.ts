@@ -69,6 +69,8 @@ export interface ProjectState {
   plan?: Plan
   last_qa?: QaResult
   artifacts?: Artifacts
+  /** Accumulated build spend (from the Claude backend's reported usage). */
+  usage?: { cost_usd: number; turns: number; build_attempts: number }
   trace_id?: string
   updated_at: string
 }

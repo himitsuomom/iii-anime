@@ -153,7 +153,8 @@
             '<span class="id">' + esc(p.project_id) + '</span></div>' +
             '<div class="goal">' + esc(p.goal || '(working…)') + '</div>' +
             '<div class="meta">' + esc(p.app_type || '—') + ' · iter ' + esc(p.iteration) +
-            (p.passed === true ? ' · QA ✓' : p.passed === false ? ' · QA ✗' : '') + '</div>' +
+            (p.passed === true ? ' · QA ✓' : p.passed === false ? ' · QA ✗' : '') +
+            (typeof p.cost_usd === 'number' ? ' · $' + p.cost_usd.toFixed(3) : '') + '</div>' +
             '<div class="row" style="margin-top:8px">' +
             '<button class="ghost" onclick="toggle(\'' + p.project_id + '\')">details</button>' +
             (awaiting ? '<button class="ok" onclick="act(\'' + p.project_id + '\',\'approve\')">approve</button>' +

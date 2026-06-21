@@ -44,6 +44,7 @@ class FakeBuildBackend implements BuildBackend {
   readonly id = 'fake-build'
   calls = 0
   lastUserPrompt = ''
+  constructor(private costPerRun = 0) {}
   async run(req: BuildRequest): Promise<BuildOutcome> {
     this.calls++
     this.lastUserPrompt = req.userPrompt
@@ -53,7 +54,7 @@ class FakeBuildBackend implements BuildBackend {
       path: 'app.js',
       file_text: 'console.log("hello")\n',
     })
-    return { ok: true, summary: 'wrote app.js' }
+    return { ok: true, summary: 'wrote app.js', cost_usd: this.costPerRun, num_turns: 5 }
   }
 }
 
@@ -158,6 +159,29 @@ describe('pipeline end-to-end (fakes + real sandbox)', () => {
     assert.match(build.lastUserPrompt, /Health endpoint server \(app-health\)/)
     // its own future page (same project) must never be fed back in — n/a here,
     // but the source filter is exercised by excluding prj_reuse.
+  })
+
+  test('cost budget stops the project and accumulates usage', async () => {
+    const build = new FakeBuildBackend(1.0) // $1 per build attempt
+    const deps: StudioDeps = {
+      store: new MemoryStore(),
+      // tests always fail QA -> the build↔qa loop keeps spending until the cap
+      brain: new FakeBrain(SPEC, planWith('true', 'test -f never_exists')),
+      build,
+      buildMaxTurns: 4,
+      maxCostUsd: 1.5,
+    }
+    const pid = 'prj_budget'
+    await deps.store.set(initialProjectState(pid, 'x', workspaceDir(pid), 10))
+
+    await advance(deps, pid, { type: 'project.created' })
+
+    const final = await deps.store.get(pid)
+    assert.equal(final?.status, 'failed')
+    // attempt 1 (spent 0 -> 1.0), attempt 2 (1.0 -> 2.0), attempt 3 entry: 2.0 >= 1.5 -> fail
+    assert.equal(build.calls, 2)
+    assert.equal(final?.usage?.cost_usd, 2.0)
+    assert.equal(final?.usage?.build_attempts, 2)
   })
 
   test('duplicate project.created after delivery is a no-op', async () => {

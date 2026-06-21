@@ -45,7 +45,13 @@ const deps: StudioDeps = {
   build: await buildBackendFromEnv(),
   wiki,
   buildMaxTurns: Number(process.env.STUDIO_BUILD_MAX_TURNS ?? 60),
+  maxCostUsd: process.env.STUDIO_MAX_COST_USD ? Number(process.env.STUDIO_MAX_COST_USD) : undefined,
 }
+
+// Concurrency: when STUDIO_BUILD_QUEUE is set, pipelines run through that named
+// queue (per-factory concurrency via the queue's config) instead of inline.
+const BUILD_QUEUE = process.env.STUDIO_BUILD_QUEUE
+const runAction = BUILD_QUEUE ? TriggerAction.Enqueue({ queue: BUILD_QUEUE }) : TriggerAction.Void()
 
 // Auth guard for HTTP routes. No-op unless STUDIO_API_TOKEN is set.
 function denied(input: unknown): ReturnType<typeof unauthorizedResponse> | null {
@@ -110,11 +116,7 @@ iii.registerFunction('studio::intake::create', async (input) => {
     require_approval: requireApproval,
   })
   // Fire-and-forget: return immediately, run the pipeline in the background.
-  iii.trigger({
-    function_id: 'studio::orch::run',
-    payload: { project_id },
-    action: TriggerAction.Void(),
-  })
+  iii.trigger({ function_id: 'studio::orch::run', payload: { project_id }, action: runAction })
   return { status_code: 202, body: { project_id } }
 })
 
@@ -186,6 +188,7 @@ iii.registerFunction('studio::project::list', async (input) => {
       goal: s.spec?.goal,
       app_type: s.plan?.app_type,
       passed: s.last_qa?.passed,
+      cost_usd: s.usage?.cost_usd,
       updated_at: s.updated_at,
     }))
     .sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))

@@ -22,6 +22,8 @@ export interface StudioDeps {
   wiki?: WikiStore
   /** Hard cap on build-agent turns per attempt. */
   buildMaxTurns?: number
+  /** Per-project cost ceiling (USD); the project fails if exceeded. */
+  maxCostUsd?: number
 }
 
 export type FunctionId =
@@ -101,6 +103,11 @@ async function designPlan(deps: StudioDeps, projectId: string): Promise<Pipeline
 
 async function buildRun(deps: StudioDeps, projectId: string): Promise<PipelineEvent> {
   const s = await must(deps.store, projectId)
+  // Cost guard: stop before spending more once the project blows its budget.
+  const spent = s.usage?.cost_usd ?? 0
+  if (deps.maxCostUsd !== undefined && spent >= deps.maxCostUsd) {
+    return { type: 'error', reason: `cost budget exceeded ($${spent.toFixed(3)} ≥ $${deps.maxCostUsd})` }
+  }
   await ensureWorkspace(projectId)
   const feedback = s.last_qa?.failures?.length ? s.last_qa.failures.join('\n') : undefined
   const priorWork = await relevantPriorWork(deps, projectId, s)
@@ -112,8 +119,14 @@ async function buildRun(deps: StudioDeps, projectId: string): Promise<PipelineEv
     maxTurns: deps.buildMaxTurns ?? 60,
   })
   const files = await listWorkspaceFiles(projectId)
+  const usage = {
+    cost_usd: spent + (out.cost_usd ?? 0),
+    turns: (s.usage?.turns ?? 0) + (out.num_turns ?? 0),
+    build_attempts: (s.usage?.build_attempts ?? 0) + 1,
+  }
   await deps.store.update(projectId, {
     artifacts: { ...(s.artifacts ?? {}), files },
+    usage,
   })
   // The backend completing isn't a guarantee tests pass — QA decides that next.
   if (!out.ok) {
