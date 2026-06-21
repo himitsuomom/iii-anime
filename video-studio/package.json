@@ -1,0 +1,13 @@
+{
+  "name": "@iii/video-studio",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "description": "A second AI factory on iii — video production — reusing app-studio's sandbox core. Skeleton. See README.md.",
+  "scripts": {
+    "test": "tsx --test src/**/*.test.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
