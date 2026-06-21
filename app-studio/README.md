@@ -16,7 +16,27 @@ design docs in this folder ([DESIGN.md](./DESIGN.md), [P0-DETAIL.md](./P0-DETAIL
 | pipeline handlers (intake/design/build/qa/deliver) | ✅ implemented |
 | orchestrator apply layer | ✅ implemented + e2e tested with fakes |
 | Claude Code build backend (`claude -p`) | ✅ implemented + proven (no API key) |
-| iii wiring (`index.ts`, `iii-store.ts`, `local.yml`) | ✅ implemented — needs `npm install` + a running engine to run live |
+| iii wiring (`index.ts`, `iii-store.ts`, `local.yml`) | ✅ implemented |
+| **live end-to-end on the real engine** | ✅ **verified** (see below) |
+
+### Verified live run (P0)
+
+Built the engine (`cargo build --bin iii`), started it with `local.yml`, and
+posted an idea — **with `ANTHROPIC_API_KEY` unset** (the worker's brain + build
+backend used the host's Claude Code login):
+
+```
+POST /projects {"idea":"a tiny HTTP server with a GET /health route ..."}
+  -> { "project_id": "prj_mqn73z5y316sd1" }
+```
+
+The pipeline ran intake → design → build → qa → deliver and reached
+`status: "delivered"` on the first iteration (`last_qa.passed: true`,
+`score: 100`). It generated a zero-dependency Node app — `server.js`
+(`node:http`, `GET /health` → `{"status":"ok"}`) and `test.js` — and QA's
+`node --test` passed. Independently re-running `node --test` in the workdir: 4/4
+pass. P0 biases intake/design to zero-dependency Node (stdlib only, `node --test`)
+so the loop is fast and offline; lift that in P1 via app-type adapters.
 
 ## Tests (no engine, no API key)
 

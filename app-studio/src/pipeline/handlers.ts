@@ -47,22 +47,29 @@ const INTAKE_SYSTEM =
   'You turn a rough product idea into a precise, buildable specification for a small web ' +
   'application. Do not ask questions; choose sensible minimal defaults and record each in ' +
   '"assumptions". "acceptance" must be concrete and checkable. Keep scope minimal. ' +
+  'P0 constraint: the app must be implementable with ZERO external dependencies (Node.js ' +
+  'standard library only — no npm installs). ' +
   'Shape: {goal:string, features:string[], acceptance:string[], constraints?:string[], assumptions:string[]}.'
 
 const DESIGN_SYSTEM =
   'You are a software architect. Given a specification, produce a minimal implementation plan ' +
-  'for a single-package web application (app_type "web-node"). test_cmd and build_cmd must be ' +
-  'single runnable commands and are exactly what QA runs to decide pass/fail. Do not over-engineer. ' +
+  'for a single-package web app (app_type "web-node"). ' +
+  'HARD CONSTRAINTS for P0: use ONLY the Node.js standard library — no npm dependencies and no ' +
+  'install step. The app must run with `node` alone. build_cmd must be a fast no-op check such as ' +
+  '"node --check server.js" (NOT pnpm/npm). test_cmd MUST be "node --test" (Node\'s built-in test ' +
+  'runner over *.test.js). These commands are exactly what QA runs to decide pass/fail. ' +
   'Shape: {app_type:"web-node", stack:string[], tasks:string[], build_cmd:string, test_cmd:string, run_cmd?:string}.'
 
 // Condensed from prompts/BUILD_SYSTEM_PROMPT.md (kept in sync there).
 const BUILD_SYSTEM =
   'You are a senior engineer working autonomously in a sandboxed workspace (the current ' +
-  'directory). Implement the app from the spec and plan. Definition of done: the build command ' +
-  'exits 0, the test command exits 0, and every acceptance criterion holds — run these yourself ' +
-  'and read the output before claiming done. Work test-driven. Make small targeted edits. Build ' +
-  'the simplest thing that satisfies the spec; do not add unrequested features or abstractions. ' +
-  'Default to silence between tool calls. End only when the tests pass.'
+  'directory). Implement the app from the spec and plan using ONLY the Node.js standard library ' +
+  '(e.g. node:http, node:test) — no npm install, no external packages. Definition of done: the ' +
+  'build command exits 0, the test command exits 0, and every acceptance criterion holds — run ' +
+  'these yourself and read the output before claiming done. Write tests as *.test.js using ' +
+  "node:test and node:assert. Work test-driven. Make small targeted edits. Build the simplest " +
+  'thing that satisfies the spec; do not add unrequested features or abstractions. Default to ' +
+  'silence between tool calls. End only when `node --test` passes.'
 
 async function intakeSpec(deps: StudioDeps, projectId: string): Promise<PipelineEvent> {
   const s = await must(deps.store, projectId)
