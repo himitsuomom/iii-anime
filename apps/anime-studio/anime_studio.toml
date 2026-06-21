@@ -1,0 +1,27 @@
+# anime-studio default configuration.
+# Every value can be overridden by environment variables (see config.py / README).
+
+[general]
+output_dir = "./output"
+max_revisions = 2
+# Gates that ABORT the pipeline when they keep failing. Others are advisory.
+hard_gates = ["three_second_hook"]
+
+[llm]
+# "anthropic" degrades to "mock" automatically when no API key / network.
+provider = "anthropic"
+model = "claude-opus-4-8"
+max_tokens = 4096
+temperature = 0.7
+
+[image]
+provider = "mock"
+
+[video]
+provider = "mock"
+
+[audio]
+provider = "mock"
+
+[edit]
+provider = "mock"

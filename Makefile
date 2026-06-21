@@ -9,6 +9,7 @@ STOP_SCRIPT         := bash scripts/stop-iii.sh
 III_URL             := ws://localhost:49199
 III_HTTP_URL        := http://localhost:3199
 PYTHON_SDK_DIR      := sdk/packages/python/iii
+ANIME_STUDIO_DIR    := apps/anime-studio
 
 export III_TELEMETRY_ENABLED := false
 
@@ -18,6 +19,7 @@ export III_TELEMETRY_ENABLED := false
         init-build-x86 init-build-aarch64 init-build-all \
         sandbox sandbox-debug \
         test-sdk-node test-sdk-python test-sdk-rust test-sdk-all \
+        install-anime lint-anime typecheck-anime test-anime ci-anime \
         lint-python lint-rust lint-console lint \
         fmt-check fmt-check-rust fmt-check-all \
         typecheck-node typecheck-python typecheck \
@@ -131,6 +133,23 @@ test-sdk-rust:
 		cargo test -p iii-sdk --all-features
 
 test-sdk-all: test-sdk-node test-sdk-python test-sdk-rust
+
+# ── anime-studio app (apps/anime-studio) ──────────────────────────────────────
+# Runs fully on mock providers, so it needs no engine.
+
+install-anime:
+	cd $(ANIME_STUDIO_DIR) && uv sync --extra dev
+
+lint-anime:
+	cd $(ANIME_STUDIO_DIR) && uv run ruff check src tests
+
+typecheck-anime:
+	cd $(ANIME_STUDIO_DIR) && uv run mypy src
+
+test-anime:
+	cd $(ANIME_STUDIO_DIR) && uv run pytest -q
+
+ci-anime: install-anime lint-anime typecheck-anime test-anime
 
 # ── Lint ──────────────────────────────────────────────────────────────────────
 

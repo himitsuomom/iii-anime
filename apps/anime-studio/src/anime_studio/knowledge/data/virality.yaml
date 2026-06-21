@@ -1,0 +1,24 @@
+# Virality frameworks.
+# Source: report 1 §8 (SNSでの拡散・バイラル).
+stepps:
+  - id: social_currency
+    label: 社会的通貨
+    note: People share what makes them look good ("面白いから共有したい").
+  - id: triggers
+    label: 引き金
+    note: Tie content to frequent cues so it stays top of mind.
+  - id: emotion
+    label: 感情
+    note: High-arousal emotion (awe, joy, surprise) drives sharing.
+  - id: public
+    label: 公開性
+    note: Make the behaviour visible / imitable.
+  - id: practical_value
+    label: 実用価値
+    note: Useful content gets shared as help.
+  - id: stories
+    label: 物語
+    note: Wrap the message in a narrative.
+sharing:
+  positive_multiplier: 3.5   # positive content shared ~3.5x more than negative
+  best_emotions: [surprise, awe, joy]

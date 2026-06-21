@@ -1,0 +1,21 @@
+# Emotion -> visual metaphor map for silent visual storytelling.
+# Source: report 1 §1 (無言ビジュアルストーリーテリング) + §5 (色彩).
+emotions:
+  joy:
+    visual: ["warm golden light", "upward bloom", "scattered petals", "surroundings brighten"]
+    color: triadic_warm
+  sadness:
+    visual: ["long stretched shadow", "slumped shoulders", "rain on window", "colors desaturate"]
+    color: cool_muted
+  anger:
+    visual: ["hair stands up", "red rim light", "sharp jagged background lines"]
+    color: hot_red
+  surprise:
+    visual: ["eyes pop wide", "background snaps away (dolly zoom)", "freeze then burst"]
+    color: high_contrast
+  fear:
+    visual: ["top-down shadow", "shrinking character", "cold blue wash", "tight framing"]
+    color: cold_blue
+  curiosity:
+    visual: ["rack focus to mysterious object", "leading line toward unknown", "tilt up reveal"]
+    color: warm_spot

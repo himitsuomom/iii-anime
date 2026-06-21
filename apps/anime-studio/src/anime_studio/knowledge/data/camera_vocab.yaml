@@ -1,0 +1,31 @@
+# Camera move vocabulary for generation prompts.
+# Source: report 1 §2 (カメラワーク／ショット設計).
+moves:
+  - id: dolly_zoom
+    label: ドリー・ズーム
+    prompt_vocab: ["dolly zoom in on face", "background stretches away", "vertigo effect"]
+    effect: shock / realization peak
+  - id: pan
+    label: パン
+    prompt_vocab: ["slow pan right following subject", "smooth horizontal camera move"]
+    effect: follow movement / reveal
+  - id: tilt
+    label: ティルト
+    prompt_vocab: ["tilt up from feet to face", "vertical reveal"]
+    effect: awe / intimidation
+  - id: tracking
+    label: トラッキング
+    prompt_vocab: ["tracking shot following character", "smooth dolly alongside subject"]
+    effect: immersion / journey
+  - id: arc
+    label: アーク
+    prompt_vocab: ["arc shot around character", "180 degree orbit"]
+    effect: central / special presence
+  - id: rack_focus
+    label: ラック・フォーカス
+    prompt_vocab: ["rack focus from face to background object"]
+    effect: direct attention
+  - id: static
+    label: フィックス
+    prompt_vocab: ["locked-off static frame", "no camera movement"]
+    effect: stillness / emphasis

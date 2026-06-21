@@ -1,0 +1,38 @@
+# Hook archetypes + curiosity-gap title patterns.
+# Source: report 1 §10 (サムネイル／タイトル／冒頭フック).
+hooks:
+  - id: paradox
+    name: 逆説型
+    template: "{expected}と思いきや{twist}"
+    curiosity_gap_pattern: "set an expectation, then break it"
+    example: "毎日投稿しても伸びない理由"
+  - id: number
+    name: 数値型
+    template: "{n}日で{result}になった方法"
+    curiosity_gap_pattern: "concrete number promises a payoff"
+    example: "7日で10倍になった方法"
+  - id: question
+    name: 問いかけ型
+    template: "{audience}の{thing}が伸びない本当の理由"
+    curiosity_gap_pattern: "ask a question the viewer wants answered"
+    example: "この差、気づく？"
+  - id: before_after
+    name: ビフォーアフター型
+    template: "{before} → {after}"
+    curiosity_gap_pattern: "show a transformation gap"
+    example: "落書きが作品になる瞬間"
+  - id: emotional
+    name: 感情喚起型
+    template: "これ見て{emotion}した…"
+    curiosity_gap_pattern: "promise an emotional reward"
+    example: "これ見て泣いた…"
+thumbnail:
+  ctr_expressions:
+    surprise: "+40-60% CTR"
+    joy: "+20-35% CTR"
+    confusion: "+25-40% CTR"
+  rules:
+    - "one clear focal point (face OR text, not competing)"
+    - "high contrast colors"
+    - "3-5 words of bold readable text"
+    - "vertical 9:16, key elements in centre safe zone"

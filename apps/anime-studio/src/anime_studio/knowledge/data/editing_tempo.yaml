@@ -1,0 +1,21 @@
+# Editing and tempo rules for short-form retention.
+# Source: report 1 §6 (編集・テンポ).
+rules:
+  three_second_hook:
+    label: 3秒フック・ルール
+    max_hook_end_s: 3.0
+    note: First beat must land a curiosity gap / shock within 3s.
+  visual_change_cadence:
+    label: 視覚的変化の2〜3秒ルール
+    max_seconds_between_changes: 3.0
+    note: Insert a cut/zoom/caption change at least every 2-3s.
+  jet_cut:
+    label: ジェットカット
+    note: Remove dead frames; keep cuts 1-3s.
+  loop_structure:
+    label: ループ構造
+    note: Last frame/sound should connect back to the first to invite a rewatch.
+beat_match:
+  label: 音ハメ編集
+  recommended_bpm: [120, 128, 132, 140]
+  note: Switch cuts on the kick of a BPM 120-140 track.

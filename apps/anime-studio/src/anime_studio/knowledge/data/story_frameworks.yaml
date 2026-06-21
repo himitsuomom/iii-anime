@@ -1,0 +1,18 @@
+# High-level story frameworks the script agent can reference.
+# Source: report 1 §1.
+frameworks:
+  hero_journey:
+    label: 英雄の旅
+    shorts_shape: "problem -> 3 trials -> growth & return"
+  gap_theory:
+    label: ギャップ理論
+    note: "Curiosity comes from the gap between expectation and result."
+  pixar_22:
+    label: ピクサー22の法則
+    key_rules:
+      - "#7 decide the ending first, then build toward it"
+      - "#14 know why this story must be told"
+      - "appeal + emotional honesty over cleverness"
+  silent_visual:
+    label: 無言ビジュアルストーリーテリング
+    note: "Tell the whole story with visual symbols, body language and sound — no dialogue."

@@ -1,0 +1,35 @@
+# The 12 principles of animation as prompt vocabulary.
+# Source: report 1 §4 (アニメーションの動きの原理).
+principles:
+  - id: squash_and_stretch
+    label: 潰しと伸ばし
+    prompt_vocab: ["squash on impact", "stretch on fast motion", "volume-preserving deformation"]
+    apply_when: [impact, bouncy_motion]
+  - id: anticipation
+    label: 予備動作
+    prompt_vocab: ["wind-up pose", "anticipatory crouch before leap", "pull-back before strike"]
+    apply_when: [action_start, comedic_beat]
+  - id: follow_through
+    label: フォロースルー
+    prompt_vocab: ["hair and clothing keep moving after stop", "overlapping action"]
+    apply_when: [motion_stop]
+  - id: slow_in_slow_out
+    label: スローイン・スローアウト
+    prompt_vocab: ["ease-in ease-out timing", "accelerate then decelerate"]
+    apply_when: [camera_move, character_motion]
+  - id: arcs
+    label: アーク
+    prompt_vocab: ["movement follows smooth arcs not straight lines"]
+    apply_when: [limb_motion, head_turn]
+  - id: secondary_action
+    label: セカンダリー・アクション
+    prompt_vocab: ["secondary tail wag", "ear flop", "cloth sway"]
+    apply_when: [walk, emotion]
+  - id: exaggeration
+    label: 誇張
+    prompt_vocab: ["exaggerated surprised expression", "eyes pop out", "jaw drops"]
+    apply_when: [comedic_beat, emotional_peak]
+  - id: appeal
+    label: アピール
+    prompt_vocab: ["charming character appeal", "cute readable silhouette"]
+    apply_when: [character_intro]

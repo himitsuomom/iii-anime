@@ -1,0 +1,29 @@
+# Color psychology and palette guidance.
+# Source: report 1 §5 (色彩・ライティング).
+palettes:
+  triadic_warm:
+    prompt: "warm color palette, orange and yellow tones, cheerful atmosphere for children"
+    colors: ["#FF5A36", "#FFC93C", "#FF8C42"]
+    emotion: energetic / friendly
+  cool_muted:
+    prompt: "cool muted palette, blue and grey tones, calm melancholy"
+    colors: ["#6B7A8F", "#A8B7C7", "#3F5166"]
+    emotion: calm / sad
+  triadic_primary:
+    prompt: "triadic color scheme, primary colors red yellow blue, vibrant children's illustration"
+    colors: ["#E4002B", "#FFD400", "#0057B8"]
+    emotion: playful / vivid
+  hot_red:
+    prompt: "high saturation red rim light, tense"
+    colors: ["#D7263D", "#F46036", "#2E294E"]
+    emotion: anger / urgency
+  cold_blue:
+    prompt: "cold blue wash, low key, fearful"
+    colors: ["#1B263B", "#415A77", "#778DA9"]
+    emotion: fear
+color_meanings:
+  red: 興奮・緊急・食欲
+  blue: 信頼・冷静・知性
+  yellow: 楽観・注目・子供っぽさ
+  green: 安心・自然・癒し
+  orange: 親しみ・活力

@@ -1,0 +1,31 @@
+# Composition rules and shot-size vocabulary.
+# Source: report 1 §3 (構図・画面レイアウト).
+rules:
+  - id: rule_of_thirds
+    label: 三分割法
+    prompt_vocab: ["rule of thirds composition", "subject at left third intersection"]
+  - id: golden_ratio
+    label: 黄金比
+    prompt_vocab: ["golden ratio composition", "Fibonacci spiral guide"]
+  - id: leading_lines
+    label: 視線誘導
+    prompt_vocab: ["leading lines guide eye to subject", "frame within a frame"]
+  - id: staging
+    label: ステージング
+    prompt_vocab: ["clear staging", "single focal point", "minimal background distraction"]
+shot_sizes:
+  - id: ECU
+    label: 極大写
+    use: emotion peak (eyes/mouth only)
+  - id: CU
+    label: クローズアップ
+    use: character reaction (full face)
+  - id: MS
+    label: ミディアム
+    use: gesture / conversation (waist up)
+  - id: FS
+    label: フル
+    use: full-body action
+  - id: WS
+    label: ワイド
+    use: establish environment

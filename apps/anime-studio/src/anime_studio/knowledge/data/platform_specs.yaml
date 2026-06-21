@@ -1,0 +1,30 @@
+# Per-platform algorithm specs and retention gates.
+# Source: report 1 §9 (短尺動画の視聴維持・アルゴリズム).
+platforms:
+  youtube_shorts:
+    aspect_ratio: "9:16"
+    duration_seconds: {min: 15, max: 60, sweet_spot: 45}
+    primary_metric: retention
+    gate: {metric: retention_pct, threshold: 65}
+    title_max_chars: 100
+    audio: original_or_licensed
+    hashtag_strategy: "#Shorts + 1-2 niche tags"
+    optimization: "educational value + search-optimized title"
+  tiktok:
+    aspect_ratio: "9:16"
+    duration_seconds: {min: 15, max: 60, sweet_spot: 27}
+    primary_metric: completion
+    gate: {metric: completion_pct, threshold: 70}
+    title_max_chars: 150
+    audio: trending_sound_required
+    hashtag_strategy: "keyword-rich caption + niche tags"
+    optimization: "emotional hook + user POV"
+  instagram_reels:
+    aspect_ratio: "9:16"
+    duration_seconds: {min: 30, max: 90, sweet_spot: 45}
+    primary_metric: watch_time_plus_shares
+    gate: {metric: completion_pct, threshold: 55}
+    title_max_chars: 125
+    audio: trending_audio_preferred
+    hashtag_strategy: "trend + visual tags"
+    optimization: "trend audio + before/after visual"
