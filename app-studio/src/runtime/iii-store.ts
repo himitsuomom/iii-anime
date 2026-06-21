@@ -26,12 +26,12 @@ export class IiiStore implements Store {
   }
 
   async set(state: ProjectState): Promise<ProjectState> {
-    const next = { ...state, updated_at: new Date().toISOString() }
+    // Full replace — store as given (caller controls updated_at). update() stamps.
     await this.iii.trigger<{ scope: string; key: string; value: ProjectState }, unknown>({
       function_id: 'state::set',
-      payload: { scope: SCOPE, key: state.project_id, value: next },
+      payload: { scope: SCOPE, key: state.project_id, value: state },
     })
-    return next
+    return state
   }
 
   async update(projectId: string, patch: Partial<ProjectState>): Promise<ProjectState> {

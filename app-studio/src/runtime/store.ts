@@ -17,9 +17,9 @@ export class MemoryStore implements Store {
   }
 
   async set(state: ProjectState): Promise<ProjectState> {
-    const next = { ...state, updated_at: new Date().toISOString() }
-    this.map.set(state.project_id, next)
-    return next
+    // Full replace — store as given (caller controls updated_at). update() stamps.
+    this.map.set(state.project_id, state)
+    return state
   }
 
   async update(projectId: string, patch: Partial<ProjectState>): Promise<ProjectState> {

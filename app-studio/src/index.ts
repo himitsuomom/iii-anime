@@ -9,8 +9,10 @@ import { registerWorker, TriggerAction } from 'iii-sdk'
 import { ClaudeCliBrain } from './brain/claude-cli-brain.js'
 import { buildBackendFromEnv } from './build/factory.js'
 import { advance } from './orchestrator/apply.js'
+import { sweep } from './orchestrator/resume.js'
 import type { StudioDeps } from './pipeline/handlers.js'
 import { IiiStore } from './runtime/iii-store.js'
+import { projectIdFromKey, randomProjectId } from './runtime/idempotency.js'
 import { initialProjectState } from './runtime/store.js'
 import { editInWorkspace } from './sandbox/edit.js'
 import { execInWorkspace } from './sandbox/exec.js'
@@ -40,7 +42,8 @@ iii.registerFunction('studio::orch::run', async (input) => {
 
 // --- HTTP intake: POST /projects { idea } -> 202 { project_id } ---
 iii.registerFunction('studio::intake::create', async (input) => {
-  const body = (input as { body?: { idea?: string; project_id?: string } }).body ?? {}
+  const body =
+    (input as { body?: { idea?: string; project_id?: string; idempotency_key?: string } }).body ?? {}
   if (!body.idea) return { status_code: 400, body: { error: 'idea is required' } }
 
   // Minimal idempotency: a provided, existing project_id returns as-is.
@@ -49,7 +52,12 @@ iii.registerFunction('studio::intake::create', async (input) => {
     if (existing) return { status_code: 200, body: { project_id: existing.project_id } }
   }
 
-  const project_id = body.project_id ?? `prj_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
+  // Deterministic id when an idempotency key is supplied, so a duplicate
+  // submission maps to the same project instead of creating a new one.
+  const project_id =
+    body.project_id ?? (body.idempotency_key ? projectIdFromKey(body.idempotency_key) : randomProjectId())
+  const dup = await deps.store.get(project_id)
+  if (dup) return { status_code: 200, body: { project_id } }
   await ensureWorkspace(project_id)
   await deps.store.set(
     initialProjectState(project_id, body.idea, workspaceDir(project_id), DEFAULT_MAX_ITERATIONS),
@@ -102,6 +110,19 @@ iii.registerTrigger({
   type: 'http',
   function_id: 'studio::project::list',
   config: { api_path: '/projects', http_method: 'GET' },
+})
+
+// --- crash recovery: periodically resume stuck, non-terminal projects ---
+iii.registerFunction('studio::orch::sweep', async () => {
+  const resumed = await sweep(deps, { stuckMs: Number(process.env.STUDIO_STUCK_MS ?? 5 * 60_000) })
+  if (resumed.length) console.log(`[sweep] resumed: ${resumed.join(', ')}`)
+  return { resumed }
+})
+iii.registerTrigger({
+  type: 'cron',
+  function_id: 'studio::orch::sweep',
+  // top of every minute (sec min hour dom mon dow year)
+  config: { expression: '0 * * * * * *' },
 })
 
 // eslint-disable-next-line no-console
