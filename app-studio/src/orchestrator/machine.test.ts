@@ -61,6 +61,32 @@ describe('decide — build iteration loop', () => {
   })
 })
 
+describe('decide — approval gate', () => {
+  test('qa.passed with requireApproval waits for sign-off', () => {
+    const a = decide(st({ status: 'qa', requireApproval: true }), { type: 'qa.passed' })
+    assert.equal(a.kind, 'wait')
+    if (a.kind === 'wait') assert.equal(a.status, 'awaiting_approval')
+  })
+  test('qa.passed without requireApproval delivers directly', () => {
+    const a = decide(st({ status: 'qa' }), { type: 'qa.passed' })
+    assert.equal(a.kind, 'invoke')
+    if (a.kind === 'invoke') assert.equal(a.function_id, 'studio::deliver::package')
+  })
+  test('approved while awaiting -> deliver', () => {
+    const a = decide(st({ status: 'awaiting_approval' }), { type: 'approved' })
+    assert.equal(a.kind, 'invoke')
+    if (a.kind === 'invoke') assert.equal(a.status, 'delivering')
+  })
+  test('rejected while awaiting -> fail', () => {
+    const a = decide(st({ status: 'awaiting_approval' }), { type: 'rejected', reason: 'nope' })
+    assert.equal(a.kind, 'fail')
+    if (a.kind === 'fail') assert.equal(a.reason, 'nope')
+  })
+  test('approved when not awaiting is a no-op', () => {
+    assert.equal(decide(st({ status: 'qa' }), { type: 'approved' }).kind, 'noop')
+  })
+})
+
 describe('decide — idempotency / out-of-order', () => {
   test('duplicate spec.ready after moving on is a no-op', () => {
     assert.equal(decide(st({ status: 'design' }), { type: 'spec.ready' }).kind, 'noop')

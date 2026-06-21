@@ -32,10 +32,17 @@ export async function advance(
       status: s.status,
       iteration: s.iteration,
       max_iterations: s.max_iterations,
+      requireApproval: s.require_approval,
     }
     const action = decide(ms, current)
 
     if (action.kind === 'noop') return steps
+    if (action.kind === 'wait') {
+      // Pause for an external event (e.g. human approval). Persist the wait
+      // state and stop; an approve/reject event will drive it forward later.
+      await deps.store.update(projectId, { status: action.status })
+      return steps
+    }
     if (action.kind === 'done') {
       await deps.store.update(projectId, { status: 'delivered' })
       return steps

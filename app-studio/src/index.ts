@@ -43,7 +43,16 @@ iii.registerFunction('studio::orch::run', async (input) => {
 // --- HTTP intake: POST /projects { idea } -> 202 { project_id } ---
 iii.registerFunction('studio::intake::create', async (input) => {
   const body =
-    (input as { body?: { idea?: string; project_id?: string; idempotency_key?: string } }).body ?? {}
+    (
+      input as {
+        body?: {
+          idea?: string
+          project_id?: string
+          idempotency_key?: string
+          require_approval?: boolean
+        }
+      }
+    ).body ?? {}
   if (!body.idea) return { status_code: 400, body: { error: 'idea is required' } }
 
   // Minimal idempotency: a provided, existing project_id returns as-is.
@@ -59,9 +68,11 @@ iii.registerFunction('studio::intake::create', async (input) => {
   const dup = await deps.store.get(project_id)
   if (dup) return { status_code: 200, body: { project_id } }
   await ensureWorkspace(project_id)
-  await deps.store.set(
-    initialProjectState(project_id, body.idea, workspaceDir(project_id), DEFAULT_MAX_ITERATIONS),
-  )
+  const requireApproval = body.require_approval ?? process.env.STUDIO_REQUIRE_APPROVAL === 'true'
+  await deps.store.set({
+    ...initialProjectState(project_id, body.idea, workspaceDir(project_id), DEFAULT_MAX_ITERATIONS),
+    require_approval: requireApproval,
+  })
   // Fire-and-forget: return immediately, run the pipeline in the background.
   iii.trigger({
     function_id: 'studio::orch::run',
@@ -89,6 +100,36 @@ iii.registerTrigger({
   type: 'http',
   function_id: 'studio::project::get',
   config: { api_path: '/projects/:id', http_method: 'GET' },
+})
+
+// --- approval gate: approve/reject a project waiting for sign-off ---
+async function decide(projectId: string, type: 'approved' | 'rejected') {
+  const s = await deps.store.get(projectId)
+  if (!s) return { status_code: 404, body: { error: 'not found' } }
+  if (s.status !== 'awaiting_approval') {
+    return { status_code: 409, body: { error: `not awaiting approval (status: ${s.status})` } }
+  }
+  await advance(deps, projectId, { type })
+  const after = await deps.store.get(projectId)
+  return { status_code: 200, body: { project_id: projectId, status: after?.status } }
+}
+iii.registerFunction('studio::project::approve', async (input) => {
+  const id = (input as { path_params?: { id?: string } }).path_params?.id
+  return id ? decide(id, 'approved') : { status_code: 400, body: { error: 'id required' } }
+})
+iii.registerTrigger({
+  type: 'http',
+  function_id: 'studio::project::approve',
+  config: { api_path: '/projects/:id/approve', http_method: 'POST' },
+})
+iii.registerFunction('studio::project::reject', async (input) => {
+  const id = (input as { path_params?: { id?: string } }).path_params?.id
+  return id ? decide(id, 'rejected') : { status_code: 400, body: { error: 'id required' } }
+})
+iii.registerTrigger({
+  type: 'http',
+  function_id: 'studio::project::reject',
+  config: { api_path: '/projects/:id/reject', http_method: 'POST' },
 })
 
 iii.registerFunction('studio::project::list', async () => {

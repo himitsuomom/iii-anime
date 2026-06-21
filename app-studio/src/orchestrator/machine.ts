@@ -6,6 +6,7 @@ import type { PipelineEvent, Status } from '../types.js'
 
 export type Action =
   | { kind: 'invoke'; function_id: string; status: Status; bumpIteration?: boolean }
+  | { kind: 'wait'; status: Status }
   | { kind: 'done'; status: 'delivered' }
   | { kind: 'fail'; status: 'failed'; reason?: string }
   | { kind: 'noop' }
@@ -14,6 +15,8 @@ export interface MachineState {
   status: Status
   iteration: number
   max_iterations: number
+  /** When true, pause for human approval after QA passes. */
+  requireApproval?: boolean
 }
 
 const FN = {
@@ -49,8 +52,19 @@ export function decide(s: MachineState, e: PipelineEvent): Action {
         : noop()
 
     case 'qa.passed':
-      return s.status === 'qa'
+      if (s.status !== 'qa') return noop()
+      return s.requireApproval
+        ? { kind: 'wait', status: 'awaiting_approval' }
+        : { kind: 'invoke', function_id: FN.deliver, status: 'delivering' }
+
+    case 'approved':
+      return s.status === 'awaiting_approval'
         ? { kind: 'invoke', function_id: FN.deliver, status: 'delivering' }
+        : noop()
+
+    case 'rejected':
+      return s.status === 'awaiting_approval'
+        ? { kind: 'fail', status: 'failed', reason: e.reason ?? 'rejected' }
         : noop()
 
     case 'qa.failed':

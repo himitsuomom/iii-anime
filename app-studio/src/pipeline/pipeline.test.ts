@@ -103,6 +103,25 @@ describe('pipeline end-to-end (fakes + real sandbox)', () => {
     assert.equal(build.calls, 2)
   })
 
+  test('require_approval pauses at awaiting_approval, then approve -> delivered', async () => {
+    const build = new FakeBuildBackend()
+    const deps = makeDeps(new FakeBrain(SPEC, planWith('true', 'true')), build)
+    const pid = 'prj_appr'
+    await deps.store.set({
+      ...initialProjectState(pid, 'x', workspaceDir(pid), 5),
+      require_approval: true,
+    })
+
+    await advance(deps, pid, { type: 'project.created' })
+    let s = await deps.store.get(pid)
+    assert.equal(s?.status, 'awaiting_approval')
+    assert.equal(build.calls, 1)
+
+    await advance(deps, pid, { type: 'approved' })
+    s = await deps.store.get(pid)
+    assert.equal(s?.status, 'delivered')
+  })
+
   test('duplicate project.created after delivery is a no-op', async () => {
     const build = new FakeBuildBackend()
     const deps = makeDeps(new FakeBrain(SPEC, planWith('true', 'true')), build)

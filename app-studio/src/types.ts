@@ -7,6 +7,7 @@ export type Status =
   | 'building'
   | 'qa'
   | 'revising'
+  | 'awaiting_approval'
   | 'delivering'
   | 'delivered'
   | 'failed'
@@ -51,6 +52,8 @@ export interface Artifacts {
   files: string[]
   repo_url?: string
   preview_url?: string
+  /** Command to start the app locally (from the plan's run_cmd), if any. */
+  preview_cmd?: string
 }
 
 export interface ProjectState {
@@ -59,6 +62,8 @@ export interface ProjectState {
   status: Status
   iteration: number
   max_iterations: number
+  /** When true, the pipeline pauses at awaiting_approval after QA passes. */
+  require_approval?: boolean
   workdir: string
   spec?: Spec
   plan?: Plan
@@ -75,6 +80,8 @@ export type PipelineEvent =
   | { type: 'build.done' }
   | { type: 'qa.passed' }
   | { type: 'qa.failed' }
+  | { type: 'approved' }
+  | { type: 'rejected'; reason?: string }
   | { type: 'delivered' }
   | { type: 'error'; reason?: string }
 

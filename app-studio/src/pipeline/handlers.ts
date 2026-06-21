@@ -142,7 +142,7 @@ async function deliverPackage(deps: StudioDeps, projectId: string): Promise<Pipe
   const s = await must(deps.store, projectId)
   const files = await listWorkspaceFiles(projectId)
   await deps.store.update(projectId, {
-    artifacts: { ...(s.artifacts ?? {}), files },
+    artifacts: { ...(s.artifacts ?? {}), files, preview_cmd: s.plan?.run_cmd },
   })
   return { type: 'delivered' }
 }
