@@ -6,7 +6,7 @@
 // with the machine's existing Claude Code login (no ANTHROPIC_API_KEY). See
 // app-studio/BUILD-BACKENDS.md.
 import { registerWorker, TriggerAction } from 'iii-sdk'
-import { ClaudeCliBrain } from '../../studio-core/src/claude-cli-brain.js'
+import { brainFromEnv } from '../../studio-core/src/brain-factory.js'
 import { buildBackendFromEnv } from './build/factory.js'
 import { advance } from './orchestrator/apply.js'
 import { sweep } from './orchestrator/resume.js'
@@ -39,7 +39,7 @@ const DASHBOARD_HTML = (() => {
   }
 })()
 
-const brain = new ClaudeCliBrain()
+const brain = brainFromEnv() // STUDIO_BRAIN=claude (default) | ollama
 const wiki = new IiiWikiStore(iii)
 const deps: StudioDeps = {
   store: new IiiStore(iii),
