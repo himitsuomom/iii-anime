@@ -2,7 +2,7 @@
 
 > 元設計 `assets/original-report.md`（Claude×KIMI マルチエージェント・オーケストレーション）を、**iii のプリミティブ（Worker / Function / Trigger）上で動作する**ように再設計したもの。実装言語は TypeScript（`iii-sdk`）。
 >
-> **実装状況**: ロードマップ §13 の**ステージ1（Claude単独で動く骨格）を実装済み**。`src/` 配下に `director` / `swarm-executor` ワーカーと純粋ロジック（`logic/`）、`tests/` に単体テストがある。セットアップ・実行は [README.md](./README.md) を参照。
+> **実装状況**: ロードマップ §13（ステージ1〜3＝Claude単独の動く骨格／KIMI 段階的強化／各 Phase の構造化＋sandbox）に加え、**ステージ4（オーケストレーションパターン §9・横断機能=可観測性/予算 §12・E2E デモ §11）を実装済み**。`npm run demo` で API キー無し（stub）のまま 4-Phase を `done` まで完走できる。全 26 単体/結合テストが pass。セットアップ・実行は [README.md](./README.md) を参照。
 
 ---
 
@@ -265,6 +265,10 @@ sequenceDiagram
 | スーパーバイザー (Supervisor) | `director::review::*` が Swarm 出力を監視・判定 | 同一 |
 | デベート (Debate) | 2 モデルへ並行 `trigger()` → director が集約 | **self-critique に縮退**（同一モデルの別役割関数で相互批判） |
 
+> **ステージ4で Supervisor / Debate を実装済み**（`src/patterns.ts` + 純粋判定ロジック `src/logic/review.ts`）:
+> - **Supervisor** = `supervisedGenerate()`: 生成→`critiquePrompt` で採点→不合格なら feedback 付きで再生成（既定 `maxRounds=2`、閾値 0.7）。Phase2 の PRD 生成がこのループを通る（自己監督）。
+> - **Debate / self-critique** = `debateOrCritique()`: proposer と opponent を `provider::resolve` で解決し、**別プロバイダなら真の 2 モデル debate**（並行 `callRole` → judge が `synthesizePrompt` で統合）、**同一プロバイダ（Claude 単独）なら self-critique に自動縮退**（生成→自己批評→改稿）。Phase3 冒頭の「アーキ選定」で使用し、`provider-kimi` 追加時に自動的に debate へ格上げされる（段階的強化と同型）。
+
 ---
 
 ## 10. 実装構成（ステージ1・実装済み）
@@ -275,17 +279,20 @@ examples/saas-replicator/
   README.md            ← 概要・セットアップ・起動手順
   assets/              ← 元コンセプト図（参照用）
   iii-config.yaml      ← engine 設定（ワーカー一覧 / queue concurrency = スウォーム並列度）
-  package.json         ← iii-sdk 依存 + scripts（dev/start/typecheck/test）
+  package.json         ← iii-sdk 依存 + scripts（dev/start/demo/typecheck/test）
   tsconfig.json
   src/
     engine.ts          ← Engine 抽象（register/call/enqueue/listWorkers）
     orchestrator.ts    ← registerOrchestrator(engine)（全関数を登録）
-    index.ts           ← 本番ブート（iii アダプタ + registerOrchestrator）
+    index.ts           ← 本番ブート（iii アダプタ + withObservability + registerOrchestrator）
     log.ts             ← 最小ロガー
     sandbox.ts         ← runInSandbox / sandboxAvailable（iii-sandbox 連携）
     provider.ts        ← registerProvider + provider::resolve + stub + callRole/callRoleJson
+    patterns.ts        ← supervisedGenerate / debateOrCritique（Supervisor・Debate 配線）
+    observability.ts   ← withObservability（span トレース + トークン予算ガード；Engine デコレータ）
     director.ts        ← startProject / advance（4-Phase 駆動）+ approval + HTTP(saas::start/status)
     swarm.ts           ← swarm::ui::analyze-screen / swarm::viz::render / swarm::test::run
+    demo.ts            ← runDemo()（stub で 4-Phase を end-to-end 完走・テレメトリ出力）
     adapters/
       iiiEngine.ts     ← 本番アダプタ（Engine → iii バス：trigger/registerFunction/HTTP）
       memoryEngine.ts  ← インメモリ・アダプタ（state ストア + queue ドレイン；テスト用）
@@ -294,9 +301,12 @@ examples/saas-replicator/
       pipeline.ts      ← 4-Phase 進行ロジック（純粋）
       artifacts.ts     ← 成果物の型 + parseJsonFromContent + build*（純粋）
       prompts.ts       ← 役割/Phase ごとの構造化プロンプト（純粋）
+      review.ts        ← Supervisor 判定（parseCritique / accepted）（純粋）
+      budget.ts        ← トークン予算会計（extractUsage / addUsage / overBudget）（純粋）
   tests/
-    roleBinding.test.ts / pipeline.test.ts / artifacts.test.ts  ← 純粋ロジックの単体テスト
-    integration.test.ts                                         ← MemoryEngine で 4-Phase を end-to-end 実行（sandbox 経由/フォールバック含む）
+    roleBinding / pipeline / artifacts / review・patterns / budget  ← 純粋ロジック + パターンの単体テスト
+    integration.test.ts                                            ← MemoryEngine で 4-Phase を end-to-end 実行（sandbox 経由/フォールバック含む）
+    demo.test.ts                                                   ← runDemo() のスモーク（done 到達 + テレメトリ）
 ```
 
 > **Engine 抽象 + 2 アダプタ**にした点が当初案からの改善。ハンドラは `Engine`（`call`/`enqueue`/`register`/`listWorkers`）に対してのみ書かれ、本番は `iiiEngine`、テストは `MemoryEngine` を注入する。これにより、**実エンジン・API キー無しで 4-Phase 全体を実際に走らせて検証**できる（`integration.test.ts`）。
@@ -371,6 +381,17 @@ iii.registerTrigger({
 
 ## 11. 実行・検証手順（設計）
 
+### 11.0 E2E デモ（API キー不要・即実行可）
+
+```bash
+cd examples/saas-replicator && npm install
+npm run demo                       # stub モードで 4-Phase を done まで完走し成果物/テレメトリを出力
+SAAS_TOKEN_BUDGET=1 npm run demo   # トークン予算ガード（BudgetExceededError）を確認
+npm test                           # 26 単体/結合テスト（実エンジン・API キー不要）
+```
+
+`runDemo()`（`src/demo.ts`）は `MemoryEngine` を `withObservability` で包み、Trello の 3 画面を入力に 4-Phase 全体を走らせて、`status: done` / 全成果物 / span 数 / トークン使用量を表示する。アーキ選定は Claude 単独のため `self-critique` で解決される（`provider-kimi` 追加時は `debate`）。
+
 ### 11.1 Claude 単独モード（既定）
 
 ```bash
@@ -404,11 +425,11 @@ iii worker add provider-kimi                  # これを足すだけ
 
 | リスク | 対策（iii） |
 | --- | --- |
-| レート制限 / コスト爆発 | `iii-queue` concurrency 制限 + `llm-budget` の上限 + コストアラート |
+| レート制限 / コスト爆発 | `iii-queue` concurrency 制限 + `llm-budget` の上限 + コストアラート。**アプリ層でも `withObservability` がプロバイダ呼び出しのトークンを計上し `SAAS_TOKEN_BUDGET` 超過で `BudgetExceededError`**（`src/observability.ts` / `logic/budget.ts`） |
 | コーディネータ故障 | durable queue（再配送）+ `state` チェックポイント（Phase 進捗の永続化） |
 | エージェント間通信エラー | `state` に中間成果物を保存（疎結合）/ iii↔iii は `iii-bridge` |
 | 品質のばらつき | `director::review::*` の統合レビュー + `approval-gate` の人間承認 |
-| **単一プロバイダ依存（Claude単独時の SPOF / コスト集中）** | queue concurrency 制御 + `llm-budget` 上限 + 将来 provider 追加で水平分散 |
+| **単一プロバイダ依存（Claude単独時の SPOF / コスト集中）** | queue concurrency 制御 + トークン予算ガード（`withObservability`）+ `provider-kimi` 追加で水平分散（役割の自動再束縛・debate 格上げ） |
 | AI生成コードの脆弱性 | `director::impl::auth` をレビュー必須化 + `iii-sandbox` での隔離実行 |
 
 ---
@@ -416,9 +437,10 @@ iii worker add provider-kimi                  # これを足すだけ
 ## 13. 段階的実装ロードマップ
 
 1. ✅ **Claude 単独の動く骨格** — 既定 role-binding = `provider-anthropic`。Phase 1〜4 を Engine 抽象 + `MemoryEngine` で end-to-end 検証済み。
-2. ✅ **各 Phase の実体化** — 構造化プロンプト + 型付き成果物（`artifacts.ts`/`prompts.ts`）、Phase3 の `iii-sandbox` 実行（フォールバック付き）、Phase4 の approval フックを実装・検証済み（`integration.test.ts` / `artifacts.test.ts`、計18テスト）。
-3. **provider/エンジンの live 実行検証** — `iiiEngine` アダプタ実装済み。残りは実エンジン起動 + `ANTHROPIC_API_KEY`（Claude）での実走、`provider-kimi`/`iii-sandbox`/`approval-gate` 追加での挙動確認（本環境はエンジン未起動・`/dev/kvm` 無しのため未実走）。
-4. **今後の深掘り** — UI解析精度、PRD/実装スキャフォルドの実コード生成、実テストスイートの sandbox 実行、デプロイ連携。
+2. ✅ **各 Phase の実体化** — 構造化プロンプト + 型付き成果物（`artifacts.ts`/`prompts.ts`）、Phase3 の `iii-sandbox` 実行（フォールバック付き）、Phase4 の approval フックを実装・検証済み（`integration.test.ts` / `artifacts.test.ts`）。
+3. ✅ **オーケストレーションパターン + 横断機能 + E2E デモ** — Supervisor / Debate→self-critique（`patterns.ts`/`logic/review.ts`）、可観測性 + トークン予算ガード（`observability.ts`/`logic/budget.ts`）、`runDemo()` による stub 完走デモを実装・検証済み（計26テスト pass、`npm run demo`）。
+4. **provider/エンジンの live 実行検証** — `iiiEngine` アダプタ実装済み。残りは実エンジン起動 + `ANTHROPIC_API_KEY`（Claude）での実走、`provider-kimi`/`iii-sandbox`/`approval-gate` 追加での挙動確認（本環境はエンジン未起動・`/dev/kvm` 無しのため未実走）。
+5. **今後の深掘り** — UI解析精度、PRD/実装スキャフォルドの実コード生成、実テストスイートの sandbox 実行、デプロイ連携。
 
 ---
 

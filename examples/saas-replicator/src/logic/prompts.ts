@@ -63,3 +63,37 @@ export function deployPrompt(target: string): Message[] {
     },
   ]
 }
+
+/** Supervisor: grade an artifact and (when failing) say how to improve it. */
+export function critiquePrompt(target: string, artifact: unknown): Message[] {
+  return [
+    { role: 'system', content: 'You are a strict reviewer. Critique the artifact and score its quality.' },
+    {
+      role: 'user',
+      content: `Critique this artifact for ${target}: ${JSON.stringify(artifact)}. Give a quality score in [0,1]. ${jsonContract('{ "score": number, "pass": boolean, "feedback": string }')}`,
+    },
+  ]
+}
+
+/** Debate / self-critique: argue a position on an open question. */
+export function debatePrompt(question: string, stance?: string): Message[] {
+  const role = stance ? `Argue the "${stance}" position.` : 'Take a position and defend it.'
+  return [
+    { role: 'system', content: 'You are an expert participating in a debate to reach the best decision.' },
+    {
+      role: 'user',
+      content: `Debate question: ${question}. ${role} ${jsonContract('{ "answer": string, "rationale": string }')}`,
+    },
+  ]
+}
+
+/** Judge: synthesize competing debate answers into a final decision. */
+export function synthesizePrompt(question: string, positions: unknown[]): Message[] {
+  return [
+    { role: 'system', content: 'You are an impartial judge. Synthesize the strongest decision from the positions.' },
+    {
+      role: 'user',
+      content: `Question: ${question}. Positions: ${JSON.stringify(positions)}. Synthesize the best answer. ${jsonContract('{ "answer": string, "rationale": string }')}`,
+    },
+  ]
+}

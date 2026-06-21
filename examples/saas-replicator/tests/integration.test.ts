@@ -30,10 +30,15 @@ test('full run with screenshots reaches done with all artifacts (stub mode)', as
   // Every phase produced its artifact.
   assert.ok(proj.artifacts.phase1Review, 'phase1Review present')
   assert.ok(proj.artifacts.prd, 'prd present')
+  assert.ok(proj.artifacts.architecture, 'architecture decision present')
   assert.ok(proj.artifacts.implementation, 'implementation present')
   assert.ok(proj.artifacts.tests, 'tests present')
   assert.ok(proj.artifacts.visuals, 'visuals present')
   assert.ok(proj.artifacts.deployment, 'deployment present')
+
+  // The PRD went through the Supervisor review loop.
+  const reviews = proj.artifacts.reviews as Record<string, { rounds: number } | undefined>
+  assert.ok((reviews?.prd?.rounds ?? 0) >= 1, 'PRD supervised')
 
   // All three screens were analyzed in Phase 1.
   const analyzed = await engine.call<ScreenAnalysis[]>('state::list', { scope: `saas/${projectId}/phase1` })

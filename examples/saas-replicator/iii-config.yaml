@@ -64,6 +64,8 @@ workers:
 # provider-anthropic   # required for live mode (Claude). Director + all roles by default.
 # provider-kimi        # optional. When present, analyzer/visualizer/tester/swarm auto-rebind to KIMI.
 # approval-gate        # human approval before deploy (Phase 4).
+# llm-budget           # optional. Harness-level cost/token cap. The app also enforces an
+#                      # in-process ceiling via SAAS_TOKEN_BUDGET (see observability.ts).
 #
 # iii-sandbox: isolated code execution for Phase 3 tests. When present, swarm::test::run
 # executes the suite in a microVM instead of falling back to the tester role.

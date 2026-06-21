@@ -59,12 +59,18 @@ export function registerProvider(engine: Engine): void {
   // Returns JSON keyed off the prompt so the artifact builders get real shapes.
   engine.register(
     STUB_FUNCTION_ID,
-    async ({ model, messages }: { model?: string; messages?: unknown }) => ({
-      content: stubContent(messages),
-      usage: { input_tokens: 0, output_tokens: 0 },
-      model: model ?? 'stub',
-      stub: true,
-    }),
+    async ({ model, messages }: { model?: string; messages?: unknown }) => {
+      const content = stubContent(messages)
+      // Rough deterministic token estimate (~4 chars/token) so the budget guard
+      // is exercisable in stub mode (e.g. `SAAS_TOKEN_BUDGET=1 npm run demo`).
+      const inputChars = JSON.stringify(messages ?? '').length
+      return {
+        content,
+        usage: { input_tokens: Math.ceil(inputChars / 4), output_tokens: Math.ceil(content.length / 4) },
+        model: model ?? 'stub',
+        stub: true,
+      }
+    },
     { description: 'Deterministic mock provider used in stub mode' },
   )
 }
@@ -77,6 +83,12 @@ function stubContent(messages: unknown): string {
         .join(' ')
     : String(messages ?? '')
   const has = (s: string) => text.toLowerCase().includes(s)
+
+  // Pattern prompts first — these wrap other artifacts, so match before the
+  // artifact branches below (which key off words like "features"/"source").
+  if (has('critique') || has('quality score')) return JSON.stringify({ score: 0.9, pass: true, feedback: 'looks good' })
+  if (has('debate') || has('synthesize') || has('positions'))
+    return JSON.stringify({ answer: 'Use a modular monolith with a typed API boundary', rationale: 'simple to ship' })
 
   if (has('mermaid') || has('"source"')) return JSON.stringify({ source: 'graph TD; A[User]-->B[Director]-->C[Swarm]' })
   if (has('components') || has('tokens'))

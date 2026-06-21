@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import type { Engine, Json } from './engine'
 import { Logger } from './log'
-import { buildDeployment, buildImplementation, buildPrd, type VisualArtifact } from './logic/artifacts'
+import { buildDeployment, buildImplementation, buildPrd, type Prd, type VisualArtifact } from './logic/artifacts'
 import { initialState, type ProjectState, phase1Complete, type StartInput } from './logic/pipeline'
 import { deployPrompt, implementationPrompt, prdPrompt, vizPrompt } from './logic/prompts'
+import { debateOrCritique, supervisedGenerate } from './patterns'
 import { callRole, callRoleJson } from './provider'
 
 /**
@@ -96,31 +97,56 @@ export async function advance(engine: Engine, projectId: string): Promise<Json> 
       continue
     }
 
-    // Phase 2: PRD (director) + diagrams (visualizer swarm).
+    // Phase 2: PRD (director, supervised) + diagrams (visualizer swarm).
     if (proj.status === 2) {
-      logger.info('Phase 2: generating PRD', { projectId })
-      const prd = buildPrd(
-        proj.target,
-        await callRoleJson(engine, 'director', prdPrompt(proj.target, proj.requirements)),
-      )
+      logger.info('Phase 2: generating PRD (supervised)', { projectId })
+      const { target, requirements } = proj // const snapshot for the prompt closure
+      const supervised = await supervisedGenerate<Prd>(engine, {
+        role: 'director',
+        criticRole: 'director', // self-supervision in Claude-only mode
+        target,
+        prompt: (feedback) =>
+          prdPrompt(target, feedback ? `${requirements}\nReviewer feedback: ${feedback}` : requirements),
+        build: (raw) => buildPrd(target, raw),
+      })
       await engine.enqueue(
         'swarm::viz::render',
         { projectId, spec: { kind: 'architecture', target: proj.target } },
         'viz',
       )
-      proj = await saveProject(engine, { ...proj, status: 3, artifacts: { ...proj.artifacts, prd } })
+      proj = await saveProject(engine, {
+        ...proj,
+        status: 3,
+        artifacts: {
+          ...proj.artifacts,
+          prd: supervised.artifact,
+          reviews: {
+            ...(proj.artifacts.reviews ?? {}),
+            prd: { rounds: supervised.rounds, critiques: supervised.critiques },
+          },
+        },
+      })
       continue
     }
 
-    // Phase 3: implement (director) then await the test swarm.
+    // Phase 3: decide architecture (debate/self-critique), implement, then test.
     if (proj.status === 3) {
       if (!proj.artifacts.tests) {
-        logger.info('Phase 3: implementing, then queuing tests', { projectId })
+        logger.info('Phase 3: architecture decision, implementing, then queuing tests', { projectId })
+        const architecture = await debateOrCritique(engine, {
+          question: `What architecture should we use to rebuild ${proj.target}?`,
+          proposerRole: 'director', // always Claude
+          opponentRole: 'swarm', // KIMI when present -> real debate; else self-critique
+          judgeRole: 'director',
+        })
         const implementation = buildImplementation(
           proj.target,
           await callRoleJson(engine, 'director', implementationPrompt(proj.target)),
         )
-        proj = await saveProject(engine, { ...proj, artifacts: { ...proj.artifacts, implementation } })
+        proj = await saveProject(engine, {
+          ...proj,
+          artifacts: { ...proj.artifacts, architecture, implementation },
+        })
         await engine.enqueue('swarm::test::run', { projectId }, 'phase3-test')
         return { waiting: 'tests' }
       }

@@ -29,10 +29,14 @@ export interface ProjectState {
   artifacts: {
     phase1Review?: unknown
     prd?: unknown
+    /** Architecture decision from the Phase 3 debate/self-critique step. */
+    architecture?: unknown
     implementation?: unknown
     tests?: unknown
     visuals?: unknown
     deployment?: unknown
+    /** Supervisor review rounds recorded per supervised artifact. */
+    reviews?: Record<string, unknown>
   }
 }
 
