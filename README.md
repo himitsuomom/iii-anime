@@ -99,6 +99,11 @@ Install new capabilities into a project with `iii worker add`:
 
 [![Adding a worker with iii worker add](.github/assets/workers-add.gif)](https://workers.iii.dev/)
 
+Not sure what to install? `iii worker catalog` lists the workers that ship with iii,
+grouped by category, each with the exact `iii worker add` command. Filter it with a
+query (e.g. `iii worker catalog messaging`), and browse the full community registry at
+[workers.iii.dev](https://workers.iii.dev/).
+
 ## SDKs
 
 | Language | Package                                            | Install                                     |

@@ -461,6 +461,9 @@ async fn async_main() -> anyhow::Result<()> {
                 }
             }
         }
+        Commands::Catalog { query, names_only } => {
+            iii_worker::cli::catalog::run(query.as_deref(), names_only)
+        }
         Commands::Sync { frozen } => iii_worker::cli::managed::handle_worker_sync(frozen).await,
         Commands::Verify { strict } => iii_worker::cli::managed::handle_worker_verify(strict).await,
         Commands::Status {

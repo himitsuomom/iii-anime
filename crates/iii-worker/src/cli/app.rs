@@ -163,6 +163,22 @@ pub enum Commands {
     /// List all workers and their status
     List,
 
+    /// Browse the curated catalog of first-party iii workers, grouped by
+    /// category, each with the `iii worker add` command that installs it.
+    /// This is an offline index of the workers baked into this engine build;
+    /// browse the full community registry at https://workers.iii.dev.
+    Catalog {
+        /// Case-insensitive filter matched against worker name, category,
+        /// and description. Omit to show every worker.
+        #[arg(value_name = "QUERY")]
+        query: Option<String>,
+
+        /// Print only matching worker names, one per line (script-friendly,
+        /// e.g. `iii worker catalog messaging --names-only`).
+        #[arg(long)]
+        names_only: bool,
+    },
+
     /// Install registry-managed workers exactly from iii.lock.
     Sync {
         /// Verify lockfile dependencies without mutating local files.
