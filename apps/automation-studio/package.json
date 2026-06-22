@@ -12,16 +12,17 @@
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "start": "tsx server/index.ts",
     "preview": "vite preview",
+    "test": "vitest run",
     "type-check": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit",
     "lint": "biome check src server",
     "lint:fix": "biome check src server --write",
     "format": "biome format src server --write"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "latest",
-    "@hono/node-server": "latest",
+    "@anthropic-ai/sdk": "^0.105.0",
+    "@hono/node-server": "^2.0.5",
     "clsx": "^2.1.1",
-    "hono": "latest",
+    "hono": "^4.12.26",
     "lucide-react": "^0.563.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -40,6 +41,7 @@
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vitest": "^2.1.9"
   }
 }

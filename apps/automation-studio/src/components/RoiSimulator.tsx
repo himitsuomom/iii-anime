@@ -1,8 +1,9 @@
 import { useId, useMemo, useState } from 'react'
 import { ROI_PHASES } from '../lib/reportData.ts'
-import { Card, Label, PageHeader } from './ui.tsx'
+import { formatJpy } from '../lib/utils.ts'
+import { Card, inputClass, Label, PageHeader } from './ui.tsx'
 
-const yen = (n: number) => `¥${Math.round(n).toLocaleString('ja-JP')}`
+const yen = formatJpy
 
 export function RoiSimulator() {
   const [phaseId, setPhaseId] = useState('growth')
@@ -55,8 +56,9 @@ export function RoiSimulator() {
                 <input
                   id={ids.hours}
                   type="number"
+                  min={0}
                   value={hours}
-                  onChange={(e) => setHours(Number(e.target.value) || 0)}
+                  onChange={(e) => setHours(Math.max(0, Number(e.target.value) || 0))}
                   className={inputClass}
                 />
               </div>
@@ -65,8 +67,9 @@ export function RoiSimulator() {
                 <input
                   id={ids.wage}
                   type="number"
+                  min={0}
                   value={wage}
-                  onChange={(e) => setWage(Number(e.target.value) || 0)}
+                  onChange={(e) => setWage(Math.max(0, Number(e.target.value) || 0))}
                   className={inputClass}
                 />
               </div>
@@ -139,6 +142,3 @@ function Big({ label, value, accent }: { label: string; value: string; accent?: 
     </div>
   )
 }
-
-const inputClass =
-  'w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted focus:border-accent'

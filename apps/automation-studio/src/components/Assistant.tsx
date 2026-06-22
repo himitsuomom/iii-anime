@@ -50,7 +50,10 @@ export function Assistant() {
 
   return (
     <div className="mx-auto flex h-full max-w-3xl flex-col px-8 py-8">
-      <PageHeader title="問い合わせアシスタント" subtitle="お客様の質問にClaudeがリアルタイムで自動応答します。" />
+      <PageHeader
+        title="問い合わせアシスタント"
+        subtitle="お客様の質問に自動応答します（APIキー設定時はClaude、未設定時はFAQ定型）。"
+      />
 
       <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto pb-4">
         {messages.length === 0 && (

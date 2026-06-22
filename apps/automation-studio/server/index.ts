@@ -30,6 +30,6 @@ const port = Number(process.env.PORT) || 8787
 serve({ fetch: app.fetch, port }, (info) => {
   console.log(`automation-studio api listening on http://localhost:${info.port}`)
   if (!hasApiKey()) {
-    console.warn('  ⚠  ANTHROPIC_API_KEY is not set — AI features will return 503 until configured.')
+    console.warn('  ⚠  ANTHROPIC_API_KEY is not set — running in offline mode (template / FAQ fallbacks).')
   }
 })

@@ -10,8 +10,8 @@ let cached: Anthropic | null = null
 
 /**
  * Returns a shared Anthropic client, or `null` when no API key is configured.
- * Routes translate `null` into a 503 so the UI can show a clear message instead
- * of the whole app falling over.
+ * When `null`, routes fall back to offline (template / FAQ) output instead of
+ * failing, so the app stays fully usable without a key.
  */
 export function getClient(): Anthropic | null {
   const apiKey = process.env.ANTHROPIC_API_KEY

@@ -21,16 +21,16 @@ importers:
   apps/automation-studio:
     dependencies:
       '@anthropic-ai/sdk':
-        specifier: latest
+        specifier: ^0.105.0
         version: 0.105.0(zod@4.3.6)
       '@hono/node-server':
-        specifier: latest
+        specifier: ^2.0.5
         version: 2.0.5(hono@4.12.26)
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
       hono:
-        specifier: latest
+        specifier: ^4.12.26
         version: 4.12.26
       lucide-react:
         specifier: ^0.563.0
@@ -84,6 +84,9 @@ importers:
       vite:
         specifier: ^7.3.1
         version: 7.3.2(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+      vitest:
+        specifier: ^2.1.9
+        version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@25.3.3)(happy-dom@17.6.3)(lightningcss@1.31.1)
 
   blog:
     dependencies:

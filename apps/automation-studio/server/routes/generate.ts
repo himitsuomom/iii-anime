@@ -78,13 +78,21 @@ generateRoute.post('/', async (c) => {
     if (message.stop_reason === 'refusal') {
       return c.json({ error: 'リクエストはモデルにより拒否されました。入力内容を見直してください。' }, 422)
     }
+    if (message.stop_reason === 'max_tokens') {
+      return c.json({ error: '出力が長すぎて途中で打ち切られました。入力を短くして再試行してください。' }, 502)
+    }
 
     const textBlock = message.content.find((b) => b.type === 'text')
     if (!textBlock || textBlock.type !== 'text') {
       return c.json({ error: 'モデルからテキスト応答が得られませんでした。' }, 502)
     }
 
-    const result = JSON.parse(textBlock.text)
+    let result: unknown
+    try {
+      result = JSON.parse(textBlock.text)
+    } catch {
+      return c.json({ error: 'モデル応答の解析に失敗しました。もう一度お試しください。' }, 502)
+    }
     return c.json({ result, source: 'claude' })
   } catch (err) {
     return c.json({ error: toErrorMessage(err) }, errorStatus(err))

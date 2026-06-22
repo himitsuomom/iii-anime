@@ -1,8 +1,10 @@
 import { useId, useMemo, useState } from 'react'
+import { computeProfit } from '../lib/calc.ts'
 import { PLATFORM_PRESETS } from '../lib/reportData.ts'
-import { Card, Label, PageHeader } from './ui.tsx'
+import { formatJpy } from '../lib/utils.ts'
+import { Card, inputClass, Label, PageHeader } from './ui.tsx'
 
-const yen = (n: number) => `¥${Math.round(n).toLocaleString('ja-JP')}`
+const yen = formatJpy
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`
 
 export function ProfitCalculator() {
@@ -26,22 +28,10 @@ export function ProfitCalculator() {
     other: useId(),
   }
 
-  const m = useMemo(() => {
-    const feeRate = (feePercent + paymentPercent) / 100
-    const fees = sell * feeRate
-    const unitCost = cost + shipping + other + fees
-    const unitProfit = sell - unitCost
-    const margin = sell > 0 ? unitProfit / sell : 0
-    const breakeven = feeRate < 1 ? (cost + shipping + other) / (1 - feeRate) : Number.POSITIVE_INFINITY
-    return {
-      fees,
-      unitProfit,
-      margin,
-      breakeven,
-      totalProfit: unitProfit * qty,
-      totalRevenue: sell * qty,
-    }
-  }, [cost, sell, qty, feePercent, paymentPercent, shipping, other])
+  const m = useMemo(
+    () => computeProfit({ cost, sell, qty, feePercent, paymentPercent, shipping, other }),
+    [cost, sell, qty, feePercent, paymentPercent, shipping, other],
+  )
 
   function selectPlatform(id: string) {
     setPlatformId(id)
@@ -139,9 +129,10 @@ function NumberField({
           id={id}
           type="number"
           inputMode="decimal"
+          min={0}
           step={step ?? 1}
           value={Number.isNaN(value) ? '' : value}
-          onChange={(e) => onChange(e.target.value === '' ? 0 : Number(e.target.value))}
+          onChange={(e) => onChange(e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)))}
           className={inputClass}
         />
         {suffix && (
@@ -163,6 +154,3 @@ function Metric({ label, value, positive, big }: { label: string; value: string;
     </div>
   )
 }
-
-const inputClass =
-  'w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted focus:border-accent'

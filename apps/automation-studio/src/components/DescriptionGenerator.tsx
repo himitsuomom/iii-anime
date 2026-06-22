@@ -3,7 +3,7 @@ import { type FormEvent, useId, useState } from 'react'
 import { toast } from 'sonner'
 import { generateDescription } from '../lib/api.ts'
 import type { GeneratedDescription } from '../lib/types.ts'
-import { Card, Label, PageHeader } from './ui.tsx'
+import { Card, inputClass, Label, PageHeader } from './ui.tsx'
 
 export function DescriptionGenerator() {
   const [productName, setProductName] = useState('')
@@ -122,6 +122,10 @@ function Result({ data, source }: { data: GeneratedDescription; source: 'claude'
       '',
       `SEO: ${data.seoKeywords.join(', ')}`,
     ].join('\n')
+    if (!navigator.clipboard) {
+      toast.error('この環境ではコピーできません。')
+      return
+    }
     navigator.clipboard.writeText(text).then(
       () => toast.success('コピーしました。'),
       () => toast.error('コピーに失敗しました。'),
@@ -147,16 +151,16 @@ function Result({ data, source }: { data: GeneratedDescription; source: 'claude'
       </div>
       <p className="whitespace-pre-wrap text-sm leading-relaxed text-secondary">{data.description}</p>
       <ul className="space-y-1.5">
-        {data.bullets.map((b) => (
-          <li key={b} className="flex gap-2 text-sm">
+        {data.bullets.map((b, i) => (
+          <li key={`${i}-${b}`} className="flex gap-2 text-sm">
             <span className="text-accent">▸</span>
             {b}
           </li>
         ))}
       </ul>
       <div className="flex flex-wrap gap-1.5 pt-1">
-        {data.seoKeywords.map((k) => (
-          <span key={k} className="rounded-full bg-hover px-2.5 py-0.5 text-xs text-secondary">
+        {data.seoKeywords.map((k, i) => (
+          <span key={`${i}-${k}`} className="rounded-full bg-hover px-2.5 py-0.5 text-xs text-secondary">
             {k}
           </span>
         ))}
@@ -164,6 +168,3 @@ function Result({ data, source }: { data: GeneratedDescription; source: 'claude'
     </div>
   )
 }
-
-const inputClass =
-  'w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted focus:border-accent'
