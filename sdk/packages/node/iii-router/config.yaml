@@ -1,0 +1,33 @@
+# Minimal engine config to run the iii-router worker locally.
+# Start the engine with this config, then `pnpm --filter @iii-hq/iii-router dev`.
+workers:
+  - name: iii-http
+    config:
+      port: 20128
+      host: 127.0.0.1
+      default_timeout: 120000
+      concurrency_request_limit: 1024
+      cors:
+        allowed_origins:
+          - "*"
+        allowed_methods:
+          - GET
+          - POST
+          - OPTIONS
+
+  - name: iii-observability
+    config:
+      enabled: ${OTEL_ENABLED:true}
+      service_name: ${OTEL_SERVICE_NAME:iii-router}
+      exporter: ${OTEL_EXPORTER_TYPE:memory}
+      metrics_enabled: true
+      metrics_exporter: ${OTEL_METRICS_EXPORTER:memory}
+      logs_enabled: true
+      logs_exporter: memory
+
+  - name: iii-exec
+    config:
+      watch:
+        - src/**/*.ts
+      exec:
+        - npm run dev

@@ -1,0 +1,20 @@
+{
+  "name": "@iii-hq/iii-router",
+  "version": "0.1.0",
+  "description": "iii worker: AI request router with tiered auto-fallback and RTK token saver (ported from 9router)",
+  "main": "src/index.ts",
+  "type": "module",
+  "author": "III",
+  "scripts": {
+    "dev": "bun src/index.ts",
+    "start": "bun src/index.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "iii-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
+  }
+}
