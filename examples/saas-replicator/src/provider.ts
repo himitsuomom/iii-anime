@@ -103,6 +103,19 @@ function stubContent(messages: unknown): string {
       features: ['boards', 'cards', 'labels'],
       dataModel: ['users', 'boards', 'cards'],
     })
+  // Codebase must precede the generic "files" branch (its prompt also says "files").
+  if (has('codebase') || has('testfile') || has('runnable'))
+    return JSON.stringify({
+      files: [
+        { path: 'src/app.mjs', content: 'export const add = (a, b) => a + b\n' },
+        {
+          path: 'test.mjs',
+          content:
+            "import { add } from './src/app.mjs'\nconst cases = [add(1, 1) === 2, add(2, 2) === 4]\nconst total = cases.length\nconst passed = cases.filter(Boolean).length\nconsole.log('TESTS total=' + total + ' passed=' + passed + ' failed=' + (total - passed))\n",
+        },
+      ],
+      testFile: 'test.mjs',
+    })
   if (has('files'))
     return JSON.stringify({ files: ['frontend/app.tsx', 'backend/api.ts', 'backend/auth.ts'], notes: 'stub impl' })
   if (has('pwa') || has('deployment') || has('"url"'))

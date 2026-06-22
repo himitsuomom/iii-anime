@@ -32,11 +32,30 @@ export interface Implementation {
   notes?: string
 }
 
+/** One generated source file (relative path + contents). */
+export interface GeneratedFile {
+  path: string
+  content: string
+}
+
+/** A generated codebase: real file contents plus the entry test to execute. */
+export interface Codebase {
+  target: string
+  files: GeneratedFile[]
+  /** Relative path of the test program the executor runs (prints a TESTS line). */
+  testFile: string
+}
+
 export interface TestReport {
   total: number
   passed: number
   failed: number
+  /** Back-compat flag: true when the suite ran in iii-sandbox. */
   viaSandbox: boolean
+  /** Where the suite ran: isolated microVM, local child process, or role fallback. */
+  executor?: 'sandbox' | 'local' | 'role'
+  /** Number of files materialized into the workspace before running. */
+  filesGenerated?: number
   stdout?: string
 }
 
@@ -136,6 +155,61 @@ export function buildDeployment(raw: Record<string, unknown>): Deployment {
     pwa: raw.pwa !== false,
     notes: typeof raw.notes === 'string' ? raw.notes : undefined,
   }
+}
+
+/**
+ * Reject paths that would escape the workspace: absolute paths, `..` segments,
+ * Windows drive letters, or backslashes. Kept pure here (no node deps) so both
+ * the artifact builder and `workspace.ts` share one rule.
+ */
+export function isSafeRelativePath(p: string): boolean {
+  if (typeof p !== 'string' || p.length === 0) return false
+  if (p.startsWith('/') || p.startsWith('\\') || /^[a-zA-Z]:/.test(p)) return false
+  return !p.split(/[/\\]/).some((seg) => seg === '..')
+}
+
+/** Minimal runnable scaffold used when the provider returns no usable files. */
+const DEFAULT_CODEBASE_FILES: GeneratedFile[] = [
+  { path: 'src/app.mjs', content: 'export const add = (a, b) => a + b\n' },
+  {
+    path: 'test.mjs',
+    content: [
+      "import { add } from './src/app.mjs'",
+      'const cases = [add(1, 1) === 2, add(2, 2) === 4]',
+      'const total = cases.length',
+      'const passed = cases.filter(Boolean).length',
+      "console.log('TESTS total=' + total + ' passed=' + passed + ' failed=' + (total - passed))",
+      '',
+    ].join('\n'),
+  },
+]
+
+/**
+ * Build a runnable codebase from provider output. Accepts `files: [{path,
+ * content}]`; drops entries with unsafe paths or non-string content. Falls back
+ * to {@link DEFAULT_CODEBASE_FILES} so the Phase 3 executor always has a real,
+ * runnable test to run.
+ */
+export function buildCodebase(target: string, raw: Record<string, unknown>): Codebase {
+  const rawFiles = Array.isArray(raw.files) ? raw.files : []
+  const files: GeneratedFile[] = rawFiles
+    .map((f) => f as Record<string, unknown>)
+    .filter((f) => f && typeof f.path === 'string' && typeof f.content === 'string' && isSafeRelativePath(f.path))
+    .map((f) => ({ path: f.path as string, content: f.content as string }))
+
+  const usable = files.length > 0 ? files : DEFAULT_CODEBASE_FILES
+  const requested = typeof raw.testFile === 'string' && isSafeRelativePath(raw.testFile) ? raw.testFile : undefined
+  // Use the requested test file only if it was actually materialized.
+  const testFile = requested && usable.some((f) => f.path === requested) ? requested : pickTestFile(usable)
+  return { target, files: usable, testFile }
+}
+
+/** Choose the entry test: a file named like a test, else the first file. */
+function pickTestFile(files: GeneratedFile[]): string {
+  const byName = files.find(
+    (f) => /(^|\/)test[^/]*\.(mjs|js|cjs)$/i.test(f.path) || /\.test\.(mjs|js|cjs)$/i.test(f.path),
+  )
+  return (byName ?? files[0])?.path ?? 'test.mjs'
 }
 
 /** Parse a test summary from sandbox stdout, e.g. `TESTS total=5 passed=4 failed=1`. */

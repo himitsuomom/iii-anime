@@ -1,9 +1,16 @@
 import type { Engine } from './engine'
+import { pickExecutor } from './executor'
 import { Logger } from './log'
-import { buildScreenAnalysis, parseTestStdout, type TestReport, type VisualArtifact } from './logic/artifacts'
+import {
+  buildScreenAnalysis,
+  type Codebase,
+  parseTestStdout,
+  type TestReport,
+  type VisualArtifact,
+} from './logic/artifacts'
 import { analyzeScreenPrompt, vizPrompt } from './logic/prompts'
 import { callRole, callRoleJson } from './provider'
-import { runInSandbox, sandboxAvailable } from './sandbox'
+import { cleanup, createWorkspace, materialize } from './workspace'
 
 const logger = new Logger(undefined, 'swarm')
 
@@ -44,20 +51,23 @@ export function registerSwarm(engine: Engine): void {
     { description: 'Render a diagram/visual (visualizer role)', metadata: { tags: ['swarm', 'viz'] } },
   )
 
-  // Phase 3 tests. Runs the suite in iii-sandbox when available; otherwise
-  // falls back to asking the tester role.
+  // Phase 3 tests. Materializes the generated codebase, then runs its test in
+  // iii-sandbox (preferred) or the local child-process executor. With no
+  // codebase it falls back to asking the tester role.
   engine.register(
     'swarm::test::run',
-    async (payload: { projectId: string; suite?: unknown }) => {
+    async (payload: { projectId: string }) => {
       const { projectId } = payload
       logger.info('Running tests', { projectId })
-
-      const report = (await sandboxAvailable(engine)) ? await runTestsInSandbox(engine) : await runTestsViaRole(engine)
 
       const project = await engine.call<Record<string, unknown> | null>('state::get', {
         scope: `saas/${projectId}`,
         key: 'project',
       })
+      const codebase = (project?.artifacts as Record<string, unknown> | undefined)?.codebase as Codebase | undefined
+
+      const report = codebase?.files?.length ? await runGeneratedTests(engine, codebase) : await runTestsViaRole(engine)
+
       if (project) {
         const artifacts = { ...((project.artifacts as Record<string, unknown>) ?? {}), tests: report }
         await engine.call('state::set', {
@@ -70,25 +80,28 @@ export function registerSwarm(engine: Engine): void {
       await engine.call('director::advance', { projectId })
       return { ok: true }
     },
-    { description: 'Run the test suite (tester role, Phase 3)', metadata: { tags: ['swarm', 'phase3'] } },
+    { description: 'Run the generated test suite (Phase 3)', metadata: { tags: ['swarm', 'phase3'] } },
   )
 }
 
-/** Execute a generated test program in an isolated sandbox and parse the summary. */
-async function runTestsInSandbox(engine: Engine): Promise<TestReport> {
-  // A real impl writes the generated suite; the skeleton runs a representative
-  // self-checking script that prints a parseable summary line.
-  const code = [
-    'const cases = [1+1===2, "a".length===1, [].length===0];',
-    'const total = cases.length;',
-    'const passed = cases.filter(Boolean).length;',
-    'console.log(`TESTS total=${total} passed=${passed} failed=${total-passed}`);',
-  ].join('\n')
-  const result = await runInSandbox(engine, { lang: 'node', code })
-  return parseTestStdout(result.stdout ?? '', true)
+/** Write the codebase to a temp workspace and run its entry test, then clean up. */
+async function runGeneratedTests(engine: Engine, codebase: Codebase): Promise<TestReport> {
+  const root = await createWorkspace()
+  try {
+    const written = await materialize(codebase.files, root)
+    const executor = await pickExecutor(engine)
+    const testContent = codebase.files.find((f) => f.path === codebase.testFile)?.content ?? ''
+    // Pass both: the local executor runs the file (imports resolve via cwd);
+    // the sandbox executor runs the inline content.
+    const result = await executor.run({ lang: 'node', file: codebase.testFile, code: testContent, cwd: root })
+    const report = parseTestStdout(result.stdout ?? '', executor.kind === 'sandbox')
+    return { ...report, executor: executor.kind, filesGenerated: written.length }
+  } finally {
+    await cleanup(root)
+  }
 }
 
-/** Fallback: ask the tester role for a report when no sandbox is available. */
+/** Fallback: ask the tester role for a report when no codebase was generated. */
 async function runTestsViaRole(engine: Engine): Promise<TestReport> {
   const raw = await callRole(engine, 'tester', [
     { role: 'user', content: 'Generate and evaluate tests; reply with a short summary.' },
@@ -98,6 +111,8 @@ async function runTestsViaRole(engine: Engine): Promise<TestReport> {
     passed: 0,
     failed: 0,
     viaSandbox: false,
+    executor: 'role',
+    filesGenerated: 0,
     stdout: typeof raw === 'string' ? raw : JSON.stringify(raw),
   }
 }

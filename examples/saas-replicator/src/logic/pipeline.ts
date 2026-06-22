@@ -32,6 +32,8 @@ export interface ProjectState {
     /** Architecture decision from the Phase 3 debate/self-critique step. */
     architecture?: unknown
     implementation?: unknown
+    /** Generated codebase (real file contents) materialized + tested in Phase 3. */
+    codebase?: unknown
     tests?: unknown
     visuals?: unknown
     deployment?: unknown

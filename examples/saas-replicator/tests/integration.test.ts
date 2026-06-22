@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { MemoryEngine } from '../src/adapters/memoryEngine'
 import { startProject } from '../src/director'
-import type { Prd, ScreenAnalysis, TestReport } from '../src/logic/artifacts'
+import type { Codebase, Prd, ScreenAnalysis, TestReport } from '../src/logic/artifacts'
 import type { ProjectState } from '../src/logic/pipeline'
 import { registerOrchestrator } from '../src/orchestrator'
 
@@ -53,9 +53,14 @@ test('full run with screenshots reaches done with all artifacts (stub mode)', as
   assert.equal(prd.target, 'Trello')
   assert.ok(Array.isArray(prd.features) && prd.features.length > 0, 'PRD features parsed')
 
-  // Without an iii-sandbox worker, tests use the role fallback.
+  // Phase 3 generated a real codebase and actually executed its test locally.
+  const codebase = proj.artifacts.codebase as Codebase
+  assert.ok(codebase.files.length > 0, 'codebase files generated')
   const tests = proj.artifacts.tests as TestReport
   assert.equal(tests.viaSandbox, false)
+  assert.equal(tests.executor, 'local') // no iii-sandbox worker -> local child process
+  assert.ok(tests.total > 0, 'generated test actually ran and reported counts')
+  assert.ok((tests.filesGenerated ?? 0) > 0, 'files materialized before running')
 })
 
 test('Phase 3 runs tests in iii-sandbox when the worker is present', async () => {
@@ -79,6 +84,7 @@ test('Phase 3 runs tests in iii-sandbox when the worker is present', async () =>
 
   const tests = proj.artifacts.tests as TestReport
   assert.equal(tests.viaSandbox, true)
+  assert.equal(tests.executor, 'sandbox')
   assert.equal(tests.total, 3)
   assert.equal(tests.passed, 3)
 })

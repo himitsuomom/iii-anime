@@ -44,6 +44,16 @@ export function implementationPrompt(target: string): Message[] {
   ]
 }
 
+export function codebasePrompt(target: string): Message[] {
+  return [
+    { role: 'system', content: 'You are a senior engineer. Generate a small, runnable codebase scaffold.' },
+    {
+      role: 'user',
+      content: `Generate the codebase to rebuild ${target}: source files plus a runnable Node test file (ESM .mjs) that prints a line "TESTS total=<n> passed=<n> failed=<n>". ${jsonContract('{ "files": [{ "path": string, "content": string }], "testFile": string }')}`,
+    },
+  ]
+}
+
 export function vizPrompt(spec: unknown): Message[] {
   return [
     { role: 'system', content: 'You produce mermaid diagrams.' },

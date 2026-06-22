@@ -2,7 +2,7 @@
 
 > 元設計 `assets/original-report.md`（Claude×KIMI マルチエージェント・オーケストレーション）を、**iii のプリミティブ（Worker / Function / Trigger）上で動作する**ように再設計したもの。実装言語は TypeScript（`iii-sdk`）。
 >
-> **実装状況**: ロードマップ §13（ステージ1〜3＝Claude単独の動く骨格／KIMI 段階的強化／各 Phase の構造化＋sandbox）に加え、**ステージ4（オーケストレーションパターン §9・横断機能=可観測性/予算 §12・E2E デモ §11）を実装済み**。`npm run demo` で API キー無し（stub）のまま 4-Phase を `done` まで完走できる。全 26 単体/結合テストが pass。セットアップ・実行は [README.md](./README.md) を参照。
+> **実装状況**: ロードマップ §13（ステージ1〜4）に加え、**ステージ5（実コード生成スキャフォルド + 実行 + live 起動 preflight）を実装済み**。Phase3 は**実ファイル内容を生成→ワークスペースに materialize→生成テストを実際に実行**する（`iii-sandbox` があれば microVM、無ければ子プロセスの local executor）。`npm run demo` で API キー無し（stub）のまま 4-Phase を `done` まで完走し、**生成コードが本環境で実走**する。全 36 単体/結合テストが pass。セットアップ・実行は [README.md](./README.md) を参照。
 
 ---
 
@@ -290,6 +290,9 @@ examples/saas-replicator/
     provider.ts        ← registerProvider + provider::resolve + stub + callRole/callRoleJson
     patterns.ts        ← supervisedGenerate / debateOrCritique（Supervisor・Debate 配線）
     observability.ts   ← withObservability（span トレース + トークン予算ガード；Engine デコレータ）
+    workspace.ts       ← createWorkspace / materialize / cleanup（生成コードの書き出し）
+    executor.ts        ← sandbox/local の CodeExecutor + pickExecutor（生成テストの実行）
+    preflight.ts       ← runPreflight / saas::preflight（起動前の設定検証）
     director.ts        ← startProject / advance（4-Phase 駆動）+ approval + HTTP(saas::start/status)
     swarm.ts           ← swarm::ui::analyze-screen / swarm::viz::render / swarm::test::run
     demo.ts            ← runDemo()（stub で 4-Phase を end-to-end 完走・テレメトリ出力）
@@ -299,19 +302,22 @@ examples/saas-replicator/
     logic/
       roleBinding.ts   ← 役割→プロバイダ解決（純粋）
       pipeline.ts      ← 4-Phase 進行ロジック（純粋）
-      artifacts.ts     ← 成果物の型 + parseJsonFromContent + build*（純粋）
+      artifacts.ts     ← 成果物の型 + parseJsonFromContent + build* + buildCodebase + isSafeRelativePath（純粋）
       prompts.ts       ← 役割/Phase ごとの構造化プロンプト（純粋）
       review.ts        ← Supervisor 判定（parseCritique / accepted）（純粋）
       budget.ts        ← トークン予算会計（extractUsage / addUsage / overBudget）（純粋）
+      preflight.ts     ← buildPreflightReport（設定検証の判定）（純粋）
   tests/
-    roleBinding / pipeline / artifacts / review・patterns / budget  ← 純粋ロジック + パターンの単体テスト
-    integration.test.ts                                            ← MemoryEngine で 4-Phase を end-to-end 実行（sandbox 経由/フォールバック含む）
-    demo.test.ts                                                   ← runDemo() のスモーク（done 到達 + テレメトリ）
+    roleBinding / pipeline / artifacts / patterns / budget / preflight / workspace / executor  ← 純粋ロジック + 実行系の単体テスト
+    integration.test.ts                                            ← MemoryEngine で 4-Phase を end-to-end 実行（生成コードの実走/sandbox 経由/フォールバック含む）
+    demo.test.ts                                                   ← runDemo() のスモーク（done 到達 + 生成コード実走 + テレメトリ）
 ```
 
 > **Engine 抽象 + 2 アダプタ**にした点が当初案からの改善。ハンドラは `Engine`（`call`/`enqueue`/`register`/`listWorkers`）に対してのみ書かれ、本番は `iiiEngine`、テストは `MemoryEngine` を注入する。これにより、**実エンジン・API キー無しで 4-Phase 全体を実際に走らせて検証**できる（`integration.test.ts`）。
 >
-> **ステージ3で各 Phase を構造化**: 各役割は `prompts.ts` の JSON 出力契約付きプロンプトで呼ばれ、`callRoleJson` + `artifacts.ts` の `build*` で型付き成果物（`ScreenAnalysis`/`Prd`/`Implementation`/`TestReport`/`VisualArtifact`/`Deployment`）に変換される。Phase3 のテストは `iii-sandbox` があれば microVM で実行（`viaSandbox:true`）、無ければ tester ロールにフォールバック。Phase4 は `approval-gate` worker 検出時のみ承認を求める（既定 auto-approve）。
+> **ステージ3で各 Phase を構造化**: 各役割は `prompts.ts` の JSON 出力契約付きプロンプトで呼ばれ、`callRoleJson` + `artifacts.ts` の `build*` で型付き成果物（`ScreenAnalysis`/`Prd`/`Implementation`/`TestReport`/`VisualArtifact`/`Deployment`）に変換される。Phase4 は `approval-gate` worker 検出時のみ承認を求める（既定 auto-approve）。
+>
+> **ステージ5で Phase3 を実コード化**: `codebasePrompt` → `buildCodebase`（unsafe パス除外 + 既定スキャフォルド）で **path→content の実ファイル**を生成し、`workspace.ts` で一時ディレクトリに materialize、`executor.ts` の `pickExecutor`（`iii-sandbox` 在→microVM / 不在→子プロセス local executor）で**生成テストを実際に実行**し `parseTestStdout` で `TestReport{executor, filesGenerated, total, passed, failed}` に集約する。local executor は**開発用フォールバック**であり、本番は `iii-sandbox` の microVM 分離を用いる（生成コード実行は隔離が原則）。`saas::preflight` / 起動時 `runPreflight` が live 実行前に `provider-anthropic`+`ANTHROPIC_API_KEY` の有無を検証する。
 
 例示スニペット（AGENTS.md 規約準拠: `::` 区切り、`api_path` 先頭 `/`、cron は `expression`）:
 
@@ -387,24 +393,28 @@ iii.registerTrigger({
 cd examples/saas-replicator && npm install
 npm run demo                       # stub モードで 4-Phase を done まで完走し成果物/テレメトリを出力
 SAAS_TOKEN_BUDGET=1 npm run demo   # トークン予算ガード（BudgetExceededError）を確認
-npm test                           # 26 単体/結合テスト（実エンジン・API キー不要）
+npm test                           # 36 単体/結合テスト（実エンジン・API キー不要・生成コードを実走）
 ```
 
-`runDemo()`（`src/demo.ts`）は `MemoryEngine` を `withObservability` で包み、Trello の 3 画面を入力に 4-Phase 全体を走らせて、`status: done` / 全成果物 / span 数 / トークン使用量を表示する。アーキ選定は Claude 単独のため `self-critique` で解決される（`provider-kimi` 追加時は `debate`）。
+`runDemo()`（`src/demo.ts`）は `MemoryEngine` を `withObservability` で包み、Trello の 3 画面を入力に 4-Phase 全体を走らせて、`status: done` / 全成果物 / 生成ファイル数 / 使用 executor / span 数 / トークン使用量を表示する。Phase3 では生成した `test.mjs` を**子プロセスで実走**し（`executor:'local'`）、アーキ選定は Claude 単独のため `self-critique` で解決される（`provider-kimi` 追加時は `debate`）。
 
 ### 11.1 Claude 単独モード（既定）
 
 ```bash
 export ANTHROPIC_API_KEY=sk-...
+export SAAS_PROVIDER_MODE=live
 iii --config iii-config.yaml                 # engine 起動（ws:49134 / REST:3111 / console:3113）
 iii worker add iii-state iii-queue iii-sandbox iii-observability approval-gate
 iii worker add provider-anthropic            # Claude のみ
-# 自作ワーカー（director / swarm-executor）を起動（pnpm dev など）
+# 自作ワーカー起動後、まず設定を検証（必須ワーカー/ANTHROPIC_API_KEY を確認）:
+curl -X POST http://localhost:3111/saas/preflight    # saas::preflight（HTTP 公開時）。起動時にも自動実行・ログ出力
 curl -X POST http://localhost:3111/saas/replicate \
   -H 'Content-Type: application/json' \
   -d '{"target":"Trello","screenshots":[...],"requirements":"日本語UI/PWA/レスポンシブ"}'
 # Console(:3113) で関数呼び出しのトレース・state・queue を確認
 ```
+
+> **preflight**: `src/preflight.ts` の `runPreflight` が起動時に `listWorkers` + env を集め、`buildPreflightReport`（純粋）で検証する。live で `provider-anthropic` 欠如や `ANTHROPIC_API_KEY` 未設定を **problem**（warn ログ）として報告し、`iii-sandbox` 欠如（→local executor で実行）/`provider-kimi` 在（→debate 有効）/`approval-gate` 欠如（→auto-approve）は **note** として知らせる。
 
 ### 11.2 Claude×KIMI モード（段階的強化）
 
@@ -430,7 +440,7 @@ iii worker add provider-kimi                  # これを足すだけ
 | エージェント間通信エラー | `state` に中間成果物を保存（疎結合）/ iii↔iii は `iii-bridge` |
 | 品質のばらつき | `director::review::*` の統合レビュー + `approval-gate` の人間承認 |
 | **単一プロバイダ依存（Claude単独時の SPOF / コスト集中）** | queue concurrency 制御 + トークン予算ガード（`withObservability`）+ `provider-kimi` 追加で水平分散（役割の自動再束縛・debate 格上げ） |
-| AI生成コードの脆弱性 | `director::impl::auth` をレビュー必須化 + `iii-sandbox` での隔離実行 |
+| AI生成コードの脆弱性 | `director::impl::auth` をレビュー必須化 + **生成コードは隔離実行**（本番=`iii-sandbox` microVM、開発=`executor.ts` の local 子プロセス）。materialize は `isSafeRelativePath` で `..`/絶対パスを拒否 |
 
 ---
 
@@ -439,8 +449,9 @@ iii worker add provider-kimi                  # これを足すだけ
 1. ✅ **Claude 単独の動く骨格** — 既定 role-binding = `provider-anthropic`。Phase 1〜4 を Engine 抽象 + `MemoryEngine` で end-to-end 検証済み。
 2. ✅ **各 Phase の実体化** — 構造化プロンプト + 型付き成果物（`artifacts.ts`/`prompts.ts`）、Phase3 の `iii-sandbox` 実行（フォールバック付き）、Phase4 の approval フックを実装・検証済み（`integration.test.ts` / `artifacts.test.ts`）。
 3. ✅ **オーケストレーションパターン + 横断機能 + E2E デモ** — Supervisor / Debate→self-critique（`patterns.ts`/`logic/review.ts`）、可観測性 + トークン予算ガード（`observability.ts`/`logic/budget.ts`）、`runDemo()` による stub 完走デモを実装・検証済み（計26テスト pass、`npm run demo`）。
-4. **provider/エンジンの live 実行検証** — `iiiEngine` アダプタ実装済み。残りは実エンジン起動 + `ANTHROPIC_API_KEY`（Claude）での実走、`provider-kimi`/`iii-sandbox`/`approval-gate` 追加での挙動確認（本環境はエンジン未起動・`/dev/kvm` 無しのため未実走）。
-5. **今後の深掘り** — UI解析精度、PRD/実装スキャフォルドの実コード生成、実テストスイートの sandbox 実行、デプロイ連携。
+4. ✅ **実コード生成スキャフォルド + 実行 + live preflight** — Phase3 が実ファイル内容を生成（`buildCodebase`）し、`workspace.ts` で materialize、`executor.ts` で**生成テストを実走**（sandbox / local）。`preflight.ts` で live 起動前の設定検証を追加（計36テスト pass、`npm run demo` で生成コードが本環境実走）。
+5. **provider/エンジンの live 実行検証** — `iiiEngine` アダプタ実装済み。残りは実エンジン起動 + `ANTHROPIC_API_KEY`（Claude）での実走、`provider-kimi`/`iii-sandbox`/`approval-gate` 追加での挙動確認（本環境はエンジン未起動・`/dev/kvm` 無しのため未実走）。
+6. **今後の深掘り** — UI解析精度の向上、生成コードの本格アプリ化、デプロイ連携。
 
 ---
 

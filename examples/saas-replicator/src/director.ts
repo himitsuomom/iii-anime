@@ -1,9 +1,16 @@
 import { randomUUID } from 'node:crypto'
 import type { Engine, Json } from './engine'
 import { Logger } from './log'
-import { buildDeployment, buildImplementation, buildPrd, type Prd, type VisualArtifact } from './logic/artifacts'
+import {
+  buildCodebase,
+  buildDeployment,
+  buildPrd,
+  type Implementation,
+  type Prd,
+  type VisualArtifact,
+} from './logic/artifacts'
 import { initialState, type ProjectState, phase1Complete, type StartInput } from './logic/pipeline'
-import { deployPrompt, implementationPrompt, prdPrompt, vizPrompt } from './logic/prompts'
+import { codebasePrompt, deployPrompt, prdPrompt, vizPrompt } from './logic/prompts'
 import { debateOrCritique, supervisedGenerate } from './patterns'
 import { callRole, callRoleJson } from './provider'
 
@@ -139,13 +146,13 @@ export async function advance(engine: Engine, projectId: string): Promise<Json> 
           opponentRole: 'swarm', // KIMI when present -> real debate; else self-critique
           judgeRole: 'director',
         })
-        const implementation = buildImplementation(
-          proj.target,
-          await callRoleJson(engine, 'director', implementationPrompt(proj.target)),
-        )
+        // Generate real file contents; the file plan (`implementation`) is the
+        // codebase's table of contents (no separate LLM call).
+        const codebase = buildCodebase(proj.target, await callRoleJson(engine, 'director', codebasePrompt(proj.target)))
+        const implementation: Implementation = { target: proj.target, files: codebase.files.map((f) => f.path) }
         proj = await saveProject(engine, {
           ...proj,
-          artifacts: { ...proj.artifacts, architecture, implementation },
+          artifacts: { ...proj.artifacts, architecture, codebase, implementation },
         })
         await engine.enqueue('swarm::test::run', { projectId }, 'phase3-test')
         return { waiting: 'tests' }

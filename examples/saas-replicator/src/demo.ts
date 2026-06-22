@@ -50,6 +50,8 @@ export function reportDemo({ project, telemetry }: DemoResult): void {
   console.log(
     `architecture:  ${(a.architecture as { mode?: string; answer?: string })?.mode} -> ${(a.architecture as { answer?: string })?.answer}`,
   )
+  const codebase = a.codebase as { files?: unknown[] } | undefined
+  console.log(`codebase:      ${codebase?.files?.length ?? 0} files generated`)
   console.log(`tests:         ${JSON.stringify(a.tests)}`)
   console.log(`spans:         ${telemetry.spans.length}`)
   console.log(

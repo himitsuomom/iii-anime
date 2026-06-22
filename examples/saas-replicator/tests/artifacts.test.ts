@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
+  buildCodebase,
   buildDeployment,
   buildImplementation,
   buildPrd,
   buildScreenAnalysis,
+  isSafeRelativePath,
   parseJsonFromContent,
   parseTestStdout,
 } from '../src/logic/artifacts'
@@ -46,6 +48,38 @@ test('builders pass through provided values', () => {
 
   const prd = buildPrd('X', { summary: 's', features: ['f'], dataModel: ['users'] })
   assert.deepEqual(prd.features, ['f'])
+})
+
+test('isSafeRelativePath rejects escapes and absolute paths', () => {
+  assert.equal(isSafeRelativePath('src/app.mjs'), true)
+  assert.equal(isSafeRelativePath('test.mjs'), true)
+  assert.equal(isSafeRelativePath('/etc/passwd'), false)
+  assert.equal(isSafeRelativePath('../secret'), false)
+  assert.equal(isSafeRelativePath('a/../../b'), false)
+  assert.equal(isSafeRelativePath('C:\\win'), false)
+  assert.equal(isSafeRelativePath(''), false)
+})
+
+test('buildCodebase adopts valid files, drops unsafe, defaults when empty', () => {
+  const ok = buildCodebase('Trello', {
+    files: [
+      { path: 'src/a.mjs', content: 'export const x=1' },
+      { path: '../escape.mjs', content: 'bad' }, // dropped
+      { path: 'spec.test.mjs', content: 'console.log("TESTS total=1 passed=1 failed=0")' },
+    ],
+    testFile: 'spec.test.mjs',
+  })
+  assert.equal(ok.files.length, 2) // unsafe entry filtered out
+  assert.equal(ok.testFile, 'spec.test.mjs')
+
+  // No usable files -> runnable default scaffold with a test file.
+  const fallback = buildCodebase('Linear', {})
+  assert.ok(fallback.files.length >= 1)
+  assert.ok(fallback.files.some((f) => f.path === fallback.testFile))
+
+  // Requested testFile that was not materialized -> pick a real one.
+  const picked = buildCodebase('X', { files: [{ path: 'main.mjs', content: 'x' }], testFile: 'missing.mjs' })
+  assert.equal(picked.testFile, 'main.mjs')
 })
 
 test('parseTestStdout extracts counts from a summary line', () => {

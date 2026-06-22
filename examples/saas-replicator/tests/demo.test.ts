@@ -8,9 +8,16 @@ test('runDemo completes end-to-end in stub mode with telemetry (no API keys)', a
 
   // Pipeline reached the end with every artifact populated.
   assert.equal(project.status, 'done')
-  for (const key of ['prd', 'architecture', 'implementation', 'tests', 'visuals', 'deployment'] as const) {
+  for (const key of ['prd', 'architecture', 'codebase', 'implementation', 'tests', 'visuals', 'deployment'] as const) {
     assert.ok(project.artifacts[key], `${key} present`)
   }
+
+  // Phase 3 generated and ran a real codebase.
+  const codebase = project.artifacts.codebase as { files: unknown[] }
+  assert.ok(codebase.files.length > 0, 'codebase generated')
+  const tests = project.artifacts.tests as { filesGenerated?: number; total: number }
+  assert.ok((tests.filesGenerated ?? 0) > 0, 'files materialized')
+  assert.ok(tests.total > 0, 'generated test ran')
 
   // Supervisor recorded review rounds for the PRD.
   const reviews = project.artifacts.reviews as Record<string, { rounds: number } | undefined>
