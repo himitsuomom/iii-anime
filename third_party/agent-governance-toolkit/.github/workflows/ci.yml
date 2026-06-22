@@ -1,0 +1,1131 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: "0 6 * * *" # Daily at 06:00 UTC
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # ── Path detection — determines which jobs to run ─────────────────────
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.filter.outputs.python }}
+      dotnet: ${{ steps.filter.outputs.dotnet }}
+      typescript: ${{ steps.filter.outputs.typescript }}
+      integrations: ${{ steps.filter.outputs.integrations }}
+      rust: ${{ steps.filter.outputs.rust }}
+      go: ${{ steps.filter.outputs.go }}
+      workflows: ${{ steps.filter.outputs.workflows }}
+      docs-only: ${{ steps.filter.outputs.docs-only }}
+      docker: ${{ steps.filter.outputs.docker }}
+      changed-py-pkgs: ${{ steps.py-pkgs.outputs.list }}
+      changed-ts-pkgs: ${{ steps.ts-pkgs.outputs.list }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        id: filter
+        with:
+          filters: |
+            python:
+              - 'policy-engine/**'
+              - 'agent-governance-python/agt-policies/**'
+              - 'agent-governance-python/agent-os/**'
+              - 'agent-governance-python/agent-mesh/**'
+              - 'agent-governance-python/agent-hypervisor/**'
+              - 'agent-governance-python/agent-sre/**'
+              - 'agent-governance-python/agent-compliance/**'
+              - 'agent-governance-python/agent-runtime/**'
+              - 'agent-governance-python/agent-lightning/**'
+              - 'agent-governance-python/agent-primitives/**'
+              - 'agent-governance-python/agent-mcp-governance/**'
+              - 'agent-governance-python/agent-marketplace/**'
+              - 'agent-governance-python/agent-discovery/**'
+              - 'agent-governance-python/agent-rag-governance/**'
+              - 'agent-governance-python/agent-sandbox/**'
+              - 'agent-governance-python/agent-governance-toolkit-core/**'
+              - 'agent-governance-python/agent-governance-toolkit-integrations/**'
+              - 'agent-governance-python/agent-governance-toolkit-cli/**'
+              - 'agent-governance-python/agent-governance-toolkit-protocols/**'
+              - 'scripts/**'
+              - 'agent-governance-python/requirements/**'
+            dotnet:
+              - 'agent-governance-dotnet/**'
+            typescript:
+              - '.claude-plugin/**'
+              - 'scripts/sync-claude-marketplace-version.mjs'
+              - 'agent-governance-claude-code/**'
+              - 'agent-governance-copilot-cli/**'
+              - 'agent-governance-typescript/**'
+              - 'agent-governance-antigravity-cli/**'
+              - 'agent-governance-opencode/**'
+              - 'agent-governance-python/agent-os/extensions/**'
+              - 'agent-governance-python/agentmesh-integrations/mastra-agentmesh/**'
+              - 'agent-governance-python/agentmesh-integrations/copilot-governance/**'
+            integrations:
+              - 'agent-governance-python/agentmesh-integrations/**'
+            workflows:
+              - '.github/workflows/**'
+            rust:
+              - 'agent-governance-rust/**'
+            go:
+              - 'agent-governance-golang/**'
+            docs-only:
+              - '**/*.md'
+              - 'agent-governance-python/notebooks/**'
+              - 'docs/**'
+            docker:
+              - 'Dockerfile'
+              - 'docker-compose*.yml'
+              - 'scripts/docker/**'
+              - '.gitattributes'
+              - 'agent-governance-python/**/pyproject.toml'
+              - 'agent-governance-python/agent-hypervisor/examples/dashboard/requirements.txt'
+              - '.github/workflows/ci.yml'
+            pkg-agt-policies:
+              - 'policy-engine/**'
+              - 'agent-governance-python/agt-policies/**'
+            pkg-agent-os:
+              - 'agent-governance-python/agent-os/**'
+            pkg-agent-mesh:
+              - 'agent-governance-python/agent-mesh/**'
+            pkg-agent-hypervisor:
+              - 'agent-governance-python/agent-hypervisor/**'
+            pkg-agent-sre:
+              - 'agent-governance-python/agent-sre/**'
+            pkg-agent-compliance:
+              - 'agent-governance-python/agent-compliance/**'
+            pkg-agent-runtime:
+              - 'agent-governance-python/agent-runtime/**'
+            pkg-agent-lightning:
+              - 'agent-governance-python/agent-lightning/**'
+            pkg-agent-primitives:
+              - 'agent-governance-python/agent-primitives/**'
+            pkg-agent-mcp-governance:
+              - 'agent-governance-python/agent-mcp-governance/**'
+            pkg-agent-marketplace:
+              - 'agent-governance-python/agent-marketplace/**'
+            pkg-agent-discovery:
+              - 'agent-governance-python/agent-discovery/**'
+            pkg-agent-rag-governance:
+              - 'agent-governance-python/agent-rag-governance/**'
+            pkg-agent-sandbox:
+              - 'agent-governance-python/agent-sandbox/**'
+            pkg-agentmesh-mcp-proxy:
+              - 'agent-governance-python/agent-mesh/packages/mcp-proxy/**'
+            pkg-agent-governance-copilot-cli:
+              - 'agent-governance-copilot-cli/**'
+            pkg-agent-governance-claude-code:
+              - '.claude-plugin/**'
+              - 'scripts/sync-claude-marketplace-version.mjs'
+              - 'agent-governance-claude-code/**'
+            pkg-agent-governance-opencode:
+              - 'agent-governance-opencode/**'
+            pkg-agent-governance-sdk:
+              - 'agent-governance-typescript/**'
+            pkg-agentmesh-api:
+              - 'agent-governance-python/agent-mesh/services/api/**'
+            pkg-agent-os-copilot-extension:
+              - 'agent-governance-python/agent-os/extensions/copilot/**'
+            pkg-agentos-mcp-server:
+              - 'agent-governance-python/agent-os/extensions/mcp-server/**'
+      - name: Compose changed-py-pkgs JSON list
+        id: py-pkgs
+        env:
+          AGP: ${{ steps.filter.outputs.pkg-agt-policies }}
+          AO: ${{ steps.filter.outputs.pkg-agent-os }}
+          AM: ${{ steps.filter.outputs.pkg-agent-mesh }}
+          AH: ${{ steps.filter.outputs.pkg-agent-hypervisor }}
+          AS: ${{ steps.filter.outputs.pkg-agent-sre }}
+          AC: ${{ steps.filter.outputs.pkg-agent-compliance }}
+          AR: ${{ steps.filter.outputs.pkg-agent-runtime }}
+          AL: ${{ steps.filter.outputs.pkg-agent-lightning }}
+          AP: ${{ steps.filter.outputs.pkg-agent-primitives }}
+          AMG: ${{ steps.filter.outputs.pkg-agent-mcp-governance }}
+          AMP: ${{ steps.filter.outputs.pkg-agent-marketplace }}
+          AD: ${{ steps.filter.outputs.pkg-agent-discovery }}
+          ARG: ${{ steps.filter.outputs.pkg-agent-rag-governance }}
+          ASB: ${{ steps.filter.outputs.pkg-agent-sandbox }}
+        run: |
+          set -euo pipefail
+          pkgs=()
+          [ "$AGP" = "true" ] && pkgs+=('"agt-policies"')
+          [ "$AO" = "true" ] && pkgs+=('"agent-os"')
+          [ "$AM" = "true" ] && pkgs+=('"agent-mesh"')
+          [ "$AH" = "true" ] && pkgs+=('"agent-hypervisor"')
+          [ "$AS" = "true" ] && pkgs+=('"agent-sre"')
+          [ "$AC" = "true" ] && pkgs+=('"agent-compliance"')
+          [ "$AR" = "true" ] && pkgs+=('"agent-runtime"')
+          [ "$AL" = "true" ] && pkgs+=('"agent-lightning"')
+          [ "$AP" = "true" ] && pkgs+=('"agent-primitives"')
+          [ "$AMG" = "true" ] && pkgs+=('"agent-mcp-governance"')
+          [ "$AMP" = "true" ] && pkgs+=('"agent-marketplace"')
+          [ "$AD" = "true" ] && pkgs+=('"agent-discovery"')
+          [ "$ARG" = "true" ] && pkgs+=('"agent-rag-governance"')
+          [ "$ASB" = "true" ] && pkgs+=('"agent-sandbox"')
+          ifs=$IFS; IFS=,; list="[${pkgs[*]:-}]"; IFS=$ifs
+          echo "list=$list" >> "$GITHUB_OUTPUT"
+          echo "Changed Python packages: $list"
+      - name: Compose changed-ts-pkgs JSON list
+        id: ts-pkgs
+        env:
+          MCP: ${{ steps.filter.outputs.pkg-agentmesh-mcp-proxy }}
+          COPILOT: ${{ steps.filter.outputs.pkg-agent-governance-copilot-cli }}
+          CLAUDE: ${{ steps.filter.outputs.pkg-agent-governance-claude-code }}
+          OPENCODE: ${{ steps.filter.outputs.pkg-agent-governance-opencode }}
+          SDK: ${{ steps.filter.outputs.pkg-agent-governance-sdk }}
+          API: ${{ steps.filter.outputs.pkg-agentmesh-api }}
+          EXT: ${{ steps.filter.outputs.pkg-agent-os-copilot-extension }}
+          SERVER: ${{ steps.filter.outputs.pkg-agentos-mcp-server }}
+        run: |
+          set -euo pipefail
+          pkgs=()
+          [ "$MCP" = "true" ] && pkgs+=('"agentmesh-mcp-proxy"')
+          [ "$COPILOT" = "true" ] && pkgs+=('"agent-governance-copilot-cli"')
+          [ "$CLAUDE" = "true" ] && pkgs+=('"agent-governance-claude-code"')
+          [ "$OPENCODE" = "true" ] && pkgs+=('"agent-governance-opencode"')
+          [ "$SDK" = "true" ] && pkgs+=('"agent-governance-sdk"')
+          [ "$API" = "true" ] && pkgs+=('"agentmesh-api"')
+          [ "$EXT" = "true" ] && pkgs+=('"agent-os-copilot-extension"')
+          [ "$SERVER" = "true" ] && pkgs+=('"agentos-mcp-server"')
+          ifs=$IFS; IFS=,; list="[${pkgs[*]:-}]"; IFS=$ifs
+          echo "list=$list" >> "$GITHUB_OUTPUT"
+          echo "Changed TypeScript packages: $list"
+
+  # ── Python lint + test (only when Python files change) ────────────────
+  lint:
+    needs: changes
+    if: needs.changes.outputs.python == 'true' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package:
+          [
+            agent-os,
+            agt-policies,
+            agent-mesh,
+            agent-hypervisor,
+            agent-sre,
+            agent-compliance,
+            agent-runtime,
+            agent-lightning,
+            agent-primitives,
+            agent-mcp-governance,
+            agent-marketplace,
+            agent-discovery,
+            agent-rag-governance,
+            agent-sandbox,
+          ]
+    steps:
+      - name: Determine if package changed
+        id: gate
+        env:
+          CHANGED: ${{ needs.changes.outputs.changed-py-pkgs }}
+          PKG: ${{ matrix.package }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "schedule" ] || [ "$EVENT" = "push" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif printf '%s' "$CHANGED" | grep -q "\"$PKG\""; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Package $PKG unchanged on this PR — skipping lint."
+          fi
+      - if: steps.gate.outputs.run == 'true'
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - if: steps.gate.outputs.run == 'true'
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+      - if: steps.gate.outputs.run == 'true'
+        name: Install ruff
+        run: pip install --require-hashes --no-cache-dir -r agent-governance-python/requirements/ci-lint.txt
+      - if: steps.gate.outputs.run == 'true'
+        name: Lint ${{ matrix.package }}
+        working-directory: agent-governance-python/${{ matrix.package }}
+        run: |
+          if [ -d src ]; then
+            ruff check src/ --select E,F,W --ignore E501
+          else
+            ruff check . --select E,F,W --ignore E501 --exclude '*.egg-info'
+          fi
+
+  # ── Python test (only when Python files change) ───────────────────────
+  test:
+    needs: changes
+    # Always run so matrix check names are reported to branch protection.
+    # Steps are skipped when no Python files changed.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          [
+            agent-os,
+            agt-policies,
+            agent-mesh,
+            agent-hypervisor,
+            agent-sre,
+            agent-compliance,
+            agent-runtime,
+            agent-lightning,
+            agent-primitives,
+            agent-mcp-governance,
+            agent-marketplace,
+            agent-discovery,
+            agent-rag-governance,
+            agent-sandbox,
+          ]
+        python-version: [ "3.10", "3.11", "3.12", "3.13" ]
+        exclude:
+          - package: agent-os
+            python-version: "3.10"
+          - package: agt-policies
+            python-version: "3.10"
+          - package: agent-mesh
+            python-version: "3.10"
+          - package: agent-hypervisor
+            python-version: "3.10"
+          - package: agent-compliance
+            python-version: "3.10"
+          - package: agent-runtime
+            python-version: "3.10"
+          - package: agent-lightning
+            python-version: "3.10"
+          - package: agent-primitives
+            python-version: "3.10"
+          - package: agent-mcp-governance
+            python-version: "3.10"
+          - package: agent-marketplace
+            python-version: "3.10"
+          - package: agent-discovery
+            python-version: "3.10"
+          - package: agent-sandbox
+            python-version: "3.10"
+          - package: agent-sre
+            python-version: "3.10"
+          - package: agent-rag-governance
+            python-version: "3.10"
+    steps:
+      - name: Determine if package changed
+        id: gate
+        env:
+          CHANGED: ${{ needs.changes.outputs.changed-py-pkgs }}
+          PKG: ${{ matrix.package }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "schedule" ] || [ "$EVENT" = "push" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif printf '%s' "$CHANGED" | grep -q "\"$PKG\""; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Package $PKG unchanged on this PR — skipping tests."
+          fi
+      - name: Skip (unchanged package)
+        if: steps.gate.outputs.run != 'true'
+        run: echo "Package ${{ matrix.package }} unchanged — skipping tests"
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        if: steps.gate.outputs.run == 'true'
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        if: steps.gate.outputs.run == 'true'
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install local sibling dependencies
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          # Install consolidated packages from local source (not yet on PyPI).
+          # Most packages depend on these, so install them first.
+          pip install --no-cache-dir --no-deps -e agent-governance-python/agent-governance-toolkit-core
+          pip install --no-cache-dir --no-deps -e agent-governance-python/agent-governance-toolkit-integrations
+          pip install --no-cache-dir --no-deps -e agent-governance-python/agent-governance-toolkit-cli
+          pip install --no-cache-dir --no-deps -e agent-governance-python/agent-governance-toolkit-protocols
+          # agt-policies backs the agent-os v5 runtime bridge. Install this
+          # local sibling without resolving agent-control-specification from
+          # PyPI; the vendored native SDK is built below for the packages that
+          # exercise the ACS-backed runtime. Keep its pure-Python runtime deps
+          # available for agent-os, which imports agt-policies but does not
+          # declare every agt-policies transitive dependency itself.
+          pip install --no-cache-dir "pydantic>=2.5.0,<3.0" "pyyaml>=6.0,<7.0"
+          pip install --no-cache-dir --no-deps -e agent-governance-python/agt-policies
+      - name: Install OPA (ACS-backed Python policy runtime)
+        # The native ACS runtime evaluates policy via OPA; without it the
+        # runtime fails closed (runtime_error:policy_invocation_failed) and
+        # denies everything. Same pinned binary the policy-engine CI uses.
+        if: steps.gate.outputs.run == 'true' && (matrix.package == 'agent-os' || matrix.package == 'agt-policies')
+        run: |
+          set -euo pipefail
+          curl --proto '=https' --tlsv1.2 -fSLo "$RUNNER_TEMP/opa" \
+            --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 20 \
+            "https://openpolicyagent.org/downloads/v0.70.0/opa_linux_amd64_static"
+          echo "00d114b94fdb1606a48cccdfc73c9ccdc62c38721150131ae578d5ff3df5c084  $RUNNER_TEMP/opa" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/opa"
+          echo "ACS_OPA_PATH=$RUNNER_TEMP/opa" >> "$GITHUB_ENV"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/opa" version
+      - name: Build native ACS SDK (ACS-backed Python policy runtime)
+        # agent-os and agt-policies route evaluations through the native
+        # `agent_control_specification` Rust SDK (pyo3/maturin). Build & install
+        # it from the vendored policy-engine so bridge-backed tests run.
+        # The wheel is abi3-py311, so one build serves all agent-os matrix
+        # Python versions (3.11-3.13). ubuntu-latest ships Rust + a C toolchain.
+        if: steps.gate.outputs.run == 'true' && (matrix.package == 'agent-os' || matrix.package == 'agt-policies')
+        run: |
+          set -euo pipefail
+          pip install --no-cache-dir maturin==1.8.7  # Scorecard: version-pinned
+          pip install --no-cache-dir --no-build-isolation ./policy-engine/sdk/python
+      - name: Install ${{ matrix.package }}
+        if: steps.gate.outputs.run == 'true'
+        working-directory: agent-governance-python/${{ matrix.package }}
+        env:
+          PKG: ${{ matrix.package }}
+        run: |
+          set -euo pipefail
+          # Deterministic install: each package gets exactly one extras spec, no
+          # error-swallowing fallback chain. Packages without a [dev] extra are
+          # listed explicitly. Adding a new package to the matrix without
+          # updating this case will hard-fail rather than silently degrade.
+          case "$PKG" in
+            agent-compliance|agent-runtime|agent-mcp-governance)
+              pip install --no-cache-dir -e .
+              ;;
+            agent-os|agt-policies|agent-mesh|agent-hypervisor|agent-sre|agent-lightning|agent-primitives|agent-marketplace|agent-discovery|agent-rag-governance|agent-sandbox)
+              pip install --no-cache-dir -e ".[dev]"
+              ;;
+            *)
+              echo "::error::Unknown package '$PKG' — update the install case in ci.yml" >&2
+              exit 1
+              ;;
+          esac
+          CI_TEST_REQS="$GITHUB_WORKSPACE/agent-governance-python/requirements/ci-test.txt"
+          if [ -f "$CI_TEST_REQS" ]; then
+            # Hash-pinned shared test deps. Previously swallowed errors with
+            # `|| true`, which masked real hash-mismatch / network failures.
+            # If the file exists, the install must succeed.
+            pip install --no-cache-dir --require-hashes -r "$CI_TEST_REQS"
+          else
+            echo "::warning::ci-test.txt not found at $CI_TEST_REQS — skipping shared test deps"
+          fi
+          pip install --no-cache-dir pytest-cov==7.1.0  # Scorecard: version-pinned
+      - name: Conformance (agent-os parity + adapter contract)
+        if: steps.gate.outputs.run == 'true' && matrix.package == 'agent-os'
+        working-directory: agent-governance-python/agent-os
+        run: |
+          pytest tests/test_governance_parity.py \
+                 tests/test_spec_adapter_contract_conformance.py \
+                 -v --tb=short
+      - name: Test ${{ matrix.package }}
+        if: steps.gate.outputs.run == 'true'
+        working-directory: agent-governance-python/${{ matrix.package }}
+        run: |
+          if [ -d tests ]; then
+            pytest tests/ -q --tb=short --cov=src --cov-report=xml:coverage.xml
+          else
+            echo "No tests/ directory — skipping package tests"
+          fi
+      - name: Upload coverage
+        if: steps.gate.outputs.run == 'true'
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          files: agent-governance-python/${{ matrix.package }}/coverage.xml
+          flags: ${{ matrix.package }}
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  # ── PyPI package build (only when Python files change) ────────────────
+  build-pypi:
+    needs: changes
+    if: needs.changes.outputs.python == 'true' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          [
+            agent-governance-toolkit-core,
+            agent-governance-toolkit-integrations,
+            agent-governance-toolkit-cli,
+            agent-governance-toolkit-protocols,
+            agent-compliance,
+            agent-discovery,
+            agent-lightning,
+            agent-marketplace,
+            agent-rag-governance,
+          ]
+    steps:
+      - name: Determine if package changed
+        id: gate
+        env:
+          CHANGED: ${{ needs.changes.outputs.changed-py-pkgs }}
+          PKG: ${{ matrix.package }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "schedule" ] || [ "$EVENT" = "push" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif printf '%s' "$CHANGED" | grep -q "\"$PKG\""; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Package $PKG unchanged on this PR — skipping build."
+          fi
+      - name: Skip (unchanged package)
+        if: steps.gate.outputs.run != 'true'
+        run: echo "Package ${{ matrix.package }} unchanged — skipping wheel build"
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        if: steps.gate.outputs.run == 'true'
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        if: steps.gate.outputs.run == 'true'
+        with:
+          python-version: "3.11"
+      - name: Install build tools
+        if: steps.gate.outputs.run == 'true'
+        run: pip install --no-cache-dir --require-hashes -r agent-governance-python/requirements/ci-build.txt
+      - name: Build ${{ matrix.package }}
+        if: steps.gate.outputs.run == 'true'
+        working-directory: agent-governance-python/${{ matrix.package }}
+        run: |
+          # Consolidated packages use force-include with sibling paths,
+          # which only works when building a wheel directly from source
+          # (not via sdist in a temp dir).
+          if [[ "${{ matrix.package }}" == agent-governance-toolkit-* ]]; then
+            python -m build --wheel
+          else
+            python -m build
+          fi
+      - name: Verify wheel
+        if: steps.gate.outputs.run == 'true'
+        working-directory: agent-governance-python/${{ matrix.package }}
+        run: ls -la dist/*.whl
+
+  # ── Python dependency safety (only when Python files change) ──────────
+  security:
+    needs: changes
+    if: needs.changes.outputs.python == 'true' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+      - name: Install safety
+        run: |
+          pip install --no-cache-dir --require-hashes --no-deps -r "$GITHUB_WORKSPACE/agent-governance-python/requirements/ci-safety.txt"
+          pip install --no-cache-dir typer==0.14.0 marshmallow==3.21.3  # Scorecard: version-pinned (safety transitive deps)
+          pip install --no-cache-dir safety==3.2.1  # Scorecard: version-pinned, hash-verified via ci-safety.txt
+      - name: Check dependencies
+        env:
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -e
+          # Install each package. A failure here means safety would scan
+          # against the wrong dependency set, so surface it instead of
+          # silently `|| true`-ing past it.
+          for pkg in agent-governance-toolkit-core agent-governance-toolkit-integrations agent-governance-toolkit-cli agent-governance-toolkit-protocols agent-compliance agent-discovery agent-lightning agent-marketplace agent-rag-governance; do
+            echo "=== $pkg ==="
+            (cd "agent-governance-python/$pkg" \
+              && pip install --no-cache-dir -e .)  # Scorecard: pinned to repo checkout
+          done
+
+          # Capture safety's exit code and stdout. The previous
+          # invocation discarded stderr and `|| echo`-d a placeholder
+          # message, so the step always exited 0 regardless of findings.
+          set +e
+          safety check --output json > safety-report.json
+          EXIT_CODE=$?
+          set -e
+
+          echo "safety check exit code: $EXIT_CODE"
+          echo "---- safety-report.json ----"
+          cat safety-report.json
+          echo "---- end safety-report.json ----"
+
+          # safety v3 exit codes: 0 = clean, 64 = vulnerabilities found,
+          # anything else = real failure (network, parse error, etc.).
+          if [ "$EXIT_CODE" -eq 0 ]; then
+            echo "No vulnerabilities detected."
+            exit 0
+          fi
+          if [ "$EXIT_CODE" -ne 64 ]; then
+            echo "::error::safety check failed with unexpected exit code $EXIT_CODE"
+            exit 1
+          fi
+
+          # Vulnerabilities found — fail the build on Critical severity,
+          # warn otherwise. Tolerant of safety's slightly-varying JSON
+          # shape across versions (severity may be a nested cvssv3
+          # block or a flat string).
+          CRITICAL=$(jq -r '
+            [.vulnerabilities[]?
+              | (.severity.cvssv3.base_severity? // .severity? // "")
+              | tostring
+              | ascii_downcase
+              | select(test("critical"))
+            ] | length
+          ' safety-report.json 2>/dev/null || echo 0)
+          echo "Critical CVE count: $CRITICAL"
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "::error::$CRITICAL critical CVE(s) detected; failing build"
+            exit 1
+          fi
+          echo "::warning::Non-critical CVEs detected; see safety-report.json above"
+
+  # ── .NET build + test (only when C# files change) ────────────────────
+  test-dotnet:
+    needs: changes
+    if: needs.changes.outputs.dotnet == 'true' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2 # v5.3.0
+        with:
+          dotnet-version: "8.0.x"
+      - name: Build .NET SDK
+        working-directory: agent-governance-dotnet
+        run: dotnet build --configuration Release --verbosity quiet
+      - name: Test .NET SDK
+        working-directory: agent-governance-dotnet
+        run: dotnet test --configuration Release --verbosity normal --no-build
+      - name: Pack NuGet
+        working-directory: agent-governance-dotnet
+        run: dotnet pack src/AgentGovernance/AgentGovernance.csproj --configuration
+          Release --no-build --output ./nupkg
+      - name: Verify NuGet package
+        working-directory: agent-governance-dotnet
+        run: ls -la ./nupkg/*.nupkg
+      - name: BinSkim — binary security analysis
+        working-directory: agent-governance-dotnet
+        run: |
+          # No error-swallowing: a missing tool, crash, or real finding must
+          # fail this step. Only the SARIF upload below is allowed to soft-fail
+          # (GitHub Advanced Security availability is the sole concern there).
+          dotnet tool install --global Microsoft.CodeAnalysis.BinSkim --version 4.*
+          BinSkim analyze "src/AgentGovernance/bin/Release/net8.0/*.dll" \
+            --output binskim-results.sarif \
+            --verbose
+      - name: Upload BinSkim SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+        with:
+          sarif_file: agent-governance-dotnet/binskim-results.sarif
+          category: binskim
+        continue-on-error: true
+
+  # ── Integration tests (only when integration packages change) ────────
+  test-integrations:
+    needs: changes
+    if: needs.changes.outputs.integrations == 'true' || needs.changes.outputs.python
+      == 'true' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: a2a-protocol
+            import-module: a2a_agentmesh
+          - package: crewai-agentmesh
+            import-module: crewai_agentmesh
+          - package: flowise-agentmesh
+            import-module: flowise_agentmesh
+          - package: haystack-agentmesh
+            import-module: haystack_agentmesh
+          - package: langchain-agentmesh
+            import-module: langchain_agentmesh
+          - package: langflow-agentmesh
+            import-module: langflow_agentmesh
+          - package: langgraph-trust
+            import-module: langgraph_trust
+          - package: llamaindex-agentmesh
+            import-module: llama_index.agent.agentmesh
+          - package: mcp-trust-proxy
+            import-module: mcp_trust_proxy
+          - package: nostr-wot
+            import-module: agentmesh_nostr_wot
+          - package: openai-agents-agentmesh
+            import-module: openai_agents_agentmesh
+          - package: openai-agents-trust
+            import-module: openai_agents_trust
+          - package: pydantic-ai-governance
+            import-module: pydantic_ai_governance
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+      - name: Install ${{ matrix.package }}
+        working-directory: agent-governance-python/agentmesh-integrations/${{ matrix.package }}
+        run: |
+          # All agentmesh-integrations packages declare a [dev] extra (audited
+          # 2026-05). Deterministic install — no error-swallowing fallback.
+          pip install --no-cache-dir -e ".[dev]"
+          CI_TEST_REQS="$GITHUB_WORKSPACE/agent-governance-python/requirements/ci-test.txt"
+          if [ -f "$CI_TEST_REQS" ]; then
+            # Hash-pinned shared test deps. Previously swallowed errors with
+            # `|| true`, which masked real hash-mismatch / network failures.
+            # If the file exists, the install must succeed.
+            pip install --no-cache-dir --require-hashes -r "$CI_TEST_REQS"
+          else
+            echo "::warning::ci-test.txt not found at $CI_TEST_REQS — skipping shared test deps"
+          fi
+      - name: Validate Python syntax
+        working-directory: agent-governance-python/agentmesh-integrations/${{ matrix.package }}
+        run: |
+          python -c "
+          import ast, glob, sys
+          errors = 0
+          for f in glob.glob('**/*.py', recursive=True):
+              try:
+                  with open(f) as fh:
+                      ast.parse(fh.read(), f)
+              except SyntaxError as e:
+                  print(f'FAIL {f}: {e}')
+                  errors += 1
+          if errors:
+              sys.exit(1)
+          print('All Python files parse successfully')
+          "
+      - name: Smoke test — import ${{ matrix.import-module }}
+        run: python -c "import ${{ matrix.import-module }}"
+      - name: Run tests
+        working-directory: agent-governance-python/agentmesh-integrations/${{ matrix.package }}
+        run: |
+          if [ -d tests ]; then
+            pytest tests/ -q --tb=short
+          else
+            # The smoke-import step above already ran and must have succeeded
+            # to reach here (it no longer swallows failures), so this branch is
+            # only printed when the import actually passed.
+            echo "No tests/ directory — smoke import passed"
+          fi
+
+  # ── Repo-wide version sync (always runs — fails fast on drift) ───────
+  # Confirms every package manifest matches the canonical ./VERSION. The
+  # ecosystems (Python / npm / Rust / .NET / Claude plugin) previously drifted
+  # independently; this gate keeps them reconciled. Intentionally independent
+  # manifests (policy-engine ACS SDKs, agt-policies) are exempt inside the
+  # script itself.
+  version-sync-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+      - name: Check version drift
+        run: python3 scripts/sync-version.py --check
+
+  # ── Dependency confusion scan (always runs — security gate) ──────────
+  dep-confusion-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+      - name: Dependency confusion scan
+        run: python3 scripts/check_dependency_confusion.py --strict
+
+  # ── Notebook pip-install audit (always runs — security gate) ─────────
+  notebook-pip-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+      - name: Notebook pip-install audit
+        run: |
+          python3 -c "
+          import json, glob, sys, re
+          REGISTERED = {
+              'agent-governance-toolkit-core','agent-governance-toolkit-integrations',
+              'agent-governance-toolkit-cli','agent-governance-toolkit-protocols',
+              'agent-os-kernel','agentmesh-platform','agent-hypervisor',
+              'agentmesh-runtime','agent-sre','agent-governance-toolkit',
+              'agent-governance-toolkit-core','agent-governance-toolkit-cli',
+              'agent-governance-toolkit-integrations','agent-governance-toolkit-protocols',
+              'agentmesh-lightning','agentmesh-marketplace',
+              'pydantic','pyyaml','cryptography','pynacl','click','rich',
+              'httpx','aiohttp','fastapi','uvicorn','structlog','numpy',
+              'scipy','openai','anthropic','langchain','crewai',
+              'streamlit','plotly','pandas','networkx','aioredis',
+              'langchain-openai','langchain-core','python-dotenv',
+              'agent-primitives','agentmesh-memory','emk','requests',
+          }
+          bad = []
+          for nb in glob.glob('**/*.ipynb', recursive=True):
+              if 'node_modules' in nb or '.ipynb_checkpoints' in nb:
+                  continue
+              try:
+                  with open(nb, encoding='utf-8') as fh:
+                      cells = json.load(fh)['cells']
+              except Exception:
+                  continue
+              for c in cells:
+                  if c.get('cell_type') != 'code':
+                      continue
+                  for line in c.get('source', []):
+                      stripped = line.strip()
+                      if 'pip install' in line and stripped.startswith(('!', '%')):
+                          pkgs = re.findall(r'(?:pip install\s+)(.+)', line)
+                          if pkgs:
+                              for p in pkgs[0].split():
+                                  name = re.sub(r'[^a-zA-Z0-9._-]', '', re.sub(r'\[.*\]', '', p))
+                                  if (name and not name.startswith('-') and not name.startswith('.')
+                                      and not name.startswith('http') and name not in REGISTERED
+                                      and not name.startswith('--')):
+                                      bad.append(f'{nb}: {name}')
+          if bad:
+              print('UNREGISTERED PACKAGES IN NOTEBOOKS:')
+              for b in bad:
+                  print(f'  {b}')
+              sys.exit(1)
+          print(f'OK: All notebook pip install packages are registered')
+          "
+
+  # ── Markdown link check (checks all .md files in the repo)
+  # Approach adapted from gaurav-nelson/github-action-markdown-link-check
+  markdown-link-check:
+    needs: changes
+    if: github.event_name == 'schedule' || needs.changes.outputs['docs-only'] == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+      - name: Markdown link check
+        uses: gaurav-nelson/github-action-markdown-link-check@5c5dfc0ac2e225883c0e5f03a85311ec2830d368 # v1
+        with:
+          use-quiet-mode: 'yes'
+          use-verbose-mode: 'no'
+          config-file: '.github/linters/markdown-link-check.json'
+          # Only check links in files changed by the PR/push to avoid
+          # pre-existing broken links blocking unrelated work.
+          check-modified-files-only: 'yes'
+          base-branch: main
+
+  # ── Workflow security audit (only when workflows change) ─────────────
+  workflow-security:
+    needs: changes
+    if: needs.changes.outputs.workflows == 'true' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Audit pull_request_target workflows
+        run: |
+          echo "=== Checking pull_request_target safety ==="
+          UNSAFE=0
+          for f in .github/workflows/*.yml; do
+            if grep -q 'pull_request_target' "$f"; then
+              # Only flag if actions/checkout has ref: pointing to head (unsafe)
+              # Uses awk to check checkout blocks specifically, not unrelated lines
+              if awk '/actions\/checkout/{found=1} found && /ref:.*head\.(ref|sha)/{print; exit 1}' "$f" 2>/dev/null; then
+                echo "OK: $f (pull_request_target, base-only checkout)"
+              else
+                echo "UNSAFE: $f checks out PR head in pull_request_target context"
+                UNSAFE=1
+              fi
+            fi
+          done
+          if [ "$UNSAFE" -eq 1 ]; then exit 1; fi
+
+  # ── TypeScript integration tests (only when TS files change) ─────────
+  test-integrations-ts:
+    needs: changes
+    if: needs.changes.outputs.typescript == 'true' || github.event_name ==
+      'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "20"
+      - name: Install mastra-agentmesh
+        working-directory: agent-governance-python/agentmesh-integrations/mastra-agentmesh
+        # Lockfile required; fail fast rather than fall back to an unlocked install (supply-chain integrity).
+        run: npm ci --ignore-scripts --legacy-peer-deps
+      - name: Lint mastra-agentmesh
+        working-directory: agent-governance-python/agentmesh-integrations/mastra-agentmesh
+        run: npm run lint
+      - name: Test mastra-agentmesh
+        working-directory: agent-governance-python/agentmesh-integrations/mastra-agentmesh
+        run: npm test
+      - name: Install copilot-governance
+        working-directory: agent-governance-python/agentmesh-integrations/copilot-governance
+        # Lockfile required; fail fast rather than fall back to an unlocked install (supply-chain integrity).
+        run: npm ci --ignore-scripts --legacy-peer-deps
+      - name: Lint copilot-governance
+        working-directory: agent-governance-python/agentmesh-integrations/copilot-governance
+        run: npm run lint
+      - name: Test copilot-governance
+        working-directory: agent-governance-python/agentmesh-integrations/copilot-governance
+        run: npm test
+
+  # ── npm package build + test (only when TS files change) ──────────────
+  build-npm:
+    needs: changes
+    if: needs.changes.outputs.typescript == 'true' || github.event_name ==
+      'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: agentmesh-mcp-proxy
+            path: agent-governance-python/agent-mesh/packages/mcp-proxy
+            node-version: "20"
+          - name: agent-governance-claude-code
+            path: agent-governance-claude-code
+            node-version: "22"
+          - name: agent-governance-opencode
+            path: agent-governance-opencode
+            node-version: "22"
+          - name: agent-governance-copilot-cli
+            path: agent-governance-copilot-cli
+            node-version: "22"
+          - name: agent-governance-sdk
+            path: agent-governance-typescript
+            node-version: "20"
+          - name: agentmesh-api
+            path: agent-governance-python/agent-mesh/services/api
+            node-version: "20"
+          - name: agent-governance-antigravity-cli
+            path: agent-governance-antigravity-cli
+          - name: agent-os-copilot-extension
+            path: agent-governance-python/agent-os/extensions/copilot
+            node-version: "20"
+          - name: agentos-mcp-server
+            path: agent-governance-python/agent-os/extensions/mcp-server
+            node-version: "20"
+    steps:
+      - name: Determine if package changed
+        id: gate
+        env:
+          CHANGED: ${{ needs.changes.outputs.changed-ts-pkgs }}
+          PKG: ${{ matrix.name }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "schedule" ] || [ "$EVENT" = "push" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif printf '%s' "$CHANGED" | grep -q "\"$PKG\""; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Package $PKG unchanged on this PR — skipping npm build."
+          fi
+      - name: Skip (unchanged package)
+        if: steps.gate.outputs.run != 'true'
+        run: echo "Package ${{ matrix.name }} unchanged — skipping npm build"
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        if: steps.gate.outputs.run == 'true'
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        if: steps.gate.outputs.run == 'true'
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Install dependencies
+        if: steps.gate.outputs.run == 'true'
+        working-directory: ${{ matrix.path }}
+        run: |
+          if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
+            npm ci --legacy-peer-deps --ignore-scripts  # Scorecard: uses lockfile via npm ci
+          else
+            npm install --legacy-peer-deps --ignore-scripts
+          fi
+      - name: Check Claude Code marketplace version
+        if: steps.gate.outputs.run == 'true' && matrix.name == 'agent-governance-claude-code'
+        run: node scripts/sync-claude-marketplace-version.mjs --check
+      - name: Build ${{ matrix.name }}
+        if: steps.gate.outputs.run == 'true'
+        working-directory: ${{ matrix.path }}
+        run: npm run build
+      - name: Test ${{ matrix.name }}
+        if: steps.gate.outputs.run == 'true'
+        working-directory: ${{ matrix.path }}
+        shell: bash
+        run: |
+          if node -e "const fs=require('node:fs'); const pkg=JSON.parse(fs.readFileSync('package.json','utf8')); process.exit(pkg.scripts && pkg.scripts.test ? 0 : 1)"; then
+            if find . -type f \( -name "*.test.ts" -o -name "*.spec.ts" -o -name "*.test.tsx" -o -name "*.spec.tsx" -o -name "*.test.js" -o -name "*.spec.js" -o -name "*.test.mjs" -o -name "*.spec.mjs" -o -name "*.test.cjs" -o -name "*.spec.cjs" \) | grep -q .; then
+              npm test
+            else
+              echo "No test files found"
+            fi
+          else
+            echo "No tests configured"
+          fi
+
+  # ── Rust build + test (only when Rust files change) ──────────────────
+  build-rust:
+    needs: changes
+    if: needs.changes.outputs.rust == 'true' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+      - name: Build
+        working-directory: agent-governance-rust
+        run: cargo build --release --workspace
+      - name: Test
+        working-directory: agent-governance-rust
+        run: cargo test --release --workspace
+
+  # ── Go build + test (only when Go files change) ─────────────────────
+  build-go:
+    needs: changes
+    if: needs.changes.outputs.go == 'true' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: "1.22"
+      - name: Build
+        working-directory: agent-governance-golang
+        run: go build ./...
+      - name: Test
+        working-directory: agent-governance-golang
+        run: go test ./...
+      - name: Vet
+        working-directory: agent-governance-golang
+        run: go vet ./...
+
+  # ── Docker integrated test (matches the documented contributor flow) ──
+  # Runs the exact two commands from CONTRIBUTING.md "Docker Quickstart" so
+  # contributor-facing breakage is caught before merge to main. Catches
+  # shim/canonical drift, Dockerfile/compose drift, line-ending regressions,
+  # and any bug that only surfaces in the integrated install shape.
+  docker-compose-test:
+    needs: changes
+    if: |
+      needs.changes.outputs.docker == 'true' ||
+      needs.changes.outputs.python == 'true' ||
+      github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Diagnostic — Docker / Compose / Buildx versions
+        run: |
+          docker version
+          docker compose version
+          docker buildx version
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
+      - name: Run documented contributor flow
+        run: |
+          # Compute and validate host UID/GID so the test container can write
+          # to the bind-mounted workspace. Validate they are pure positive
+          # integers before exporting (defense-in-depth: the values come from
+          # `id` on the runner, but we still refuse to forward anything that
+          # is not a non-negative integer to docker compose).
+          HOST_UID="$(id -u)"
+          HOST_GID="$(id -g)"
+          if ! [[ "${HOST_UID}" =~ ^[0-9]+$ ]] || ! [[ "${HOST_GID}" =~ ^[0-9]+$ ]]; then
+            echo "::error::Refusing to run: id -u/-g returned non-numeric value (uid='${HOST_UID}' gid='${HOST_GID}')"
+            exit 1
+          fi
+          export HOST_UID HOST_GID
+          echo "Running compose with HOST_UID=${HOST_UID} HOST_GID=${HOST_GID}"
+          docker compose up --build dev -d
+          docker compose run --rm test
+
+      - name: Collect dev container logs
+        if: always()
+        run: |
+          # Capture and redact obvious secret-shaped tokens before the log is
+          # uploaded as a build artifact. The dev container does not receive
+          # GitHub secrets, but we still scrub conservatively so that any
+          # accidental leakage from a future change does not surface here.
+          docker compose logs dev > dev.log.raw 2>&1 || true
+          sed -E \
+            -e 's/(gh[pousr]_[A-Za-z0-9]{20,})/[REDACTED-GH-TOKEN]/g' \
+            -e 's/(sk-[A-Za-z0-9_-]{20,})/[REDACTED-API-KEY]/g' \
+            -e 's/(AKIA[A-Z0-9]{16})/[REDACTED-AWS-ACCESS-KEY]/g' \
+            -e 's/((password|secret|token|api_?key)[[:space:]]*[:=][[:space:]]*)[^[:space:]"]+/\1[REDACTED]/Ig' \
+            dev.log.raw > dev.log
+          rm -f dev.log.raw
+
+      - name: Upload artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: docker-compose-test-logs
+          path: dev.log
+          retention-days: 7
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
+
+  # ── CI Gate — required status check that handles skipped jobs ────────
+  # When path-filters skip jobs (e.g. docs-only PRs skip tests), those
+  # jobs report "skipped" which doesn't satisfy required status checks.
+  # This gate job always runs, checks that no jobs FAILED, and reports
+  # success. Configure this as the single required status check.
+  ci-complete:
+    if: always()
+    needs:
+      [
+        changes,
+        lint,
+        test,
+        build-pypi,
+        security,
+        test-dotnet,
+        test-integrations,
+        version-sync-check,
+        dep-confusion-scan,
+        notebook-pip-audit,
+        workflow-security,
+        test-integrations-ts,
+        build-npm,
+        build-rust,
+        build-go,
+        docker-compose-test,
+        markdown-link-check,
+      ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Check job results
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          echo "Job results: $NEEDS"
+          set +e
+          failed=$(printf '%s' "$NEEDS" | python3 scripts/ci_complete_check.py)
+          status=$?
+          set -e
+          if [ "$status" -eq 1 ]; then
+            echo "::error::Failed jobs: $failed"
+            {
+              echo "## ci-complete: failures"
+              echo ""
+              echo "Failed jobs:"
+              echo "$failed" | tr ',' '\n' | sed 's/^/- /'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          elif [ "$status" -ne 0 ]; then
+            echo "::error::Unable to parse ci-complete dependency results"
+            exit "$status"
+          fi
+          echo "All jobs passed or were correctly skipped"

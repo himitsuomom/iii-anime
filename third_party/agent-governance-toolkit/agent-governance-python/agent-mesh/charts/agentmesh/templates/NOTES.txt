@@ -1,0 +1,36 @@
+🚀 AgentMesh has been deployed!
+
+{{- $fullname := include "agentmesh.fullname" . -}}
+
+1. Get the API Gateway URL:
+{{- if eq .Values.apiGateway.service.type "LoadBalancer" }}
+   It may take a few minutes for the LoadBalancer IP to be available.
+   Watch the status with:
+
+     kubectl get svc {{ $fullname }}-api-gateway -n {{ .Release.Namespace }} -w
+
+   Once available:
+
+     export GATEWAY_IP=$(kubectl get svc {{ $fullname }}-api-gateway -n {{ .Release.Namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+     echo "https://${GATEWAY_IP}:{{ .Values.apiGateway.service.port }}"
+{{- else }}
+     kubectl port-forward svc/{{ $fullname }}-api-gateway {{ .Values.apiGateway.service.port }}:{{ .Values.apiGateway.service.port }} -n {{ .Release.Namespace }}
+     echo "https://127.0.0.1:{{ .Values.apiGateway.service.port }}"
+{{- end }}
+
+2. Verify the deployment:
+
+     kubectl get pods -l app.kubernetes.io/instance={{ .Release.Name }} -n {{ .Release.Namespace }}
+
+3. Access the dashboard:
+
+     kubectl port-forward svc/{{ $fullname }}-api-gateway 8443:{{ .Values.apiGateway.service.port }} -n {{ .Release.Namespace }}
+     open https://127.0.0.1:8443/dashboard
+
+4. Next steps:
+   • Configure governance policies:  kubectl apply -f your-policy.yaml
+   • Register agents:                curl -X POST https://${GATEWAY_IP}/v1/agents/register
+   • View audit logs:                kubectl logs -l app.kubernetes.io/component=audit-collector -n {{ .Release.Namespace }}
+   • Check trust scores:             curl https://${GATEWAY_IP}/v1/trust/scores
+
+📖 Docs: https://github.com/microsoft/agent-governance-toolkit

@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=78.1.1,<83.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-governance-toolkit-compliance"
+version = "4.1.0"
+description = "Public Preview — Unified installer and runtime policy enforcement for the Agent Governance Toolkit"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [
+    {name = "Microsoft Corporation", email = "agentgovtoolkit@microsoft.com"},
+]
+maintainers = [
+    {name = "Agent Governance Toolkit Team", email = "agentgovtoolkit@microsoft.com"},
+]
+keywords = [
+    "ai-agents", "governance", "multi-agent", "trust", "security",
+    "compliance", "audit", "policy-enforcement", "agent-os", "agentmesh",
+    "runtime", "sre", "llm", "autonomous-agents", "enterprise-ai"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "pydantic>=2.4.0,<3.0",
+    "pyyaml>=6.0,<7.0",
+    "click>=8.0,<9.0",
+]
+
+[project.optional-dependencies]
+core = ["agent-governance-toolkit-core>=4.0.0,<5.0"]
+integrations = ["agent-governance-toolkit-integrations>=4.0.0,<5.0"]
+cli = ["agent-governance-toolkit-cli>=4.0.0,<5.0"]
+protocols = ["agent-governance-toolkit-protocols>=4.0.0,<5.0"]
+# Framework-specific extras (delegated to integrations package)
+langchain = ["agent-governance-toolkit-integrations[langchain]>=4.0.0,<5.0"]
+crewai = ["agent-governance-toolkit-integrations[crewai]>=4.0.0,<5.0"]
+openai-agents = ["agent-governance-toolkit-integrations[openai-agents]>=4.0.0,<5.0"]
+langgraph = ["agent-governance-toolkit-integrations[langgraph]>=4.0.0,<5.0"]
+llamaindex = ["agent-governance-toolkit-integrations[llamaindex]>=4.0.0,<5.0"]
+haystack = ["agent-governance-toolkit-integrations[haystack]>=4.0.0,<5.0"]
+pydantic-ai = ["agent-governance-toolkit-integrations[pydantic-ai]>=4.0.0,<5.0"]
+adk = ["agent-governance-toolkit-integrations[adk]>=4.0.0,<5.0"]
+# Legacy extras (kept for backward compat)
+kernel = ["agent-governance-toolkit-core>=4.0.0,<5.0"]
+mesh = ["agent-governance-toolkit-core>=4.0.0,<5.0"]
+runtime = ["agent-governance-toolkit-core>=4.0.0,<5.0"]
+sre = ["agent-governance-toolkit-cli>=4.0.0,<5.0"]
+opa = []
+cedar = ["cedarpy>=4.0.0,<5.0"]
+full = [
+    "agent-governance-toolkit-core>=4.0.0,<5.0",
+    "agent-governance-toolkit-integrations>=4.0.0,<5.0",
+    "agent-governance-toolkit-cli>=4.0.0,<5.0",
+    "agent-governance-toolkit-protocols>=4.0.0,<5.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/microsoft/agent-governance-toolkit"
+Documentation = "https://github.com/microsoft/agent-governance-toolkit/tree/main/docs"
+Repository = "https://github.com/microsoft/agent-governance-toolkit"
+"Bug Tracker" = "https://github.com/microsoft/agent-governance-toolkit/issues"
+"Agent OS" = "https://github.com/microsoft/agent-governance-toolkit"
+"AgentMesh" = "https://github.com/microsoft/agent-governance-toolkit"
+"Agent Runtime" = "https://github.com/microsoft/agent-governance-toolkit"
+"Agent SRE" = "https://github.com/microsoft/agent-governance-toolkit"
+
+[project.scripts]
+agent-governance-toolkit = "agent_compliance.cli.main:main"
+agent-governance = "agent_compliance.cli.main:main"
+agent-compliance = "agent_compliance.cli.main:main"
+agt = "agent_compliance.cli.agt:main"
+agt-contributor-check = "agent_compliance.cli.contributor_check:_entry"
+agt-credential-audit = "agent_compliance.cli.credential_audit:_entry"

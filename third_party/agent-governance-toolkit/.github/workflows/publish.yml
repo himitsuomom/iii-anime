@@ -1,0 +1,444 @@
+name: Publish Packages
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      package:
+        description: >
+          Package to publish. Use "all" for everything, "all-python" for all
+          Python packages, "all-npm" for all npm packages, or a specific name
+          (e.g. "agent-governance-toolkit-core", "agent-governance-copilot-cli", "agent-governance-claude-code", "agent-governance-opencode", "agent-governance-antigravity-cli", "agt-sandbox").
+        required: true
+        type: string
+        default: "all"
+      dry_run:
+        description: "Build, attest, and upload artifacts without publishing to registries"
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  release-manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Generate release manifest
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_PACKAGE: ${{ github.event.inputs.package }}
+          INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          python scripts/ci/generate_release_manifest.py \
+            --event-name "$EVENT_NAME" \
+            --ref-name "$REF_NAME" \
+            --release-tag "$RELEASE_TAG" \
+            --package "$INPUT_PACKAGE" \
+            --dry-run "$INPUT_DRY_RUN" \
+            --output release-manifest.json
+      - name: Upload release manifest
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-manifest
+          path: release-manifest.json
+          retention-days: 30
+
+  # -------------------------------------------------------------------
+  # Build and attest Python packages from GitHub Actions.
+  # Temporary registry publication uses the restored ESRP ADO pipeline until
+  # PyPI trusted publishers and registry tokens are configured for GitHub.
+  # -------------------------------------------------------------------
+  resolve-python-matrix:
+    if: >-
+      github.event_name == 'release' ||
+      github.event.inputs.package != 'agent-governance-dotnet'
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+      any: ${{ steps.resolve.outputs.any }}
+    steps:
+      - name: Resolve Python package matrix
+        id: resolve
+        env:
+          INPUT: ${{ github.event.inputs.package }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          # Complete list of publishable Python packages.
+          ALL='[
+            {"name":"agent-governance-toolkit-core","path":"agent-governance-python/agent-governance-toolkit-core"},
+            {"name":"agent-governance-toolkit-integrations","path":"agent-governance-python/agent-governance-toolkit-integrations"},
+            {"name":"agent-governance-toolkit-cli","path":"agent-governance-python/agent-governance-toolkit-cli"},
+            {"name":"agent-governance-toolkit-protocols","path":"agent-governance-python/agent-governance-toolkit-protocols"},
+            {"name":"agent-governance-toolkit","path":"agent-governance-python/agent-compliance"},
+            {"name":"agent-discovery","path":"agent-governance-python/agent-discovery"},
+            {"name":"agent-lightning","path":"agent-governance-python/agent-lightning"},
+            {"name":"agent-marketplace","path":"agent-governance-python/agent-marketplace"},
+            {"name":"agent-rag-governance","path":"agent-governance-python/agent-rag-governance"},
+            {"name":"agt-sandbox","path":"agent-governance-python/agent-sandbox"},
+            {"name":"agent-control-specification","path":"policy-engine/sdk/python"},
+            {"name":"agt-policies","path":"agent-governance-python/agt-policies"},
+            {"name":"acs-generator","path":"policy-engine/generator","noBuildIsolation":true}
+          ]'
+          # Compact the JSON
+          ALL=$(echo "$ALL" | jq -c '.')
+          NPM_INPUTS='[
+            "all-npm",
+            "agentmesh-copilot-governance",
+            "@microsoft/agentmesh-copilot-governance",
+            "agentmesh-mastra",
+            "@microsoft/agentmesh-mastra",
+            "agentmesh-api",
+            "@microsoft/agentmesh-api",
+            "agent-governance-copilot-cli",
+            "@microsoft/agent-governance-copilot-cli",
+            "agent-governance-claude-code",
+            "@microsoft/agent-governance-claude-code",
+            "agent-governance-opencode",
+            "@microsoft/agent-governance-opencode",
+            "agent-governance-antigravity-cli",
+            "@microsoft/agent-governance-antigravity-cli",
+            "agentmesh-sdk",
+            "agent-governance-sdk",
+            "@microsoft/agent-governance-sdk",
+            "agent-os-copilot-extension",
+            "@microsoft/agent-os-copilot-extension",
+            "agentos-mcp-server",
+            "@microsoft/agentos-mcp-server",
+            "npm-agentmesh-mcp-proxy",
+            "@microsoft/agentmesh-mcp-proxy"
+          ]'
+
+          # $INPUT and $EVENT_NAME come from the step env block, not
+          # from a GHA expression interpolated into the shell body, so
+          # an attacker-controlled inputs.package cannot break out into
+          # an injected shell command. Same hardening on the jq filter
+          # below: pass $INPUT as a jq variable via --arg rather than
+          # into the program text, so quote characters in the input
+          # cannot break out of the string and execute attacker-
+          # controlled jq.
+          if [ "$EVENT_NAME" = "release" ] || [ "$INPUT" = "all" ] || [ "$INPUT" = "all-python" ]; then
+            echo "matrix={\"include\":$ALL}" >> "$GITHUB_OUTPUT"
+            echo "any=true" >> "$GITHUB_OUTPUT"
+          elif [ -n "$INPUT" ] && [ "$INPUT" != "agent-governance-dotnet" ]; then
+            FILTERED=$(echo "$ALL" | jq -c --arg name "$INPUT" '[.[] | select(.name == $name)]')
+            if [ "$FILTERED" = "[]" ]; then
+              if echo "$NPM_INPUTS" | jq -e --arg name "$INPUT" 'index($name)' >/dev/null; then
+                echo "any=false" >> "$GITHUB_OUTPUT"
+              else
+                echo "::error::Unknown package '$INPUT'. Run with 'all' to see available packages."
+                echo "any=false" >> "$GITHUB_OUTPUT"
+              fi
+            else
+              echo "matrix={\"include\":$FILTERED}" >> "$GITHUB_OUTPUT"
+              echo "any=true" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "any=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-python:
+    needs: resolve-python-matrix
+    if: needs.resolve-python-matrix.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.resolve-python-matrix.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+
+      - name: Install build tools
+        run: |
+          python -m pip install --no-cache-dir --disable-pip-version-check \
+            --require-hashes --no-deps \
+            -r .github/release-tools/release-tools.txt
+
+      - name: Install Rust toolchain for native Python package
+        if: ${{ matrix.rust == true }}
+        run: |
+          rustup toolchain install 1.89.0 --profile minimal
+          rustup default 1.89.0
+
+      - name: Build ${{ matrix.name }}
+        working-directory: ${{ matrix.path }}
+        env:
+          BUILD_NO_ISOLATION: ${{ matrix.noBuildIsolation || 'false' }}
+        run: |
+          if [[ "${{ matrix.name }}" == "agent-control-specification" ]]; then
+            bash "$GITHUB_WORKSPACE/scripts/ci/build_acs_python_wheel.sh" "$GITHUB_WORKSPACE"
+          elif [[ "$BUILD_NO_ISOLATION" == "true" ]]; then
+            python -m build --no-isolation
+          elif [[ "${{ matrix.name }}" == agent-governance-toolkit-* ]]; then
+            python -m build --wheel
+          else
+            python -m build
+          fi
+
+      - name: Validate build artifacts
+        working-directory: ${{ matrix.path }}
+        run: |
+          echo "=== Built artifacts for ${{ matrix.name }} ==="
+          ls -la dist/
+          # At least one wheel is required by Microsoft Python team policy
+          if ! ls dist/*.whl 1>/dev/null 2>&1; then
+            echo "::error::No wheel (.whl) found for ${{ matrix.name }} — at least one wheel is required"
+            exit 1
+          fi
+
+      - name: Sign release artifacts with sigstore
+        uses: sigstore/gh-action-sigstore-python@04cffa1d795717b140764e8b640de88853c92acc # v3.3.0
+        with:
+          inputs: ${{ matrix.path }}/dist/*
+          release-signing-artifacts: false
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: ${{ matrix.path }}/dist/*
+
+      - name: Prepare PyPI upload artifacts
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false'
+        working-directory: ${{ matrix.path }}
+        run: |
+          rm -rf pypi-upload
+          mkdir -p pypi-upload
+          shopt -s nullglob
+          artifacts=(dist/*.whl dist/*.tar.gz)
+          if [ "${#artifacts[@]}" -eq 0 ]; then
+            echo "::error::No wheel or sdist artifacts found for ${{ matrix.name }}"
+            exit 1
+          fi
+          cp "${artifacts[@]}" pypi-upload/
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pypi-${{ matrix.name }}
+          path: ${{ matrix.path }}/dist/
+          retention-days: 30
+
+      - name: Publish to PyPI
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false'
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
+        with:
+          packages-dir: ${{ matrix.path }}/pypi-upload/
+          skip-existing: true
+
+  # -------------------------------------------------------------------
+  # Build npm packages, pack .tgz, and attest provenance.
+  # Temporary registry publication uses the restored ESRP ADO pipeline until
+  # npm publishing credentials are configured for GitHub.
+  # -------------------------------------------------------------------
+  resolve-npm-matrix:
+    needs: resolve-python-matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+      any: ${{ steps.resolve.outputs.any }}
+    steps:
+      - name: Resolve npm package matrix
+        id: resolve
+        env:
+          INPUT: ${{ github.event.inputs.package }}
+          EVENT_NAME: ${{ github.event_name }}
+          PYTHON_MATCH: ${{ needs.resolve-python-matrix.outputs.any }}
+        run: |
+          ALL='[
+            {"name":"agentmesh-copilot-governance","path":"agent-governance-python/agentmesh-integrations/copilot-governance","nodeVersion":"20","selectors":["agentmesh-copilot-governance","@microsoft/agentmesh-copilot-governance"]},
+            {"name":"agentmesh-mastra","path":"agent-governance-python/agentmesh-integrations/mastra-agentmesh","nodeVersion":"20","selectors":["agentmesh-mastra","@microsoft/agentmesh-mastra"]},
+            {"name":"agentmesh-api","path":"agent-governance-python/agent-mesh/services/api","nodeVersion":"20","selectors":["agentmesh-api","@microsoft/agentmesh-api"]},
+            {"name":"npm-agentmesh-mcp-proxy","path":"agent-governance-python/agent-mesh/packages/mcp-proxy","nodeVersion":"20","selectors":["npm-agentmesh-mcp-proxy","@microsoft/agentmesh-mcp-proxy"]},
+            {"name":"agent-governance-copilot-cli","path":"agent-governance-copilot-cli","nodeVersion":"22","selectors":["agent-governance-copilot-cli","@microsoft/agent-governance-copilot-cli"]},
+            {"name":"agent-governance-claude-code","path":"agent-governance-claude-code","nodeVersion":"22","selectors":["agent-governance-claude-code","@microsoft/agent-governance-claude-code"]},
+            {"name":"agent-governance-opencode","path":"agent-governance-opencode","nodeVersion":"22","selectors":["agent-governance-opencode","@microsoft/agent-governance-opencode"]},
+            {"name":"agent-governance-antigravity-cli","path":"agent-governance-antigravity-cli","nodeVersion":"22","selectors":["agent-governance-antigravity-cli","@microsoft/agent-governance-antigravity-cli"]},
+            {"name":"agentmesh-sdk","path":"agent-governance-typescript","nodeVersion":"20","selectors":["agentmesh-sdk","agent-governance-sdk","@microsoft/agent-governance-sdk"]},
+            {"name":"agent-os-copilot-extension","path":"agent-governance-python/agent-os/extensions/copilot","nodeVersion":"20","selectors":["agent-os-copilot-extension","@microsoft/agent-os-copilot-extension"]},
+            {"name":"agentos-mcp-server","path":"agent-governance-python/agent-os/extensions/mcp-server","nodeVersion":"20","selectors":["agentos-mcp-server","@microsoft/agentos-mcp-server"]}
+          ]'
+          ALL=$(echo "$ALL" | jq -c '.')
+          AMBIGUOUS_PYTHON_NAMES='["agentmesh-mcp-proxy"]'
+
+          if [ "$EVENT_NAME" = "release" ] || [ "$INPUT" = "all" ] || [ "$INPUT" = "all-npm" ]; then
+            echo "matrix={\"include\":$ALL}" >> "$GITHUB_OUTPUT"
+            echo "any=true" >> "$GITHUB_OUTPUT"
+          elif [ -n "$INPUT" ] && [ "$INPUT" != "agent-governance-dotnet" ] && [ "$INPUT" != "all-python" ]; then
+            FILTERED=$(echo "$ALL" | jq -c --arg name "$INPUT" '[.[] | select((.selectors // []) | index($name))]')
+            if [ "$FILTERED" = "[]" ]; then
+              if [ "$PYTHON_MATCH" != "true" ]; then
+                echo "::error::Unknown package '$INPUT'. Use all, all-python, all-npm, or a supported package name."
+                exit 1
+              fi
+              if echo "$AMBIGUOUS_PYTHON_NAMES" | jq -e --arg name "$INPUT" 'index($name)' >/dev/null; then
+                echo "::notice::'$INPUT' resolves to the Python package. Use 'npm-agentmesh-mcp-proxy' or '@microsoft/agentmesh-mcp-proxy' to select the npm package."
+              fi
+              echo "any=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "matrix={\"include\":$FILTERED}" >> "$GITHUB_OUTPUT"
+              echo "any=true" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "any=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-npm:
+    needs: resolve-npm-matrix
+    if: needs.resolve-npm-matrix.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.resolve-npm-matrix.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ matrix.nodeVersion }}
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.path }}
+        run: npm ci --ignore-scripts
+
+      - name: Build ${{ matrix.name }}
+        working-directory: ${{ matrix.path }}
+        run: npm run build
+
+      - name: Pack ${{ matrix.name }}
+        working-directory: ${{ matrix.path }}
+        run: |
+          mkdir -p tgz-output
+          npm pack --pack-destination tgz-output
+          echo "=== Packed ==="
+          ls -la tgz-output/
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: ${{ matrix.path }}/tgz-output/*.tgz
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: npm-${{ matrix.name }}
+          path: ${{ matrix.path }}/tgz-output/*.tgz
+          retention-days: 30
+
+      - name: Publish to npm
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false'
+        working-directory: ${{ matrix.path }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::warning::NPM_TOKEN not set, skipping npm publish"
+            exit 0
+          fi
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          if npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" version --registry https://registry.npmjs.org >/dev/null 2>&1; then
+            echo "::notice::${PACKAGE_NAME}@${PACKAGE_VERSION} already exists on npm, skipping publish"
+            exit 0
+          fi
+          npm publish ./tgz-output/*.tgz --provenance --access public
+
+  publish-nuget:
+    if: ${{ github.event_name == 'release' || github.event.inputs.package == 'agent-governance-dotnet' || github.event.inputs.package == 'all' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    environment: nuget
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2 # v5.3.0
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Install NuGet CLI
+        run: |
+          # Pin to specific version with SHA-256 verification (CWE-494)
+          NUGET_VERSION="v6.12.2"
+          NUGET_URL="https://dist.nuget.org/win-x86-commandline/${NUGET_VERSION}/nuget.exe"
+          NUGET_SHA256="64f467376f2ee364ba389461df4a29a8f8dd9aa38120d29046e70b9c82045d97"
+          curl -fsSL -o /usr/local/bin/nuget.exe "$NUGET_URL"
+          echo "${NUGET_SHA256}  /usr/local/bin/nuget.exe" | sha256sum -c -
+          echo 'alias nuget="mono /usr/local/bin/nuget.exe"' >> ~/.bashrc
+
+      - name: Build .NET SDK
+        working-directory: agent-governance-dotnet
+        run: dotnet build --configuration Release
+
+      - name: Test .NET SDK
+        working-directory: agent-governance-dotnet
+        run: dotnet test --configuration Release --no-build
+
+      - name: Pack NuGet packages
+        working-directory: agent-governance-dotnet
+        run: |
+          dotnet pack src/AgentGovernance/AgentGovernance.csproj --configuration Release --no-build --output ./nupkg
+          dotnet pack src/AgentGovernance.Extensions.ModelContextProtocol/AgentGovernance.Extensions.ModelContextProtocol.csproj --configuration Release --no-build --output ./nupkg
+          dotnet pack src/AgentGovernance.Extensions.Microsoft.Agents/AgentGovernance.Extensions.Microsoft.Agents.csproj --configuration Release --no-build --output ./nupkg
+
+      - name: Validate NuGet package metadata
+        working-directory: agent-governance-dotnet
+        run: |
+          echo "=== Validating NuGet package metadata ==="
+          for pkg in ./nupkg/*.nupkg; do
+            echo "--- Package: $pkg ---"
+            # Inspect package metadata
+            unzip -p "$pkg" '*.nuspec' | head -30
+          done
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: agent-governance-dotnet/nupkg/*.nupkg
+
+      - name: Attest symbol package provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: agent-governance-dotnet/nupkg/*.snupkg
+        continue-on-error: true
+
+      - name: Publish to NuGet
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false'
+        working-directory: agent-governance-dotnet
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if [ -z "$NUGET_API_KEY" ]; then
+            echo "::warning::NUGET_API_KEY not set, skipping NuGet publish"
+            exit 0
+          fi
+          # Push both .nupkg and .snupkg (symbol package)
+          dotnet nuget push ./nupkg/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
+          echo "=== Published NuGet packages ==="
+          echo "Verify package availability in NuGet.org and release provenance in GitHub attestations."
+
+      - name: Upload NuGet artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: nuget-packages
+          path: agent-governance-dotnet/nupkg/*
+          retention-days: 30

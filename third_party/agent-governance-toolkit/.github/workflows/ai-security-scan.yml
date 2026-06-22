@@ -1,0 +1,65 @@
+# AI-powered weekly full security audit for agent-governance-toolkit.
+# Catches security issues that static analysis tools like CodeQL may miss.
+# Posts comprehensive audit results as a GitHub issue.
+#
+# PR-time security scanning is handled by ai-pr-review.yml (consolidated).
+name: AI Security Scan
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Weekly Monday 6:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  models: read
+
+jobs:
+  weekly-full-scan:
+    name: Weekly Full Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          # SECURITY: schedule/workflow_dispatch defaults to the correct ref (safe).
+          # SECURITY: base-only checkout required for pull_request_target context.
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Run full security audit
+        id: audit
+        uses: ./.github/actions/ai-agent-runner
+        with:
+          agent-type: security-auditor
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          model: gpt-4o
+          fallback-model: gpt-4o-mini
+          max-tokens: "1500"
+          context-mode: repo-scan
+          output-mode: none
+          custom-instructions: |
+            Perform a weekly security audit of microsoft/agent-governance-toolkit.
+            Be concise. Findings table only, no methodology.
+
+            Format:
+            ### Weekly Security Audit
+            | Severity | Category | Finding | Location |
+            |----------|----------|---------|----------|
+
+            If clean, say: ✅ No issues found this week.
+
+      - name: Create security audit issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUDIT_RESPONSE: ${{ steps.audit.outputs.response }}
+        run: |
+          if [ -z "$AUDIT_RESPONSE" ]; then
+            AUDIT_RESPONSE="Weekly security audit completed but produced no output. Check workflow logs."
+          fi
+          printf '%s' "$AUDIT_RESPONSE" > "$RUNNER_TEMP/audit-body.md"
+          gh issue create \
+            --title "🔒 Weekly AI Security Audit — $(date +%Y-%m-%d)" \
+            --body-file "$RUNNER_TEMP/audit-body.md" \
+            --label "security,ai-audit" \
+            || echo "::warning::Failed to create security audit issue"

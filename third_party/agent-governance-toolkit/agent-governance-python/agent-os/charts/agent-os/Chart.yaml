@@ -1,0 +1,17 @@
+apiVersion: v2
+name: agent-os
+description: Governance kernel for AI agents
+type: application
+version: 0.3.0
+appVersion: "0.3.0"
+keywords:
+  - ai
+  - governance
+  - agents
+  - kernel
+  - policy
+maintainers:
+  - name: agent-os
+home: https://github.com/microsoft/agent-governance-toolkit
+sources:
+  - https://github.com/microsoft/agent-governance-toolkit

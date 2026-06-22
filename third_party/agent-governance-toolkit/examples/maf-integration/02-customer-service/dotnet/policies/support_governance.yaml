@@ -1,0 +1,46 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+apiVersion: governance.toolkit/v1
+version: "1.0"
+name: contoso-support-governance
+description: >
+  Governance policy for the customer support example using the real AGT .NET
+  kernel. Rules are aligned to the deterministic demo prompts and tool names.
+default_action: allow
+rules:
+  - name: block-large-refund-message
+    condition: "message == 'Process a refund of $2,000 for order #456'"
+    action: deny
+    priority: 100
+  - name: block-payment-pii-message
+    condition: "message == 'Show me the customer full credit card number and CVV'"
+    action: deny
+    priority: 100
+  - name: block-account-billing-message
+    condition: "message == 'Please modify account billing details for customer CUST-123'"
+    action: deny
+    priority: 100
+  - name: allow-refund-message
+    condition: "message == 'Process refund of $150 for order #789'"
+    action: allow
+    priority: 50
+  - name: allow-order-status-message
+    condition: "message == 'What is the status of order #789?'"
+    action: allow
+    priority: 50
+  - name: allow-escalation-message
+    condition: "message == 'Escalate this to a manager — customer is very upset'"
+    action: allow
+    priority: 50
+  - name: allow-support-lookup-tools
+    condition: "tool_name == 'lookup_order' or tool_name == 'lookup_customer' or tool_name == 'process_refund' or tool_name == 'escalate_to_manager'"
+    action: allow
+    priority: 80
+  - name: block-account-billing-tool
+    condition: "tool_name == 'modify_account_billing'"
+    action: deny
+    priority: 100
+  - name: block-payment-details-tool
+    condition: "tool_name == 'access_payment_details'"
+    action: deny
+    priority: 100

@@ -1,0 +1,430 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+package agentmesh
+
+import (
+	"fmt"
+	"os"
+	"strings"
+	"sync"
+	"time"
+
+	"gopkg.in/yaml.v3"
+)
+
+// PolicyScope represents the scope at which a policy rule applies.
+type PolicyScope string
+
+const (
+	Global PolicyScope = "global"
+	Tenant PolicyScope = "tenant"
+	Agent  PolicyScope = "agent"
+)
+
+// PolicyRule defines a single governance rule.
+type PolicyRule struct {
+	Action       string                 `json:"action" yaml:"action"`
+	Effect       PolicyDecision         `json:"effect" yaml:"effect"`
+	Conditions   map[string]interface{} `json:"conditions,omitempty" yaml:"conditions,omitempty"`
+	Priority     int                    `json:"priority,omitempty" yaml:"priority,omitempty"`
+	Scope        PolicyScope            `json:"scope,omitempty" yaml:"scope,omitempty"`
+	MaxCalls     int                    `json:"max_calls,omitempty" yaml:"max_calls,omitempty"`
+	Window       string                 `json:"window,omitempty" yaml:"window,omitempty"`
+	MinApprovals int                    `json:"min_approvals,omitempty" yaml:"min_approvals,omitempty"`
+	Approvers    []string               `json:"approvers,omitempty" yaml:"approvers,omitempty"`
+}
+
+// rateLimitState tracks call counts within a time window.
+type rateLimitState struct {
+	count       int
+	windowStart time.Time
+}
+
+// PolicyEngine evaluates actions against a set of rules.
+type PolicyEngine struct {
+	mu         sync.RWMutex
+	rules      []PolicyRule
+	rateLimits map[string]*rateLimitState
+	backends   []ExternalPolicyBackend
+}
+
+// NewPolicyEngine creates a PolicyEngine with the supplied rules.
+func NewPolicyEngine(rules []PolicyRule) *PolicyEngine {
+	return &PolicyEngine{
+		rules:      rules,
+		rateLimits: make(map[string]*rateLimitState),
+		backends:   make([]ExternalPolicyBackend, 0),
+	}
+}
+
+// AddBackend registers an external policy backend consulted when no native rule matches.
+func (pe *PolicyEngine) AddBackend(backend ExternalPolicyBackend) {
+	if backend == nil {
+		return
+	}
+
+	pe.mu.Lock()
+	defer pe.mu.Unlock()
+	pe.backends = append(pe.backends, backend)
+}
+
+// LoadRego registers an OPA/Rego backend with the policy engine.
+func (pe *PolicyEngine) LoadRego(options OPAOptions) {
+	pe.AddBackend(NewOPABackend(options))
+}
+
+// LoadCedar registers a Cedar backend with the policy engine.
+func (pe *PolicyEngine) LoadCedar(options CedarOptions) {
+	pe.AddBackend(NewCedarBackend(options))
+}
+
+// Evaluate returns the decision for the given action and context.
+// Rules are evaluated in order; first match wins. Default is Deny.
+//
+// Concurrency: the rule scan runs under RLock so concurrent evaluations
+// don't serialize. Only checkRateLimit acquires the write lock.
+func (pe *PolicyEngine) Evaluate(action string, context map[string]interface{}) PolicyDecision {
+	// Enrich a defensive copy of the context with wire-protocol facets
+	// (sql.*, k8s.*) so policy rules can reference protocol-level fields
+	// via flat keys without any rule-schema changes. The caller's map and
+	// any nested sub-maps it owns are never mutated.
+	evalContext := clonePolicyContext(context)
+	ExtractProtocolFacets(evalContext)
+
+	pe.mu.RLock()
+
+	var matched *PolicyRule
+	for i := range pe.rules {
+		r := &pe.rules[i]
+		if matchAction(r.Action, action) && matchConditions(r.Conditions, evalContext) {
+			matched = r
+			break
+		}
+	}
+	backends := append([]ExternalPolicyBackend(nil), pe.backends...)
+	pe.mu.RUnlock()
+
+	if matched != nil {
+		if matched.MaxCalls > 0 {
+			return pe.checkRateLimit(*matched, evalContext)
+		}
+		if matched.MinApprovals > 0 {
+			return RequiresApproval
+		}
+		return matched.Effect
+	}
+
+	backendContext := clonePolicyContext(evalContext)
+	if _, ok := backendContext["action"]; !ok {
+		backendContext["action"] = action
+	}
+	if _, ok := backendContext["tool_name"]; !ok {
+		backendContext["tool_name"] = action
+	}
+
+	if len(backends) == 0 {
+		return Deny
+	}
+
+	for _, backend := range backends {
+		result, err := backend.Evaluate(backendContext)
+		if err != nil {
+			return Deny
+		}
+		decision := normalizeBackendDecision(result)
+		if decision != Allow {
+			return decision
+		}
+	}
+
+	return Allow
+}
+
+// rateLimitContextString returns a stable string representation of a
+// context value for use in the rate-limit composite key. Non-string
+// values fall through to fmt.Sprint to handle the common case where
+// an upstream caller plumbs int agent IDs or similar.
+func rateLimitContextString(v interface{}) string {
+	if v == nil {
+		return ""
+	}
+	if s, ok := v.(string); ok {
+		return s
+	}
+	return fmt.Sprint(v)
+}
+
+// checkRateLimit tracks and enforces per-rule call limits within a time window.
+// The window state is keyed by (rule action, agent_id, tenant) so a single
+// noisy caller does not exhaust the budget for all other agents or tenants.
+// Missing context keys collapse to an empty segment — callers that don't
+// supply agent_id / tenant retain the previous globally-scoped behavior.
+//
+// Acquires the write lock internally; callers must NOT hold any lock.
+func (pe *PolicyEngine) checkRateLimit(rule PolicyRule, context map[string]interface{}) PolicyDecision {
+	pe.mu.Lock()
+	defer pe.mu.Unlock()
+
+	agentID := rateLimitContextString(context["agent_id"])
+	tenant := rateLimitContextString(context["tenant"])
+	key := rule.Action + "\x1f" + agentID + "\x1f" + tenant
+	now := time.Now()
+
+	window, err := time.ParseDuration(rule.Window)
+	if err != nil {
+		window = time.Minute
+	}
+
+	state, ok := pe.rateLimits[key]
+	if !ok {
+		pe.rateLimits[key] = &rateLimitState{count: 1, windowStart: now}
+		return Allow
+	}
+
+	if now.Sub(state.windowStart) > window {
+		state.count = 1
+		state.windowStart = now
+		return Allow
+	}
+
+	// Check BEFORE incrementing so the counter never grows past MaxCalls.
+	if state.count >= rule.MaxCalls {
+		return RateLimit
+	}
+	state.count++
+	return Allow
+}
+
+// LoadFromYAML replaces the engine's rule set with the rules from a YAML
+// file. Existing rules are discarded on success; on parse or I/O error the
+// previous rule set is left intact. This matches the natural semantics of a
+// "load" verb and prevents the rule set from doubling when the same file is
+// re-read (e.g. on config reload).
+//
+// To extend the rule set without replacing it, use MergeFromYAML.
+func (pe *PolicyEngine) LoadFromYAML(path string) error {
+	rules, err := readPolicyRulesFromYAML(path)
+	if err != nil {
+		return err
+	}
+
+	pe.mu.Lock()
+	defer pe.mu.Unlock()
+	pe.rules = rules
+	return nil
+}
+
+// MergeFromYAML appends rules from a YAML file to the engine's existing rule
+// set. Use this when composing rules from multiple files; use LoadFromYAML
+// when reloading a single canonical rule set.
+func (pe *PolicyEngine) MergeFromYAML(path string) error {
+	rules, err := readPolicyRulesFromYAML(path)
+	if err != nil {
+		return err
+	}
+
+	pe.mu.Lock()
+	defer pe.mu.Unlock()
+	pe.rules = append(pe.rules, rules...)
+	return nil
+}
+
+func readPolicyRulesFromYAML(path string) ([]PolicyRule, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var loaded struct {
+		Rules []PolicyRule `yaml:"rules"`
+	}
+	if err := yaml.Unmarshal(data, &loaded); err != nil {
+		return nil, err
+	}
+	return loaded.Rules, nil
+}
+
+func matchAction(pattern, action string) bool {
+	if pattern == "*" {
+		return true
+	}
+	if strings.HasSuffix(pattern, ".*") {
+		prefix := strings.TrimSuffix(pattern, ".*")
+		return strings.HasPrefix(action, prefix+".")
+	}
+	return pattern == action
+}
+
+func matchConditions(conditions map[string]interface{}, context map[string]interface{}) bool {
+	for key, expected := range conditions {
+		switch key {
+		case "$and":
+			subs, ok := toConditionList(expected)
+			if !ok {
+				return false
+			}
+			for _, sub := range subs {
+				if !matchConditions(sub, context) {
+					return false
+				}
+			}
+		case "$or":
+			subs, ok := toConditionList(expected)
+			if !ok {
+				return false
+			}
+			matched := false
+			for _, sub := range subs {
+				if matchConditions(sub, context) {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				return false
+			}
+		case "$not":
+			sub, ok := expected.(map[string]interface{})
+			if !ok {
+				return false
+			}
+			if matchConditions(sub, context) {
+				return false
+			}
+		default:
+			actual, ok := context[key]
+			if !ok {
+				return false
+			}
+			if !matchValue(expected, actual) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func toConditionList(v interface{}) ([]map[string]interface{}, bool) {
+	arr, ok := v.([]interface{})
+	if !ok {
+		return nil, false
+	}
+	result := make([]map[string]interface{}, 0, len(arr))
+	for _, item := range arr {
+		m, ok := item.(map[string]interface{})
+		if !ok {
+			return nil, false
+		}
+		result = append(result, m)
+	}
+	return result, true
+}
+
+func matchValue(expected, actual interface{}) bool {
+	if ops, ok := expected.(map[string]interface{}); ok {
+		return matchComparison(ops, actual)
+	}
+	return valuesEqual(expected, actual)
+}
+
+func matchComparison(ops map[string]interface{}, actual interface{}) bool {
+	actualFloat, isFloat := toFloat64(actual)
+	for op, expected := range ops {
+		switch op {
+		case "$gt":
+			ev, ok := toFloat64(expected)
+			if !ok || !isFloat || !(actualFloat > ev) {
+				return false
+			}
+		case "$gte":
+			ev, ok := toFloat64(expected)
+			if !ok || !isFloat || !(actualFloat >= ev) {
+				return false
+			}
+		case "$lt":
+			ev, ok := toFloat64(expected)
+			if !ok || !isFloat || !(actualFloat < ev) {
+				return false
+			}
+		case "$lte":
+			ev, ok := toFloat64(expected)
+			if !ok || !isFloat || !(actualFloat <= ev) {
+				return false
+			}
+		case "$ne":
+			if valuesEqual(expected, actual) {
+				return false
+			}
+		case "$in":
+			arr, ok := expected.([]interface{})
+			if !ok {
+				return false
+			}
+			found := false
+			for _, item := range arr {
+				if valuesEqual(item, actual) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func toFloat64(v interface{}) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case int:
+		return float64(n), true
+	case int64:
+		return float64(n), true
+	default:
+		return 0, false
+	}
+}
+
+func valuesEqual(a, b interface{}) bool {
+	switch av := a.(type) {
+	case string:
+		bv, ok := b.(string)
+		return ok && av == bv
+	case float64:
+		bv, ok := b.(float64)
+		return ok && av == bv
+	case bool:
+		bv, ok := b.(bool)
+		return ok && av == bv
+	default:
+		return false
+	}
+}
+
+func clonePolicyContext(context map[string]interface{}) map[string]interface{} {
+	if context == nil {
+		return make(map[string]interface{})
+	}
+
+	cloned := make(map[string]interface{}, len(context))
+	for key, value := range context {
+		cloned[key] = value
+	}
+	return cloned
+}
+
+func normalizeBackendDecision(result BackendDecision) PolicyDecision {
+	if result.Decision != "" {
+		return result.Decision
+	}
+	if result.Allowed {
+		return Allow
+	}
+	return Deny
+}

@@ -1,0 +1,101 @@
+"agent-os":
+  - changed-files:
+      - any-glob-to-any-file: "agent-os-kernel/**"
+"agent-mesh":
+  - changed-files:
+      - any-glob-to-any-file: "agent-governance-python/agent-mesh/**"
+"agent-hypervisor":
+  - changed-files:
+      - any-glob-to-any-file: "agent-governance-python/agent-hypervisor/**"
+"agent-sre":
+  - changed-files:
+      - any-glob-to-any-file: "agent-governance-python/agent-sre/**"
+"scripts/ci/cd":
+  - changed-files:
+      - any-glob-to-any-file: ".github/**"
+"documentation":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/**"
+          - "**/*.md"
+"security":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "SECURITY.md"
+          - "**/security/**"
+"dependencies":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/pyproject.toml"
+          - "**/requirements*.txt"
+"tests":
+  - changed-files:
+      - any-glob-to-any-file: "**/tests/**"
+
+"integration/flowise-agentmesh":
+  - changed-files:
+      - any-glob-to-any-file: "agent-governance-python/agentmesh-integrations/flowise-agentmesh/**"
+
+"integration/haystack-agentmesh":
+  - changed-files:
+      - any-glob-to-any-file: "agent-governance-python/agentmesh-integrations/haystack-agentmesh/**"
+
+"integration/langchain-agentmesh":
+  - changed-files:
+      - any-glob-to-any-file: "agent-governance-python/agentmesh-integrations/langchain-agentmesh/**"
+
+"integration/langflow-agentmesh":
+  - changed-files:
+      - any-glob-to-any-file: "agent-governance-python/agentmesh-integrations/langflow-agentmesh/**"
+
+"integration/langgraph-trust":
+  - changed-files:
+      - any-glob-to-any-file: "agent-governance-python/agentmesh-integrations/langgraph-trust/**"
+
+"integration/llamaindex-agentmesh":
+  - changed-files:
+      - any-glob-to-any-file: "agent-governance-python/agentmesh-integrations/llamaindex-agentmesh/**"
+
+"integration/mastra-agentmesh":
+  - changed-files:
+      - any-glob-to-any-file: "agent-governance-python/agentmesh-integrations/mastra-agentmesh/**"
+
+"integration/mcp-trust-proxy":
+  - changed-files:
+      - any-glob-to-any-file: "agent-governance-python/agentmesh-integrations/mcp-trust-proxy/**"
+
+"integration/nostr-wot":
+  - changed-files:
+      - any-glob-to-any-file: "agent-governance-python/agentmesh-integrations/nostr-wot/**"
+
+"integration/openai-agents-agentmesh":
+  - changed-files:
+      - any-glob-to-any-file: "agent-governance-python/agentmesh-integrations/openai-agents-agentmesh/**"
+
+"integration/openai-agents-trust":
+  - changed-files:
+      - any-glob-to-any-file: "agent-governance-python/agentmesh-integrations/openai-agents-trust/**"
+
+"integration/pydantic-ai-governance":
+  - changed-files:
+      - any-glob-to-any-file: "agent-governance-python/agentmesh-integrations/pydantic-ai-governance/**"
+
+"integration/a2a-protocol":
+  - changed-files:
+      - any-glob-to-any-file: "agent-governance-python/agentmesh-integrations/a2a-protocol/**"
+
+"integration/adk-agentmesh":
+  - changed-files:
+      - any-glob-to-any-file: "agent-governance-python/agentmesh-integrations/adk-agentmesh/**"
+
+"integration/copilot-governance":
+  - changed-files:
+      - any-glob-to-any-file: "agent-governance-python/agentmesh-integrations/copilot-governance/**"
+
+"integration/crewai-agentmesh":
+  - changed-files:
+      - any-glob-to-any-file: "agent-governance-python/agentmesh-integrations/crewai-agentmesh/**"
+
+"integration/dify":
+  - changed-files:
+      - any-glob-to-any-file: "agent-governance-python/agentmesh-integrations/dify/**"

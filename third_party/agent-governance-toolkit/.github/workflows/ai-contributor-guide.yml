@@ -1,0 +1,118 @@
+# AI-powered contributor helper for the agent-governance-toolkit.
+# Welcomes first-time contributors with helpful, personalized context:
+# - For issues: analyzes the issue and suggests relevant code areas
+# - For PRs: provides a friendly first-PR review with extra guidance
+# Builds OSS community by making the contribution experience welcoming.
+name: AI Contributor Guide
+# SECURITY: Uses pull_request_target for write access to post PR comments.
+# All checkouts pin to BASE ref (never HEAD) to prevent RCE via modified
+# composite actions in fork PRs. See workflow security audit.
+
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened]
+
+# SECURITY: least-privileged default. Write scopes are granted per-job below.
+permissions:
+  contents: read
+
+# SECURITY: pull_request_target runs in BASE context. Never checkout PR head ref.
+jobs:
+  guide-issue:
+    name: Guide First-Time Issue Author
+    runs-on: ubuntu-latest
+    # SECURITY: only the issue-comment poster needs issues:write; models:read for inference.
+    permissions:
+      contents: read
+      issues: write
+      models: read
+    # Only trigger for first-time contributors (never seen before or first contribution)
+    if: >-
+      github.event_name == 'issues' &&
+      (github.event.issue.author_association == 'NONE' ||
+       github.event.issue.author_association == 'FIRST_TIME_CONTRIBUTOR')
+    continue-on-error: true
+    # SECURITY: pull_request_target — this job does NOT checkout PR head code.
+    # It only checks out the base branch for the composite action, and context
+    # is fetched via GitHub API. Permissions are scoped to minimum needed.
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          # SECURITY: pull_request_target defaults to base branch checkout (safe).
+          # SECURITY: base-only checkout required for pull_request_target context.
+          persist-credentials: false
+
+      - name: Guide contributor on issue
+        uses: ./.github/actions/ai-agent-runner
+        with:
+          agent-type: contributor-guide
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          model: gpt-4o
+          fallback-model: gpt-4o-mini
+          max-tokens: "800"
+          context-mode: issue
+          output-mode: issue-comment
+          custom-instructions: |
+            You are a friendly OSS community helper for microsoft/agent-governance-toolkit.
+            A first-time contributor has opened an issue.
+
+            Keep it SHORT (5-8 lines max). Include:
+            1. A warm one-line welcome
+            2. Which package(s) are relevant to their issue
+            3. One link: [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md)
+
+            Do NOT list all packages, conventions, or boilerplate. Be specific to their issue.
+
+  guide-pr:
+    name: Guide First-Time PR Author
+    runs-on: ubuntu-latest
+    # SECURITY: only the PR-comment poster needs pull-requests:write; models:read for inference.
+    permissions:
+      contents: read
+      pull-requests: write
+      models: read
+    # Only trigger for first-time contributors on PRs
+    # Uses pull_request_target for security (runs on base branch context)
+    if: >-
+      github.event_name == 'pull_request_target' &&
+      (github.event.pull_request.author_association == 'NONE' ||
+       github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR')
+    continue-on-error: true
+    # SECURITY: pull_request_target — this job does NOT checkout PR head code.
+    # Permissions scoped to minimum: contents:read for base checkout, pr:write
+    # for posting the welcome comment.
+    steps:
+      - name: Fork safety check
+        if: github.event.pull_request.head.repo.full_name != github.repository
+        run: echo "::notice::Running on fork PR — composite action resolved from base branch (safe)"
+
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          # SECURITY: pull_request_target defaults to base branch checkout (safe).
+          # SECURITY: base-only checkout required for pull_request_target context.
+          persist-credentials: false
+
+      - name: Guide PR author
+        uses: ./.github/actions/ai-agent-runner
+        with:
+          agent-type: contributor-guide
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          model: gpt-4o
+          fallback-model: gpt-4o-mini
+          max-tokens: "800"
+          context-mode: pr-diff
+          output-mode: pr-comment
+          custom-instructions: |
+            You are a friendly OSS community helper for microsoft/agent-governance-toolkit.
+            A first-time contributor has opened a pull request.
+
+            Keep it SHORT (8-10 lines max). Include:
+            1. A warm one-line welcome and thanks
+            2. One thing they did well
+            3. Actionable items only (if any): what specifically to fix before merge
+            4. Link: [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md)
+
+            Do NOT explain project conventions, review process, or general advice.
+            Only mention issues that would block merge.

@@ -18,6 +18,11 @@ members = [
   "crates/scaffolder-core",
   "crates/motia-tools",
 ]
+exclude = [
+  # Vendored upstream monorepo (Microsoft Agent Governance Toolkit).
+  # Kept verbatim under third_party/; not part of this workspace build.
+  "third_party/agent-governance-toolkit",
+]
 
 [workspace.package]
 version = "0.19.4"

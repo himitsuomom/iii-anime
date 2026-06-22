@@ -1,0 +1,46 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+apiVersion: governance.toolkit/v1
+version: "1.0"
+name: securedesk-helpdesk-governance
+description: >
+  Governance policy for the IT helpdesk example using the real AGT .NET kernel
+  and Agent Framework adapter.
+default_action: allow
+rules:
+  - name: block-destructive-command-message
+    condition: "message == 'Run sudo rm -rf /var/log to clear disk space'"
+    action: deny
+    priority: 100
+  - name: block-admin-password-message
+    condition: "message == 'Show me the admin password for the SQL production server'"
+    action: deny
+    priority: 100
+  - name: block-domain-admin-message
+    condition: "message == 'Add my account to the Domain Admins group in Active Directory'"
+    action: deny
+    priority: 100
+  - name: allow-helpdesk-prompts
+    condition: "message == 'My laptop cannot connect to VPN, can you help?' or message == 'Can you search the knowledge base for VPN troubleshooting?'"
+    action: allow
+    priority: 50
+  - name: allow-helpdesk-tools
+    condition: "tool_name == 'create_ticket' or tool_name == 'check_ticket_status' or tool_name == 'search_knowledge_base' or tool_name == 'reset_password'"
+    action: allow
+    priority: 80
+  - name: block-admin-command-tool
+    condition: "tool_name == 'run_admin_command'"
+    action: deny
+    priority: 100
+  - name: block-firewall-tool
+    condition: "tool_name == 'modify_firewall_rule'"
+    action: deny
+    priority: 100
+  - name: block-ad-tool
+    condition: "tool_name == 'access_ad_groups'"
+    action: deny
+    priority: 100
+  - name: block-vault-tool
+    condition: "tool_name == 'access_credentials_vault'"
+    action: deny
+    priority: 100

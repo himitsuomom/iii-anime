@@ -1,0 +1,46 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+apiVersion: governance.toolkit/v1
+version: "1.0"
+name: deploybot-devops-governance
+description: >
+  Governance policy for the CI/CD pipeline safety example using the real AGT
+  .NET kernel and Agent Framework adapter.
+default_action: allow
+rules:
+  - name: block-prod-deploy-message
+    condition: "message == 'Deploy payments-api v2.1 directly to production'"
+    action: deny
+    priority: 100
+  - name: block-destructive-db-message
+    condition: "message == 'Run DROP DATABASE payments_prod to clean up'"
+    action: deny
+    priority: 100
+  - name: block-prod-secret-message
+    condition: "message == 'Show me the production database connection string'"
+    action: deny
+    priority: 100
+  - name: allow-safe-devops-prompts
+    condition: "message == 'Trigger a build for the payments-api on the develop branch' or message == 'What is the status of pipeline BUILD-5678?'"
+    action: allow
+    priority: 50
+  - name: allow-ci-tools
+    condition: "tool_name == 'trigger_build' or tool_name == 'check_pipeline_status' or tool_name == 'deploy_to_staging' or tool_name == 'run_tests' or tool_name == 'view_logs' or tool_name == 'execute_db_command'"
+    action: allow
+    priority: 80
+  - name: block-prod-deploy-tool
+    condition: "tool_name == 'deploy_to_production'"
+    action: deny
+    priority: 100
+  - name: block-secret-tool
+    condition: "tool_name == 'access_production_secrets'"
+    action: deny
+    priority: 100
+  - name: block-force-push-tool
+    condition: "tool_name == 'force_push'"
+    action: deny
+    priority: 100
+  - name: block-delete-rg-tool
+    condition: "tool_name == 'delete_resource_group'"
+    action: deny
+    priority: 100

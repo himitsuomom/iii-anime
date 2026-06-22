@@ -1,0 +1,64 @@
+name: DCO Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  dco:
+    name: Developer Certificate of Origin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+
+      - name: Check DCO sign-off on commits
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          MISSING=()
+
+          # Compute the range from the merge base of the base branch and the PR
+          # head, not from the stale base.sha recorded when the PR was opened.
+          # After main advances and the branch is rebased, base.sha would sweep
+          # in already-merged main commits the PR author does not own.
+          git fetch origin "$BASE_REF"
+          MERGE_BASE=$(git merge-base "origin/$BASE_REF" "$HEAD_SHA")
+
+          for SHA in $(git rev-list "$MERGE_BASE".."$HEAD_SHA"); do
+            # Skip merge commits (commits with more than one parent). Count the
+            # parents via %P so commit-message lines starting with "parent"
+            # cannot misclassify a normal commit as a merge.
+            PARENT_COUNT=$(git show -s --format=%P "$SHA" | wc -w)
+            if [ "$PARENT_COUNT" -gt 1 ]; then
+              continue
+            fi
+
+            # Check for Signed-off-by trailer
+            if ! git log -1 --format='%B' "$SHA" | grep -qiE '^Signed-off-by: .+ <.+>'; then
+              AUTHOR=$(git log -1 --format='%an <%ae>' "$SHA")
+              SHORT=$(git log -1 --format='%h' "$SHA")
+              MISSING+=("$SHORT by $AUTHOR")
+            fi
+          done
+
+          if [ ${#MISSING[@]} -gt 0 ]; then
+            echo "::error::The following commits are missing a DCO sign-off (Signed-off-by trailer):"
+            for M in "${MISSING[@]}"; do
+              echo "  - $M"
+            done
+            echo ""
+            echo "To fix, amend your commits with: git commit --amend --signoff"
+            echo "Or for all commits: git rebase --signoff HEAD~N"
+            echo ""
+            echo "See https://developercertificate.org for details."
+            exit 1
+          fi
+
+          echo "All commits have valid DCO sign-off."
+

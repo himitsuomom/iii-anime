@@ -1,0 +1,54 @@
+services:
+  dev:
+    build:
+      context: .
+      target: dev
+    command: ["sleep", "infinity"]
+    init: true
+    stdin_open: true
+    tty: true
+    # Match the host UID/GID so files created inside the bind-mounted
+    # workspace land with host ownership (not root). Override on the host
+    # with `HOST_UID=$(id -u) HOST_GID=$(id -g)` if your IDs differ.
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - typescript_node_modules:/workspace/agent-governance-typescript/node_modules
+
+  test:
+    build:
+      context: .
+      target: test
+    command: ["bash", "/workspace/scripts/docker/run-tests.sh"]
+    init: true
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - typescript_node_modules:/workspace/agent-governance-typescript/node_modules
+
+  dashboard:
+    profiles: ["dashboard"]
+    build:
+      context: .
+      target: dev
+    command:
+      - streamlit
+      - run
+      - agent-governance-python/agent-hypervisor/examples/dashboard/app.py
+      - --server.address=0.0.0.0
+      - --server.port=8501
+    init: true
+    # Match the host UID/GID so any files Streamlit writes back to the
+    # bind-mounted workspace are owned by the host user, not root.
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    ports:
+      - "8501:8501"
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - typescript_node_modules:/workspace/agent-governance-typescript/node_modules
+
+volumes:
+  typescript_node_modules:
