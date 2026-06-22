@@ -12,23 +12,13 @@
     {
       "name": "iii-skills",
       "source": "./",
-      "description": "Top-level skills that teach the iii mental model: worker creation and registry access, SDK usage (Node.js, browser, Python, Rust), engine config, architecture patterns, and error handling.",
+      "description": "Top-level skills that teach the iii mental model (worker creation, registry access, SDK usage, engine config, architecture patterns, error handling) plus 754 bundled cybersecurity skills across 26 security domains.",
       "version": "1.0.0",
       "author": {
         "name": "Motia LLC"
       },
       "license": "Apache-2.0",
-      "keywords": [
-        "iii",
-        "workers",
-        "functions",
-        "triggers",
-        "backend",
-        "real-time",
-        "sdk",
-        "agents",
-        "observability"
-      ],
+      "keywords": ["iii", "workers", "functions", "triggers", "backend", "real-time", "sdk", "agents", "observability"],
       "category": "developer-tools",
       "homepage": "https://iii.dev",
       "repository": "https://github.com/iii-hq/iii"

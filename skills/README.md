@@ -43,6 +43,18 @@ matching skill on demand.
 | [iii-architecture-patterns](./iii-architecture-patterns) | Workflows, reactive backends, agentic pipelines, CQRS, effect pipelines, and automation chains |
 | [iii-error-handling](./iii-error-handling)             | Engine and SDK errors, retryability, RBAC denial, and timeout handling |
 
+### Cybersecurity skills
+
+This catalog also bundles **754 cybersecurity skills** (adapted from the
+[Anthropic Cybersecurity Skills](https://github.com/mukul975/Anthropic-Cybersecurity-Skills)
+package, Apache-2.0) covering 26 security domains — cloud security, threat
+hunting, threat intelligence, web app security, DFIR, malware analysis, red
+teaming, and more. Each lives in its own `skills/<skill-name>/` folder with a
+`SKILL.md`, plus `references/` and `scripts/`, and is auto-discovered by Claude
+Code alongside the iii skills above. Browse them under
+[`skills/`](.) — every directory whose name is not prefixed with `iii-` is a
+cybersecurity skill.
+
 ## Shape
 
 Each skill is one folder with one `SKILL.md`. Code examples live directly in the skill, including

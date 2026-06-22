@@ -1,5 +1,5 @@
 {
   "name": "iii-skills",
-  "description": "Top-level skills for building with the iii engine: core primitives, SDK reference, engine config, architecture patterns, and error handling.",
+  "description": "Skills for building with the iii engine (core primitives, SDK, config, architecture, error handling) plus 754 bundled cybersecurity skills across 26 security domains.",
   "version": "1.0.0"
 }

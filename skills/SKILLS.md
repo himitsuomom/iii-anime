@@ -24,3 +24,8 @@ Or install as a Claude Code plugin:
 - [iii-engine-config](iii-engine-config/SKILL.md) — Configure ports, workers, adapters, queues, RBAC, and observability
 - [iii-architecture-patterns](iii-architecture-patterns/SKILL.md) — Workflows, reactive backends, agentic pipelines, CQRS, effect pipelines, and automation chains
 - [iii-error-handling](iii-error-handling/SKILL.md) — Engine and SDK errors, retryability, RBAC denial, and timeout handling
+
+Plus **754 bundled cybersecurity skills** (Apache-2.0, adapted from
+[Anthropic Cybersecurity Skills](https://github.com/mukul975/Anthropic-Cybersecurity-Skills))
+across 26 security domains. Every `skills/` directory not prefixed with `iii-`
+is one such skill; all are auto-discovered alongside the iii skills above.
