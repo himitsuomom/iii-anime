@@ -29,6 +29,14 @@ npx skills add iii-hq/iii/skills --skill iii-core-primitives
 | [iii-architecture-patterns](./iii-architecture-patterns) | Workflows, reactive backends, agentic pipelines, CQRS, effect pipelines, and automation chains |
 | [iii-error-handling](./iii-error-handling)             | Engine and SDK errors, retryability, RBAC denial, and timeout handling |
 
+## Explore
+
+`skills/catalog.json` is a machine-readable index of every skill, rebuilt from the folders on disk
+by `.github/scripts/build_skills_catalog.py` and kept honest by the `skills-catalog` CI workflow
+(`audit_skills.py` invariant checks + README/SKILLS.md drift check). A zero-dependency static
+browser for the catalog and an iii glossary — with a ⌘K command palette — lives in
+[`skills/site/`](./site).
+
 ## Shape
 
 Each skill is one folder with one `SKILL.md`. Code examples live directly in the skill, including
@@ -36,10 +44,12 @@ TypeScript, Python, and Rust examples where the concept is language-specific.
 
 ```text
 skills/
+├── catalog.json            # generated index (build_skills_catalog.py)
 ├── iii-core-primitives/
 │   └── SKILL.md
 ├── iii-sdk-reference/
 │   └── SKILL.md
+├── site/                   # static catalog + glossary explorer (⌘K search)
 └── README.md
 ```
 
