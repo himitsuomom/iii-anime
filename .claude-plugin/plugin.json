@@ -1,0 +1,5 @@
+{
+  "name": "iii-skills",
+  "description": "Top-level skills for building with the iii engine: core primitives, SDK reference, engine config, architecture patterns, and error handling.",
+  "version": "1.0.0"
+}

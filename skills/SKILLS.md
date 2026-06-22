@@ -9,6 +9,13 @@ purpose; worker-backed capability skills live with their worker docs and `worker
 npx skills add iii-hq/iii/skills
 ```
 
+Or install as a Claude Code plugin:
+
+```text
+/plugin marketplace add iii-hq/iii
+/plugin install iii-skills@iii-skills
+```
+
 ## Catalog
 
 - [iii-getting-started](iii-getting-started/SKILL.md) — Install iii, create a project, write your first worker, and add registry workers

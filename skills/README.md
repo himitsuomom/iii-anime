@@ -18,6 +18,20 @@ npx skills add iii-hq/iii/skills
 npx skills add iii-hq/iii/skills --skill iii-core-primitives
 ```
 
+### Install as a Claude Code plugin
+
+These skills are also published as a Claude Code plugin via the marketplace
+manifest at [`.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json).
+Add the marketplace and install the plugin from inside Claude Code:
+
+```text
+/plugin marketplace add iii-hq/iii
+/plugin install iii-skills@iii-skills
+```
+
+Claude Code then auto-discovers every `SKILL.md` under `skills/` and loads the
+matching skill on demand.
+
 ## Skills
 
 | Skill                                                  | What it does |
