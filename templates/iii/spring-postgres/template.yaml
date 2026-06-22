@@ -1,0 +1,35 @@
+name: "Spring / PostgreSQL"
+description: "Sample Java application"
+version: "0.1.0"
+min_iii_version: "0.11.0"
+
+# Compose samples are language-agnostic from the scaffolder's point of
+# view: the Dockerfiles own the per-language build. No language gating.
+treat_required_as_included: true
+requires: []
+optional: []
+
+# Mark every bundled file as 'common' so the scaffolder copies the whole
+# stack regardless of which languages the user selects.
+language_files:
+  common:
+    - '*'
+
+files:
+  - "README.md"
+  - "backend/Dockerfile"
+  - "backend/pom.xml"
+  - "backend/src/main/java/com/company/project/Application.java"
+  - "backend/src/main/java/com/company/project/controllers/HomeController.java"
+  - "backend/src/main/java/com/company/project/entity/Greeting.java"
+  - "backend/src/main/java/com/company/project/repository/GreetingRepository.java"
+  - "backend/src/main/resources/application.properties"
+  - "backend/src/main/resources/data.sql"
+  - "backend/src/main/resources/schema.sql"
+  - "backend/src/main/resources/templates/home.ftlh"
+  - "compose.yaml"
+  - "db/password.txt"
+
+next_steps:
+  - "Start the stack: docker compose up"
+  - "Stop and remove it: docker compose down"

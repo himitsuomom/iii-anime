@@ -1,0 +1,30 @@
+name: "NGINX / Node.js / Redis"
+description: "Sample Node.js application with Nginx proxy and a Redis database."
+version: "0.1.0"
+min_iii_version: "0.11.0"
+
+# Compose samples are language-agnostic from the scaffolder's point of
+# view: the Dockerfiles own the per-language build. No language gating.
+treat_required_as_included: true
+requires: []
+optional: []
+
+# Mark every bundled file as 'common' so the scaffolder copies the whole
+# stack regardless of which languages the user selects.
+language_files:
+  common:
+    - '*'
+
+files:
+  - "README.md"
+  - "compose.yaml"
+  - "nginx/Dockerfile"
+  - "nginx/nginx.conf"
+  - "web/.gitignore"
+  - "web/Dockerfile"
+  - "web/package.json"
+  - "web/server.js"
+
+next_steps:
+  - "Start the stack: docker compose up"
+  - "Stop and remove it: docker compose down"
