@@ -1,16 +1,20 @@
 import { randomUUID } from 'node:crypto'
+import { deploy } from './deploy'
 import type { Engine, Json } from './engine'
 import { Logger } from './log'
+import { synthesizeApp } from './logic/appgen'
 import {
-  buildCodebase,
   buildDeployment,
   buildPrd,
+  type Codebase,
   type Implementation,
   type Prd,
+  type ScreenAnalysis,
   type VisualArtifact,
 } from './logic/artifacts'
 import { initialState, type ProjectState, phase1Complete, type StartInput } from './logic/pipeline'
-import { codebasePrompt, deployPrompt, prdPrompt, vizPrompt } from './logic/prompts'
+import { deployPrompt, prdPrompt, vizPrompt } from './logic/prompts'
+import { aggregateScreens } from './logic/uiAggregate'
 import { debateOrCritique, supervisedGenerate } from './patterns'
 import { callRole, callRoleJson } from './provider'
 
@@ -96,11 +100,22 @@ export async function advance(engine: Engine, projectId: string): Promise<Json> 
       if (!phase1Complete(proj.phase1.total, analyzed)) {
         return { waiting: 'phase1', analyzed, total: proj.phase1.total }
       }
-      logger.info('Phase 1 complete; reviewing', { projectId, analyzed })
+      logger.info('Phase 1 complete; aggregating + reviewing', { projectId, analyzed })
+      // Fold per-screen analyses into one cross-screen UI insight set.
+      const screens = await engine.call<ScreenAnalysis[]>('state::list', { scope: phase1Scope(projectId) })
+      const uiInsights = aggregateScreens(Array.isArray(screens) ? screens : [])
+      const catalog = uiInsights.components.map((c) => `${c.name}(${c.count})`).join(', ')
       const review = await callRole(engine, 'director', [
-        { role: 'user', content: `Review ${analyzed} screen analyses and outline a PRD for ${proj.target}.` },
+        {
+          role: 'user',
+          content: `Review ${analyzed} screens of ${proj.target}. Component catalog: ${catalog}. Design system: ${uiInsights.designSystem.colors.length} colors / ${uiInsights.designSystem.fonts.length} fonts. Outline a PRD.`,
+        },
       ])
-      proj = await saveProject(engine, { ...proj, status: 2, artifacts: { ...proj.artifacts, phase1Review: review } })
+      proj = await saveProject(engine, {
+        ...proj,
+        status: 2,
+        artifacts: { ...proj.artifacts, phase1Review: review, uiInsights },
+      })
       continue
     }
 
@@ -146,9 +161,15 @@ export async function advance(engine: Engine, projectId: string): Promise<Json> 
           opponentRole: 'swarm', // KIMI when present -> real debate; else self-critique
           judgeRole: 'director',
         })
-        // Generate real file contents; the file plan (`implementation`) is the
-        // codebase's table of contents (no separate LLM call).
-        const codebase = buildCodebase(proj.target, await callRoleJson(engine, 'director', codebasePrompt(proj.target)))
+        // Synthesize a real multi-file app from the PRD (models + api + app +
+        // test). The file plan (`implementation`) is its table of contents.
+        const prd = (proj.artifacts.prd as Prd | undefined) ?? {
+          target: proj.target,
+          summary: '',
+          features: [],
+          dataModel: [],
+        }
+        const codebase = synthesizeApp(proj.target, prd)
         const implementation: Implementation = { target: proj.target, files: codebase.files.map((f) => f.path) }
         proj = await saveProject(engine, {
           ...proj,
@@ -174,7 +195,11 @@ export async function advance(engine: Engine, projectId: string): Promise<Json> 
         proj = await saveProject(engine, { ...proj, artifacts: { ...proj.artifacts, visuals } })
         return { waiting: 'approval' }
       }
-      const deployment = buildDeployment(await callRoleJson(engine, 'director', deployPrompt(proj.target)))
+      // Build + deploy the generated codebase (real deploy worker or simulate).
+      const codebase = proj.artifacts.codebase as Codebase | undefined
+      const deployment = codebase
+        ? await deploy(engine, codebase)
+        : buildDeployment(await callRoleJson(engine, 'director', deployPrompt(proj.target)))
       proj = await saveProject(engine, {
         ...proj,
         status: 'done',

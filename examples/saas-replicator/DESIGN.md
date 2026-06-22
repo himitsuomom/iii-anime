@@ -2,7 +2,7 @@
 
 > 元設計 `assets/original-report.md`（Claude×KIMI マルチエージェント・オーケストレーション）を、**iii のプリミティブ（Worker / Function / Trigger）上で動作する**ように再設計したもの。実装言語は TypeScript（`iii-sdk`）。
 >
-> **実装状況**: ロードマップ §13（ステージ1〜4）に加え、**ステージ5（実コード生成スキャフォルド + 実行 + live 起動 preflight）を実装済み**。Phase3 は**実ファイル内容を生成→ワークスペースに materialize→生成テストを実際に実行**する（`iii-sandbox` があれば microVM、無ければ子プロセスの local executor）。`npm run demo` で API キー無し（stub）のまま 4-Phase を `done` まで完走し、**生成コードが本環境で実走**する。全 36 単体/結合テストが pass。セットアップ・実行は [README.md](./README.md) を参照。
+> **実装状況**: ロードマップ §13（ステージ1〜5）に加え、**ステージ6（深掘り: UI解析の集約 / PRD駆動の本格アプリ生成 / デプロイ連携）を実装済み**。Phase1 は複数画面を**コンポーネントカタログ + デザインシステム**に集約し、Phase3 は **PRD から実マルチファイルアプリ（models + api + app + test）を生成して実走**、Phase4 は **deploy worker があれば実公開・無ければシミュレート**する。`npm run demo` で API キー無し（stub）のまま 4-Phase を `done` まで完走し、生成アプリの 11 アサーションが本環境で実走する。全 46 単体/結合テストが pass。セットアップ・実行は [README.md](./README.md) を参照。
 
 ---
 
@@ -292,6 +292,7 @@ examples/saas-replicator/
     observability.ts   ← withObservability（span トレース + トークン予算ガード；Engine デコレータ）
     workspace.ts       ← createWorkspace / materialize / cleanup（生成コードの書き出し）
     executor.ts        ← sandbox/local の CodeExecutor + pickExecutor（生成テストの実行）
+    deploy.ts          ← deploy()（deploy worker 連携 or シミュレート）
     preflight.ts       ← runPreflight / saas::preflight（起動前の設定検証）
     director.ts        ← startProject / advance（4-Phase 駆動）+ approval + HTTP(saas::start/status)
     swarm.ts           ← swarm::ui::analyze-screen / swarm::viz::render / swarm::test::run
@@ -307,8 +308,11 @@ examples/saas-replicator/
       review.ts        ← Supervisor 判定（parseCritique / accepted）（純粋）
       budget.ts        ← トークン予算会計（extractUsage / addUsage / overBudget）（純粋）
       preflight.ts     ← buildPreflightReport（設定検証の判定）（純粋）
+      uiAggregate.ts   ← aggregateScreens（複数画面→カタログ/デザインシステム）（純粋）
+      appgen.ts        ← synthesizeApp（PRD→マルチファイル実アプリ）（純粋）
+      deploy.ts        ← buildDeployPlan（ビルド/デプロイ計画）（純粋）
   tests/
-    roleBinding / pipeline / artifacts / patterns / budget / preflight / workspace / executor  ← 純粋ロジック + 実行系の単体テスト
+    roleBinding / pipeline / artifacts / patterns / budget / preflight / workspace / executor / uiAggregate / appgen / deploy  ← 純粋ロジック + 実行系の単体テスト
     integration.test.ts                                            ← MemoryEngine で 4-Phase を end-to-end 実行（生成コードの実走/sandbox 経由/フォールバック含む）
     demo.test.ts                                                   ← runDemo() のスモーク（done 到達 + 生成コード実走 + テレメトリ）
 ```
@@ -317,7 +321,12 @@ examples/saas-replicator/
 >
 > **ステージ3で各 Phase を構造化**: 各役割は `prompts.ts` の JSON 出力契約付きプロンプトで呼ばれ、`callRoleJson` + `artifacts.ts` の `build*` で型付き成果物（`ScreenAnalysis`/`Prd`/`Implementation`/`TestReport`/`VisualArtifact`/`Deployment`）に変換される。Phase4 は `approval-gate` worker 検出時のみ承認を求める（既定 auto-approve）。
 >
-> **ステージ5で Phase3 を実コード化**: `codebasePrompt` → `buildCodebase`（unsafe パス除外 + 既定スキャフォルド）で **path→content の実ファイル**を生成し、`workspace.ts` で一時ディレクトリに materialize、`executor.ts` の `pickExecutor`（`iii-sandbox` 在→microVM / 不在→子プロセス local executor）で**生成テストを実際に実行**し `parseTestStdout` で `TestReport{executor, filesGenerated, total, passed, failed}` に集約する。local executor は**開発用フォールバック**であり、本番は `iii-sandbox` の microVM 分離を用いる（生成コード実行は隔離が原則）。`saas::preflight` / 起動時 `runPreflight` が live 実行前に `provider-anthropic`+`ANTHROPIC_API_KEY` の有無を検証する。
+> **ステージ5で Phase3 を実コード化**: `buildCodebase`（unsafe パス除外 + 既定スキャフォルド）で **path→content の実ファイル**を生成し、`workspace.ts` で一時ディレクトリに materialize、`executor.ts` の `pickExecutor`（`iii-sandbox` 在→microVM / 不在→子プロセス local executor）で**生成テストを実際に実行**し `parseTestStdout` で `TestReport{executor, filesGenerated, total, passed, failed}` に集約する。local executor は**開発用フォールバック**であり、本番は `iii-sandbox` の microVM 分離を用いる（生成コード実行は隔離が原則）。`saas::preflight` / 起動時 `runPreflight` が live 実行前に `provider-anthropic`+`ANTHROPIC_API_KEY` の有無を検証する。
+>
+> **ステージ6で各 Phase を深掘り**:
+> - **Phase1（UI解析の集約）**: `aggregateScreens`（`logic/uiAggregate.ts`）が複数画面の `ScreenAnalysis` を**重複排除したコンポーネントカタログ（出現回数付き）+ 統合デザインシステム（色/フォント/spacing）+ 一貫性警告**（フォント/色が多すぎる等）に畳み込み `artifacts.uiInsights` に保存。カタログを PRD 生成のコンテキストに供給。
+> - **Phase3（PRD駆動の本格アプリ）**: `synthesizeApp(target, prd)`（`logic/appgen.ts`）が PRD の `dataModel`/`features` から**実マルチファイルアプリ**（エンティティ毎の `src/models/*.mjs` + 機能毎ハンドラの `src/api.mjs` + `src/app.mjs` + 全モジュールを検証する `test.mjs`）を決定論的に生成。生成テストは executor で実走し、アサーション数は PRD 規模に比例する（例: 6 ファイル / 11 アサーション）。
+> - **Phase4（デプロイ連携）**: `buildDeployPlan`（`logic/deploy.ts`）で entrypoint/manifest/steps を作り、`deploy()`（`src/deploy.ts`）が **`deploy`/`vercel`/`netlify` worker 検出時は `<worker>::publish` に委譲（`status:'deployed'`）、無ければシミュレート（`status:'simulated'`）**。worker 失敗時はシミュレートにフォールバック。
 
 例示スニペット（AGENTS.md 規約準拠: `::` 区切り、`api_path` 先頭 `/`、cron は `expression`）:
 
@@ -450,8 +459,8 @@ iii worker add provider-kimi                  # これを足すだけ
 2. ✅ **各 Phase の実体化** — 構造化プロンプト + 型付き成果物（`artifacts.ts`/`prompts.ts`）、Phase3 の `iii-sandbox` 実行（フォールバック付き）、Phase4 の approval フックを実装・検証済み（`integration.test.ts` / `artifacts.test.ts`）。
 3. ✅ **オーケストレーションパターン + 横断機能 + E2E デモ** — Supervisor / Debate→self-critique（`patterns.ts`/`logic/review.ts`）、可観測性 + トークン予算ガード（`observability.ts`/`logic/budget.ts`）、`runDemo()` による stub 完走デモを実装・検証済み（計26テスト pass、`npm run demo`）。
 4. ✅ **実コード生成スキャフォルド + 実行 + live preflight** — Phase3 が実ファイル内容を生成（`buildCodebase`）し、`workspace.ts` で materialize、`executor.ts` で**生成テストを実走**（sandbox / local）。`preflight.ts` で live 起動前の設定検証を追加（計36テスト pass、`npm run demo` で生成コードが本環境実走）。
-5. **provider/エンジンの live 実行検証** — `iiiEngine` アダプタ実装済み。残りは実エンジン起動 + `ANTHROPIC_API_KEY`（Claude）での実走、`provider-kimi`/`iii-sandbox`/`approval-gate` 追加での挙動確認（本環境はエンジン未起動・`/dev/kvm` 無しのため未実走）。
-6. **今後の深掘り** — UI解析精度の向上、生成コードの本格アプリ化、デプロイ連携。
+5. ✅ **深掘り（UI解析の集約 / PRD駆動の本格アプリ生成 / デプロイ連携）** — `aggregateScreens`・`synthesizeApp`・`deploy`（+ `buildDeployPlan`）を実装。Phase1 は複数画面をカタログ/デザインシステムに集約、Phase3 は PRD から実マルチファイルアプリを生成・実走、Phase4 は deploy worker 連携/シミュレートを実装・検証済み（計46テスト pass）。
+6. **provider/エンジンの live 実行検証** — `iiiEngine` アダプタ実装済み。残りは実エンジン起動 + `ANTHROPIC_API_KEY`（Claude）での実走、`provider-kimi`/`iii-sandbox`/`approval-gate`/deploy worker 追加での挙動確認（本環境はエンジン未起動・`/dev/kvm` 無しのため未実走）。
 
 ---
 

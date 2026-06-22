@@ -8,16 +8,29 @@ test('runDemo completes end-to-end in stub mode with telemetry (no API keys)', a
 
   // Pipeline reached the end with every artifact populated.
   assert.equal(project.status, 'done')
-  for (const key of ['prd', 'architecture', 'codebase', 'implementation', 'tests', 'visuals', 'deployment'] as const) {
+  for (const key of [
+    'uiInsights',
+    'prd',
+    'architecture',
+    'codebase',
+    'implementation',
+    'tests',
+    'visuals',
+    'deployment',
+  ] as const) {
     assert.ok(project.artifacts[key], `${key} present`)
   }
 
-  // Phase 3 generated and ran a real codebase.
+  // Phase 3 synthesized and ran a real multi-file app.
   const codebase = project.artifacts.codebase as { files: unknown[] }
-  assert.ok(codebase.files.length > 0, 'codebase generated')
-  const tests = project.artifacts.tests as { filesGenerated?: number; total: number }
+  assert.ok(codebase.files.length > 2, 'multi-file app generated')
+  const tests = project.artifacts.tests as { filesGenerated?: number; total: number; failed: number }
   assert.ok((tests.filesGenerated ?? 0) > 0, 'files materialized')
-  assert.ok(tests.total > 0, 'generated test ran')
+  assert.ok(tests.total > 2 && tests.failed === 0, 'generated app tests ran and passed')
+
+  // Phase 4 produced a deployment (simulated in stub mode).
+  const deployment = project.artifacts.deployment as { status?: string }
+  assert.equal(deployment.status, 'simulated')
 
   // Supervisor recorded review rounds for the PRD.
   const reviews = project.artifacts.reviews as Record<string, { rounds: number } | undefined>

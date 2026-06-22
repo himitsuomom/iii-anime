@@ -4,6 +4,7 @@ import { MemoryEngine } from '../src/adapters/memoryEngine'
 import { startProject } from '../src/director'
 import type { Codebase, Prd, ScreenAnalysis, TestReport } from '../src/logic/artifacts'
 import type { ProjectState } from '../src/logic/pipeline'
+import type { UiInsights } from '../src/logic/uiAggregate'
 import { registerOrchestrator } from '../src/orchestrator'
 
 process.env.SAAS_PROVIDER_MODE = 'stub'
@@ -29,6 +30,7 @@ test('full run with screenshots reaches done with all artifacts (stub mode)', as
   assert.equal(proj.status, 'done')
   // Every phase produced its artifact.
   assert.ok(proj.artifacts.phase1Review, 'phase1Review present')
+  assert.ok(proj.artifacts.uiInsights, 'uiInsights present')
   assert.ok(proj.artifacts.prd, 'prd present')
   assert.ok(proj.artifacts.architecture, 'architecture decision present')
   assert.ok(proj.artifacts.implementation, 'implementation present')
@@ -53,13 +55,27 @@ test('full run with screenshots reaches done with all artifacts (stub mode)', as
   assert.equal(prd.target, 'Trello')
   assert.ok(Array.isArray(prd.features) && prd.features.length > 0, 'PRD features parsed')
 
-  // Phase 3 generated a real codebase and actually executed its test locally.
+  // Phase 1 produced a deduped component catalog across the 3 screens.
+  const ui = proj.artifacts.uiInsights as UiInsights
+  assert.equal(ui.screens, 3)
+  assert.ok(ui.components.length > 0, 'component catalog built')
+
+  // Phase 3 synthesized a real multi-file app (models + api + app + test).
   const codebase = proj.artifacts.codebase as Codebase
-  assert.ok(codebase.files.length > 0, 'codebase files generated')
+  assert.ok(codebase.files.length > 2, 'multi-file app synthesized from PRD')
+  assert.ok(
+    codebase.files.some((f) => f.path.startsWith('src/models/')),
+    'model modules generated',
+  )
   const tests = proj.artifacts.tests as TestReport
   assert.equal(tests.viaSandbox, false)
   assert.equal(tests.executor, 'local') // no iii-sandbox worker -> local child process
-  assert.ok(tests.total > 0, 'generated test actually ran and reported counts')
+  assert.ok(tests.total > 2, 'multiple generated assertions ran')
+  assert.equal(tests.failed, 0, 'all generated assertions passed')
+
+  // Phase 4 deployed (simulated, since no deploy worker is registered).
+  const deployment = proj.artifacts.deployment as { status?: string; url?: string }
+  assert.equal(deployment.status, 'simulated')
   assert.ok((tests.filesGenerated ?? 0) > 0, 'files materialized before running')
 })
 

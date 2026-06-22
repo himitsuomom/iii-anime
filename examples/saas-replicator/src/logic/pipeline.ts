@@ -28,6 +28,8 @@ export interface ProjectState {
   }
   artifacts: {
     phase1Review?: unknown
+    /** Aggregated cross-screen UI insights (component catalog + design system). */
+    uiInsights?: unknown
     prd?: unknown
     /** Architecture decision from the Phase 3 debate/self-critique step. */
     architecture?: unknown

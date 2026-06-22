@@ -67,6 +67,12 @@ export interface VisualArtifact {
 export interface Deployment {
   url: string
   pwa: boolean
+  /** Whether a real deploy worker published it, or it was simulated locally. */
+  status?: 'deployed' | 'simulated'
+  /** Ordered build/deploy steps that were run. */
+  steps?: string[]
+  /** Entry point + file count from the deploy plan. */
+  entrypoint?: string
   notes?: string
 }
 

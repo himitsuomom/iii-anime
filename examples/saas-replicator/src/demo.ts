@@ -50,9 +50,17 @@ export function reportDemo({ project, telemetry }: DemoResult): void {
   console.log(
     `architecture:  ${(a.architecture as { mode?: string; answer?: string })?.mode} -> ${(a.architecture as { answer?: string })?.answer}`,
   )
+  const ui = a.uiInsights as
+    | { screens?: number; components?: unknown[]; consistency?: { warnings?: unknown[] } }
+    | undefined
+  console.log(
+    `ui insights:   ${ui?.screens ?? 0} screens -> ${ui?.components?.length ?? 0} unique components, ${ui?.consistency?.warnings?.length ?? 0} warnings`,
+  )
   const codebase = a.codebase as { files?: unknown[] } | undefined
   console.log(`codebase:      ${codebase?.files?.length ?? 0} files generated`)
   console.log(`tests:         ${JSON.stringify(a.tests)}`)
+  const dep = a.deployment as { status?: string; url?: string } | undefined
+  console.log(`deployment:    ${dep?.status} -> ${dep?.url}`)
   console.log(`spans:         ${telemetry.spans.length}`)
   console.log(
     `tokens:        ${totalTokens(telemetry.budget)} over ${telemetry.budget.calls} provider calls (limit ${telemetry.budgetLimit || 'unlimited'})`,
