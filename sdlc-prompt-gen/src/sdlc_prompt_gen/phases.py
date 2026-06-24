@@ -113,9 +113,7 @@ def get_phase(number: int) -> PhaseSpec:
     """フェーズ番号から `PhaseSpec` を返す。1..10 以外は `ValueError`。"""
     spec = _PHASES.get(number)
     if spec is None:
-        raise ValueError(
-            f"phase は {MIN_PHASE}..{MAX_PHASE} の範囲で指定してください: {number!r}"
-        )
+        raise ValueError(f"phase は {MIN_PHASE}..{MAX_PHASE} の範囲で指定してください: {number!r}")
     return spec
 
 

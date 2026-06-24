@@ -25,7 +25,8 @@ from sdlc_prompt_gen import __version__
 from sdlc_prompt_gen.detect.phase_detector import detect_phase as _detect_phase
 from sdlc_prompt_gen.generators.builder import build_prompt
 from sdlc_prompt_gen.phases import get_phase
-from sdlc_prompt_gen.vault.store import retrieve_context, save_artifact as _save_artifact
+from sdlc_prompt_gen.vault.store import retrieve_context
+from sdlc_prompt_gen.vault.store import save_artifact as _save_artifact
 
 mcp = FastMCP("sdlc-prompt-gen")
 

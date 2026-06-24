@@ -1,5 +1,6 @@
 .venv/
-vault/
+# Vault 出力先（既定の ./vault）。src 配下の vault パッケージは除外しない。
+/vault/
 dist/
 build/
 *.egg-info/
