@@ -6,3 +6,7 @@ docs/docs.json
 # CI diffs a fresh regeneration against the committed files, so formatter
 # rewrites would read as drift. (Matches version-rotated copies too.)
 docs/*/cli-reference/
+
+# Vendored third-party Claude Code resources imported verbatim by
+# scripts/import-community-skills.py; keep them as-is and free of format churn.
+community-skills/

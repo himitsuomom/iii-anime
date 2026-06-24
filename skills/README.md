@@ -29,6 +29,22 @@ npx skills add iii-hq/iii/skills --skill iii-core-primitives
 | [iii-architecture-patterns](./iii-architecture-patterns) | Workflows, reactive backends, agentic pipelines, CQRS, effect pipelines, and automation chains |
 | [iii-error-handling](./iii-error-handling)             | Engine and SDK errors, retryability, RBAC denial, and timeout handling |
 
+## Community Skills
+
+Beyond this iii-specific catalog, the repo also hosts a broader set of general Claude Code
+resources — slash commands, `CLAUDE.md` files, and workflow guides — curated by
+[awesome-claude-code](https://github.com/anthropics/awesome-claude-code) and repackaged in the same
+installable skill format. They live in [`community-skills/`](../community-skills) and install the
+same way:
+
+```bash
+npx skills add iii-hq/iii/community-skills
+npx skills add iii-hq/iii/community-skills --skill commit
+```
+
+Each community skill keeps its original author attribution and license. See
+[community-skills/README.md](../community-skills/README.md) for the full catalog.
+
 ## Shape
 
 Each skill is one folder with one `SKILL.md`. Code examples live directly in the skill, including
