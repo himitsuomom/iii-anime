@@ -108,6 +108,15 @@
                   "next/creating-workers/functions",
                   "next/creating-workers/channels"
                 ]
+              },
+              {
+                "group": "Patterns",
+                "expanded": false,
+                "pages": [
+                  "next/patterns/adapter-pattern",
+                  "next/patterns/reactive-state-pattern",
+                  "next/patterns/design-patterns-reference"
+                ]
               }
             ]
           },
@@ -211,6 +220,15 @@
                   "creating-workers/triggers",
                   "creating-workers/functions",
                   "creating-workers/channels"
+                ]
+              },
+              {
+                "group": "Patterns",
+                "expanded": false,
+                "pages": [
+                  "patterns/adapter-pattern",
+                  "patterns/reactive-state-pattern",
+                  "patterns/design-patterns-reference"
                 ]
               }
             ]
