@@ -1,0 +1,27 @@
+{
+  "name": "iii-skills",
+  "owner": {
+    "name": "iii",
+    "url": "https://iii.dev"
+  },
+  "metadata": {
+    "description": "Skills for building real-time, interoperable backends with the iii engine and its three primitives: Worker, Function, Trigger.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "iii-skills",
+      "source": "./",
+      "description": "Top-level skills that teach the iii mental model (worker creation, registry access, SDK usage, engine config, architecture patterns, error handling) plus 754 bundled cybersecurity skills across 26 security domains.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Motia LLC"
+      },
+      "license": "Apache-2.0",
+      "keywords": ["iii", "workers", "functions", "triggers", "backend", "real-time", "sdk", "agents", "observability"],
+      "category": "developer-tools",
+      "homepage": "https://iii.dev",
+      "repository": "https://github.com/iii-hq/iii"
+    }
+  ]
+}

@@ -18,6 +18,20 @@ npx skills add iii-hq/iii/skills
 npx skills add iii-hq/iii/skills --skill iii-core-primitives
 ```
 
+### Install as a Claude Code plugin
+
+These skills are also published as a Claude Code plugin via the marketplace
+manifest at [`.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json).
+Add the marketplace and install the plugin from inside Claude Code:
+
+```text
+/plugin marketplace add iii-hq/iii
+/plugin install iii-skills@iii-skills
+```
+
+Claude Code then auto-discovers every `SKILL.md` under `skills/` and loads the
+matching skill on demand.
+
 ## Skills
 
 | Skill                                                  | What it does |
@@ -28,6 +42,36 @@ npx skills add iii-hq/iii/skills --skill iii-core-primitives
 | [iii-engine-config](./iii-engine-config)               | Configure ports, workers, adapters, queues, worker manager, RBAC, and observability |
 | [iii-architecture-patterns](./iii-architecture-patterns) | Workflows, reactive backends, agentic pipelines, CQRS, effect pipelines, and automation chains |
 | [iii-error-handling](./iii-error-handling)             | Engine and SDK errors, retryability, RBAC denial, and timeout handling |
+
+### Cybersecurity skills
+
+This catalog also bundles **754 cybersecurity skills** (adapted from the
+[Anthropic Cybersecurity Skills](https://github.com/mukul975/Anthropic-Cybersecurity-Skills)
+package, Apache-2.0) covering 26 security domains — cloud security, threat
+hunting, threat intelligence, web app security, DFIR, malware analysis, red
+teaming, and more. Each lives in its own `skills/<skill-name>/` folder with a
+`SKILL.md`, plus `references/` and `scripts/`, and is auto-discovered by Claude
+Code alongside the iii skills above. Browse them under
+[`skills/`](.) — every directory whose name is not prefixed with `iii-` is a
+cybersecurity skill.
+
+## Index & framework mappings
+
+- [`index.json`](./index.json) — a flat catalog of every skill (name,
+  description, domain, path) so agents and tools can list all 760 skills in one
+  read instead of opening each `SKILL.md`. Regenerate it after adding or editing
+  a skill:
+
+  ```bash
+  python scripts/generate-skills-index.py
+  ```
+
+- [`mappings/`](./mappings) — coverage of the cybersecurity skills against
+  industry frameworks: [MITRE ATT&CK](./mappings/mitre-attack) (plus an
+  [ATT&CK Navigator layer](./mappings/attack-navigator-layer.json) you can load
+  at <https://mitre-attack.github.io/attack-navigator/>),
+  [NIST CSF](./mappings/nist-csf), and [OWASP](./mappings/owasp). These describe
+  the bundled cybersecurity skills only.
 
 ## Shape
 

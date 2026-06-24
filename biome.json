@@ -8,7 +8,16 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.json", "**/*.jsonc"]
+    "includes": [
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.js",
+      "**/*.jsx",
+      "**/*.json",
+      "**/*.jsonc",
+      "!skills/index.json",
+      "!skills/mappings"
+    ]
   },
   "formatter": {
     "enabled": true,
