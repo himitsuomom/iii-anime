@@ -55,6 +55,24 @@ Code alongside the iii skills above. Browse them under
 [`skills/`](.) — every directory whose name is not prefixed with `iii-` is a
 cybersecurity skill.
 
+## Index & framework mappings
+
+- [`index.json`](./index.json) — a flat catalog of every skill (name,
+  description, domain, path) so agents and tools can list all 760 skills in one
+  read instead of opening each `SKILL.md`. Regenerate it after adding or editing
+  a skill:
+
+  ```bash
+  python scripts/generate-skills-index.py
+  ```
+
+- [`mappings/`](./mappings) — coverage of the cybersecurity skills against
+  industry frameworks: [MITRE ATT&CK](./mappings/mitre-attack) (plus an
+  [ATT&CK Navigator layer](./mappings/attack-navigator-layer.json) you can load
+  at <https://mitre-attack.github.io/attack-navigator/>),
+  [NIST CSF](./mappings/nist-csf), and [OWASP](./mappings/owasp). These describe
+  the bundled cybersecurity skills only.
+
 ## Shape
 
 Each skill is one folder with one `SKILL.md`. Code examples live directly in the skill, including
