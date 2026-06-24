@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "totals": {
+    "skills": 6
+  },
+  "skills": [
+    {
+      "name": "iii-architecture-patterns",
+      "title": "Architecture Patterns",
+      "description": "Use when composing iii primitives into backend architectures: durable workflows, reactive backends, agentic pipelines, event-driven CQRS, effect pipelines, and trigger-transform-action automation.",
+      "path": "skills/iii-architecture-patterns",
+      "doc": "skills/iii-architecture-patterns/SKILL.md",
+      "bytes": 6386
+    },
+    {
+      "name": "iii-core-primitives",
+      "title": "Core Primitives",
+      "description": "Use when registering iii functions, binding triggers, selecting sync/void/enqueue invocation, creating workers, inspecting the live worker registry, installing registry workers, authoring custom triggers, moving channel data, or adapting external HTTP functions across TypeScript, Python, and Rust.",
+      "path": "skills/iii-core-primitives",
+      "doc": "skills/iii-core-primitives/SKILL.md",
+      "bytes": 8901
+    },
+    {
+      "name": "iii-engine-config",
+      "title": "Engine Config",
+      "description": "Configures the iii engine via iii-config.yaml — workers, adapters, queue configs, ports, and environment variables. Use when deploying, tuning, or customizing the engine.",
+      "path": "skills/iii-engine-config",
+      "doc": "skills/iii-engine-config/SKILL.md",
+      "bytes": 9352
+    },
+    {
+      "name": "iii-error-handling",
+      "title": "Error Handling",
+      "description": "Handle iii engine and SDK errors across Node, Python, Rust, and browser workers. Use when interpreting error codes, retryability, RBAC denial, timeouts, handler failures, or SDK-specific exception surfaces.",
+      "path": "skills/iii-error-handling",
+      "doc": "skills/iii-error-handling/SKILL.md",
+      "bytes": 4875
+    },
+    {
+      "name": "iii-getting-started",
+      "title": "Getting Started with iii",
+      "description": "Install the iii engine, set up your first worker, and get a working backend running. Use when a user wants to start a new iii project, install the SDK, or needs help with initial setup and configuration.",
+      "path": "skills/iii-getting-started",
+      "doc": "skills/iii-getting-started/SKILL.md",
+      "bytes": 6759
+    },
+    {
+      "name": "iii-sdk-reference",
+      "title": "SDK Reference",
+      "description": "Use when working with iii SDK APIs across Node.js, browser, Python, or Rust: package installation, worker initialization, function/trigger registration, invocation, channels, logging, OpenTelemetry, and language-specific caveats.",
+      "path": "skills/iii-sdk-reference",
+      "doc": "skills/iii-sdk-reference/SKILL.md",
+      "bytes": 4938
+    }
+  ]
+}

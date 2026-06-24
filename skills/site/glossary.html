@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>iii skills — glossary</title>
+  <meta name="description" content="Glossary of core iii terms: worker, function, trigger, engine, registry, channel, and more.">
+  <link rel="stylesheet" href="style.css">
+  <script src="data.js" defer></script>
+  <script src="cmdpalette.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body data-page="glossary">
+  <header class="site-header">
+    <div class="brand">
+      <span class="logo">iii</span>
+      <span class="sub">skills</span>
+    </div>
+    <nav class="nav">
+      <a href="index.html">Catalog</a>
+      <a href="glossary.html" class="active">Glossary</a>
+      <button class="search-btn" data-cmd-palette aria-label="Search">
+        <span>Search</span><kbd>⌘K</kbd>
+      </button>
+      <button class="icon-btn" id="themeToggle" aria-label="Toggle theme"><span id="themeIcon">N</span></button>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>Glossary</h1>
+      <p><span class="count" id="termCount">0</span> core terms behind the iii mental model.
+        Filter below, or press <strong>⌘K</strong> to jump from anywhere.</p>
+    </section>
+
+    <input class="glossary-search" id="glossarySearch" type="search"
+      placeholder="Filter terms…" autocomplete="off" spellcheck="false" aria-label="Filter glossary">
+    <dl class="glossary" id="glossaryList"><!-- rendered from data.js --></dl>
+  </main>
+
+  <footer>
+    Generated from <code>skills/site/glossary.json</code> by <code>skills/site/build.js</code>.
+    Apache-2.0 · <a href="https://iii.dev">iii.dev</a>
+  </footer>
+</body>
+</html>

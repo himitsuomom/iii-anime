@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>iii skills — catalog</title>
+  <meta name="description" content="Browse and search the top-level iii skills: primitives, SDK, config, patterns, and error handling.">
+  <link rel="stylesheet" href="style.css">
+  <script src="data.js" defer></script>
+  <script src="cmdpalette.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body data-page="catalog">
+  <header class="site-header">
+    <div class="brand">
+      <span class="logo">iii</span>
+      <span class="sub">skills</span>
+    </div>
+    <nav class="nav">
+      <a href="index.html" class="active">Catalog</a>
+      <a href="glossary.html">Glossary</a>
+      <button class="search-btn" data-cmd-palette aria-label="Search">
+        <span>Search</span><kbd>⌘K</kbd>
+      </button>
+      <button class="icon-btn" id="themeToggle" aria-label="Toggle theme"><span id="themeIcon">N</span></button>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>iii skills</h1>
+      <p>The compact top-level skill set for building on the iii engine —
+        <span class="count" id="skillCount">0</span> skills covering primitives, SDK usage,
+        engine config, architecture patterns, and error handling. Press
+        <strong>⌘K</strong> to search skills and the glossary.</p>
+      <div class="install">
+        <span class="prompt">$</span>
+        <code>npx skills add iii-hq/iii/skills</code>
+      </div>
+    </section>
+
+    <section class="grid" id="skillGrid"><!-- rendered from data.js --></section>
+  </main>
+
+  <footer>
+    Generated from <code>skills/catalog.json</code> by <code>skills/site/build.js</code>.
+    Apache-2.0 · <a href="https://iii.dev">iii.dev</a>
+  </footer>
+</body>
+</html>

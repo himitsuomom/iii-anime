@@ -1,0 +1,60 @@
+name: Skills catalog
+
+# Invariant checks + catalog build for the top-level skills/ directory.
+# Ported from the ai-engineering-from-scratch "curriculum" workflow: audit every
+# skill folder, rebuild the machine-readable catalog, and fail if the checked-in
+# catalog.json or the README/SKILLS.md listings have drifted from disk.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "skills/**"
+      - ".github/scripts/_skills_lib.py"
+      - ".github/scripts/audit_skills.py"
+      - ".github/scripts/build_skills_catalog.py"
+      - ".github/scripts/check_skills_docs.py"
+      - ".github/scripts/test_skills_catalog.py"
+      - ".github/workflows/skills-catalog.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "skills/**"
+      - ".github/scripts/_skills_lib.py"
+      - ".github/scripts/audit_skills.py"
+      - ".github/scripts/build_skills_catalog.py"
+      - ".github/scripts/check_skills_docs.py"
+      - ".github/scripts/test_skills_catalog.py"
+      - ".github/workflows/skills-catalog.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: invariant checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install test deps
+        run: pip install pytest
+      - name: audit_skills.py
+        run: python3 .github/scripts/audit_skills.py
+      - name: catalog.json is up to date
+        run: python3 .github/scripts/build_skills_catalog.py --check
+      - name: README/SKILLS.md in sync with catalog
+        run: python3 .github/scripts/check_skills_docs.py
+      - name: site data.js is up to date
+        run: node skills/site/build.js --check
+      - name: unit tests
+        working-directory: .github/scripts
+        run: python -m pytest test_skills_catalog.py -v
