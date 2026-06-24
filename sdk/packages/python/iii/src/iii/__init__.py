@@ -3,6 +3,16 @@
 from .channels import ChannelReader, ChannelWriter
 from .errors import IIIInvocationError
 from .format_utils import extract_request_format, extract_response_format, python_type_to_format
+from .governance import (
+    AuditSink,
+    Decision,
+    GovernanceDenied,
+    InMemoryAuditLog,
+    PolicyEvaluator,
+    govern_function,
+    load_agt_evaluator,
+    register_governed,
+)
 from .iii import TriggerAction, register_worker
 from .iii_constants import FunctionRef, InitOptions, TelemetryOptions
 from .iii_types import (
@@ -117,4 +127,13 @@ __all__ = [
     "extract_request_format",
     "extract_response_format",
     "python_type_to_format",
+    # Governance (Agent Governance Toolkit bridge)
+    "AuditSink",
+    "Decision",
+    "GovernanceDenied",
+    "InMemoryAuditLog",
+    "PolicyEvaluator",
+    "govern_function",
+    "load_agt_evaluator",
+    "register_governed",
 ]

@@ -75,6 +75,58 @@ iii.register_trigger({
 result = iii.trigger({"function_id": "orders::create", "payload": {"body": {"item": "widget"}}})
 ```
 
+## Governance
+
+`iii.governance` wraps a function handler with declarative **policy enforcement**
+and **audit logging**, powered by the
+[Agent Governance Toolkit](https://github.com/microsoft/agent-governance-toolkit)
+(AGT). Every invocation is evaluated against a policy *before* the handler runs;
+denied actions never execute.
+
+```python
+from iii import register_worker
+from iii.governance import register_governed, GovernanceDenied
+
+iii = register_worker("ws://localhost:49134")
+
+POLICY = """
+name: payments
+rules:
+  - name: block-large-transfers
+    condition: "action.type == 'transfer' and input.amount > 10000"
+    action: deny
+    priority: 100
+  - name: allow-transfers
+    condition: "action.type == 'transfer'"
+    action: allow
+"""
+
+def transfer(data):
+    return {"transferred": data["amount"]}
+
+# Govern + register in one step (action defaults to the function id).
+register_governed(iii, "transfer", transfer, policy=POLICY)
+```
+
+Now `iii.trigger({"function_id": "transfer", "payload": {"amount": 50000}})` is
+denied by policy (the handler is never called), while small transfers pass
+through and are audited.
+
+`govern_function(handler, ...)` returns a governed handler you can register
+yourself. Key options: `action` (string or `data -> str`), `agent_id`, `audit` /
+`audit_log`, `on_deny` (callback whose return value replaces a raised
+`GovernanceDenied`), and `context_builder`. You can also inject a custom
+`evaluator` (any object with `evaluate(agent_id, context)`) instead of a
+`policy` — handy for tests or alternative policy backends.
+
+The AGT engine requires Python ≥ 3.11, so it is **not** a hard dependency of this
+SDK. Install it on demand (e.g. from the copy vendored in this repo):
+
+```bash
+uv pip install ./third_party/agent-governance-toolkit/agent-governance-python/agent-mesh
+# or, once published:  pip install agent-governance-toolkit
+```
+
 ## Development
 
 ### Install in development mode

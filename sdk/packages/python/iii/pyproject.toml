@@ -33,6 +33,14 @@ Repository = "https://github.com/iii-hq/iii"
 [tool.uv.sources]
 iii-observability = { path = "../observability", editable = true }
 
+# NOTE: Policy enforcement for iii functions (see iii.governance) is powered by
+# the Agent Governance Toolkit. It is intentionally NOT declared as a dependency
+# here: agentmesh-platform requires Python >= 3.11 (iii-sdk supports >= 3.10) and
+# pulls a heavy transitive tree, so forcing it would make the lockfile
+# unsatisfiable. Install it on demand instead, e.g. from the vendored copy:
+#   uv pip install ./third_party/agent-governance-toolkit/agent-governance-python/agent-mesh
+# or, once published:  pip install agent-governance-toolkit
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
