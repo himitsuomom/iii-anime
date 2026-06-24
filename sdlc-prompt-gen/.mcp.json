@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "sdlc-prompt-gen": {
+      "command": "uvx",
+      "args": ["--from", "sdlc-prompt-gen", "sdlc-prompt-gen"],
+      "env": {
+        "VAULT_PATH": "${VAULT_PATH}"
+      }
+    }
+  }
+}
