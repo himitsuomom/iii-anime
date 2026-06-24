@@ -15,6 +15,28 @@ language_files:
   common:
     - '*'
 
+# Selection metadata: drives intent-based orchestration
+# (`iii project init --intent "..."`). 使用する場面 / 使用条件.
+selection:
+  use_cases:
+    - "Sample Nginx proxy with a Go backend"
+    - "NGINX / Go stack via Docker Compose"
+  tags:
+    - "web"
+    - "proxy:nginx"
+    - "lang:go"
+  keywords:
+    - "nginx"
+    - "reverse-proxy"
+    - "proxy"
+    - "go"
+    - "golang"
+  conditions:
+    requires_docker: true
+    services: []
+    notes:
+      - "Intended for local development; not production-ready as-is."
+
 files:
   - "README.md"
   - "backend/Dockerfile"

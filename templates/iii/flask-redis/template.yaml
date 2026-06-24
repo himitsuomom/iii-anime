@@ -15,6 +15,33 @@ language_files:
   common:
     - '*'
 
+# Selection metadata: drives intent-based orchestration
+# (`iii project init --intent "..."`). 使用する場面 / 使用条件.
+selection:
+  use_cases:
+    - "Sample Python/Flask and a Redis database"
+    - "Python / Flask / Redis stack via Docker Compose"
+  tags:
+    - "web"
+    - "api"
+    - "lang:python"
+    - "framework:flask"
+    - "cache:redis"
+  keywords:
+    - "flask"
+    - "python"
+    - "rest"
+    - "redis"
+    - "cache"
+    - "kv"
+    - "in-memory"
+  conditions:
+    requires_docker: true
+    services:
+      - "redis"
+    notes:
+      - "Intended for local development; not production-ready as-is."
+
 files:
   - "Dockerfile"
   - "README.md"

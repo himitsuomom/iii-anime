@@ -13,5 +13,8 @@ pub mod version;
 
 pub use copier::copy_template;
 pub use fetcher::{TemplateFetcher, TemplateSource};
-pub use manifest::{LanguageFiles, RootManifest, SharedFile, TemplateManifest};
+pub use manifest::{
+    LanguageFiles, RootManifest, SelectionConditions, SelectionProfile, SharedFile,
+    TemplateManifest,
+};
 pub use version::check_compatibility;

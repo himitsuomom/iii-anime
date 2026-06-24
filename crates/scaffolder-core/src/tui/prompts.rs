@@ -1,5 +1,6 @@
 //! Charm-style CLI prompts using cliclack
 
+use crate::orchestrator::{self, SelectionQuery, TemplateEntry};
 use crate::product::ProductConfig;
 use crate::runtime::check;
 use crate::telemetry;
@@ -16,6 +17,11 @@ pub struct CreateArgs {
 
     /// Template name to use
     pub template: Option<String>,
+
+    /// Free-text intent / use-case. When set (and no explicit `template`), the
+    /// orchestrator scores the catalog and auto-selects the best-fit template,
+    /// falling back to an interactive shortlist when the choice is ambiguous.
+    pub intent: Option<String>,
 
     /// Project directory to create
     pub directory: Option<PathBuf>,
@@ -55,8 +61,13 @@ pub async fn run<C: ProductConfig>(config: &C, args: CreateArgs, cli_version: &s
     let mut fetcher = setup_fetcher(config, &args.template_dir)?;
 
     // Step 3: Select template (also returns merged language_files)
-    let (template_name, manifest, language_files) =
-        select_template(&mut fetcher, args.template.as_deref()).await?;
+    let (template_name, manifest, language_files) = select_template(
+        &mut fetcher,
+        args.template.as_deref(),
+        args.intent.as_deref(),
+        args.yes,
+    )
+    .await?;
 
     // Check version compatibility (CLI tools version — advisory)
     if let Some(warning) =
@@ -247,6 +258,8 @@ fn setup_fetcher<C: ProductConfig>(
 async fn select_template(
     fetcher: &mut TemplateFetcher,
     specified_template: Option<&str>,
+    intent: Option<&str>,
+    yes: bool,
 ) -> Result<(String, TemplateManifest, LanguageFiles)> {
     let spinner = cliclack::spinner();
     spinner.start("Loading templates...");
@@ -304,6 +317,17 @@ async fn select_template(
         return Ok((name, manifest, language_files));
     }
 
+    // Intent-driven orchestration: when the user described what they want, let
+    // the orchestrator score the catalog and pick a fit. A NoMatch returns None
+    // and falls through to the full interactive list below.
+    if let Some(intent) = intent.filter(|s| !s.trim().is_empty())
+        && let Some(idx) = orchestrate_selection(&templates, intent, yes)?
+    {
+        let (name, manifest) = templates.into_iter().nth(idx).unwrap();
+        let language_files = merge_language_files(&manifest);
+        return Ok((name, manifest, language_files));
+    }
+
     // Build select prompt - use indices to avoid borrow issues
     let mut select = cliclack::select("Select a template");
     for (idx, (_, manifest)) in templates.iter().enumerate() {
@@ -317,6 +341,66 @@ async fn select_template(
     let language_files = merge_language_files(&manifest);
 
     Ok((name, manifest, language_files))
+}
+
+/// Run the orchestrator over the loaded catalog for `intent` and resolve to an
+/// index into `templates`. Returns `Ok(None)` when nothing matched (caller
+/// should fall back to the full list). In `--yes` (non-interactive) mode an
+/// ambiguous result auto-picks the top candidate instead of prompting.
+fn orchestrate_selection(
+    templates: &[(String, TemplateManifest)],
+    intent: &str,
+    yes: bool,
+) -> Result<Option<usize>> {
+    let catalog: Vec<TemplateEntry> = templates
+        .iter()
+        .map(|(name, manifest)| TemplateEntry::from_manifest(name, manifest))
+        .collect();
+
+    // Map catalog name -> index in `templates` for resolving picks.
+    let index_of = |name: &str| templates.iter().position(|(n, _)| n == name);
+
+    let query = SelectionQuery::from_intent(intent);
+    match orchestrator::auto_select(&catalog, &query) {
+        orchestrator::Selection::Confident(rec) => {
+            cliclack::log::success(format!(
+                "Matched template: {} ({})",
+                rec.display_name,
+                rec.reasons.join("; ")
+            ))?;
+            Ok(index_of(&rec.name))
+        }
+        orchestrator::Selection::Ambiguous(candidates) => {
+            cliclack::log::info(format!(
+                "Several templates fit \"{}\" — pick the best match:",
+                intent
+            ))?;
+            if yes {
+                // Non-interactive: take the top-ranked candidate.
+                let top = &candidates[0];
+                cliclack::log::success(format!(
+                    "Auto-selected: {} ({})",
+                    top.display_name,
+                    top.reasons.join("; ")
+                ))?;
+                return Ok(index_of(&top.name));
+            }
+            let mut select = cliclack::select("Select a template");
+            for (i, rec) in candidates.iter().enumerate() {
+                let hint = rec.reasons.first().cloned().unwrap_or_default();
+                select = select.item(i, &rec.display_name, hint);
+            }
+            let chosen: usize = select.interact()?;
+            Ok(index_of(&candidates[chosen].name))
+        }
+        orchestrator::Selection::NoMatch => {
+            cliclack::log::warning(format!(
+                "No template matched \"{}\" — showing the full list.",
+                intent
+            ))?;
+            Ok(None)
+        }
+    }
 }
 
 fn select_directory(args: &CreateArgs) -> Result<PathBuf> {
@@ -420,6 +504,18 @@ fn select_languages(
         } else if manifest.is_optional(lang_str) {
             optional_languages.push(lang);
         }
+    }
+
+    // Language-agnostic templates (e.g. Docker Compose stacks) declare no
+    // required/included/optional languages. They copy via `common` file
+    // patterns and need no language selection, so short-circuit with an empty
+    // set rather than prompting or failing.
+    if required_languages.is_empty()
+        && included_languages.is_empty()
+        && optional_languages.is_empty()
+    {
+        cliclack::log::info("Language-agnostic template (no language selection needed)")?;
+        return Ok(Vec::new());
     }
 
     if !required_languages.is_empty() {

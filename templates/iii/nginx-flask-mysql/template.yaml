@@ -15,6 +15,37 @@ language_files:
   common:
     - '*'
 
+# Selection metadata: drives intent-based orchestration
+# (`iii project init --intent "..."`). 使用する場面 / 使用条件.
+selection:
+  use_cases:
+    - "Sample Python/Flask application with an Nginx proxy and a MySQL database"
+    - "NGINX / Flask / MySQL stack via Docker Compose"
+  tags:
+    - "web"
+    - "proxy:nginx"
+    - "api"
+    - "lang:python"
+    - "framework:flask"
+    - "db:mysql"
+    - "database"
+  keywords:
+    - "nginx"
+    - "reverse-proxy"
+    - "proxy"
+    - "flask"
+    - "python"
+    - "rest"
+    - "mysql"
+    - "sql"
+    - "relational"
+  conditions:
+    requires_docker: true
+    services:
+      - "mysql"
+    notes:
+      - "Intended for local development; not production-ready as-is."
+
 files:
   - "README.md"
   - "backend/Dockerfile"

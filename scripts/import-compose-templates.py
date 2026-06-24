@@ -106,13 +106,33 @@ _README_ENTRY = re.compile(
 )
 
 
+def _join_wrapped_lines(lines: list[str]) -> list[str]:
+    """Join hard-wrapped list items. In the awesome-compose index a bullet's
+    description wraps onto following unindented, non-bullet lines; merge those
+    back into one logical line so each list item is fully captured."""
+    logical: list[str] = []
+    for raw in lines:
+        stripped = raw.strip()
+        is_continuation = (
+            logical
+            and stripped
+            and not stripped.startswith(("-", "#", "<", ">", "*", "|"))
+        )
+        if is_continuation:
+            logical[-1] = f"{logical[-1].rstrip()} {stripped}"
+        else:
+            logical.append(raw)
+    return logical
+
+
 def parse_root_readme(source: Path) -> dict[str, tuple[str, str | None]]:
     """Map sample dir -> (label, description) from the awesome-compose index."""
     mapping: dict[str, tuple[str, str | None]] = {}
     readme = source / "README.md"
     if not readme.exists():
         return mapping
-    for line in readme.read_text(encoding="utf-8", errors="replace").splitlines():
+    lines = readme.read_text(encoding="utf-8", errors="replace").splitlines()
+    for line in _join_wrapped_lines(lines):
         m = _README_ENTRY.match(line)
         if not m:
             continue
@@ -141,11 +161,161 @@ def derive_meta(name: str, readme_index: dict[str, tuple[str, str | None]]) -> t
     return display.replace('"', "'"), description.replace('"', "'")
 
 
+# Maps a component token (found in a sample directory name) to selection
+# metadata: stack tags, free-text keywords/synonyms, and any service it
+# provides. The orchestrator matches an intent against these.
+COMPONENT_MAP: dict[str, dict[str, list[str]]] = {
+    "nginx": {"tags": ["web", "proxy:nginx"], "keywords": ["nginx", "reverse-proxy", "proxy"]},
+    "golang": {"tags": ["lang:go"], "keywords": ["go", "golang"]},
+    "go": {"tags": ["lang:go"], "keywords": ["go", "golang"]},
+    "nodejs": {"tags": ["lang:node"], "keywords": ["node", "nodejs", "javascript"]},
+    "node": {"tags": ["lang:node"], "keywords": ["node", "nodejs", "javascript"]},
+    "react": {"tags": ["web", "frontend", "lang:node"], "keywords": ["react", "spa", "frontend"]},
+    "vuejs": {"tags": ["web", "frontend", "lang:node"], "keywords": ["vue", "vuejs", "frontend"]},
+    "angular": {"tags": ["web", "frontend", "lang:node"], "keywords": ["angular", "frontend"]},
+    "flask": {
+        "tags": ["web", "api", "lang:python", "framework:flask"],
+        "keywords": ["flask", "python", "rest"],
+    },
+    "fastapi": {
+        "tags": ["web", "api", "lang:python", "framework:fastapi"],
+        "keywords": ["fastapi", "python", "rest", "openapi", "async"],
+    },
+    "django": {
+        "tags": ["web", "lang:python", "framework:django"],
+        "keywords": ["django", "python", "mvc"],
+    },
+    "wsgi": {"tags": ["lang:python"], "keywords": ["wsgi", "python"]},
+    "spring": {
+        "tags": ["web", "api", "lang:java", "framework:spring"],
+        "keywords": ["spring", "java", "springboot"],
+    },
+    "sparkjava": {"tags": ["web", "lang:java"], "keywords": ["spark", "java"]},
+    "aspnet": {"tags": ["web", "lang:dotnet"], "keywords": ["aspnet", "dotnet", "csharp"]},
+    "rust": {"tags": ["lang:rust"], "keywords": ["rust"]},
+    "postgres": {
+        "tags": ["db:postgres", "database"],
+        "keywords": ["postgres", "postgresql", "sql", "relational"],
+        "services": ["postgres"],
+    },
+    "postgresql": {
+        "tags": ["db:postgres", "database"],
+        "keywords": ["postgres", "postgresql", "sql", "relational"],
+        "services": ["postgres"],
+    },
+    "mysql": {
+        "tags": ["db:mysql", "database"],
+        "keywords": ["mysql", "sql", "relational"],
+        "services": ["mysql"],
+    },
+    "mariadb": {
+        "tags": ["db:mariadb", "database"],
+        "keywords": ["mariadb", "mysql", "sql", "relational"],
+        "services": ["mariadb"],
+    },
+    "mongo": {
+        "tags": ["db:mongo", "database"],
+        "keywords": ["mongo", "mongodb", "nosql", "document"],
+        "services": ["mongodb"],
+    },
+    "mongodb": {
+        "tags": ["db:mongo", "database"],
+        "keywords": ["mongo", "mongodb", "nosql", "document"],
+        "services": ["mongodb"],
+    },
+    "redis": {
+        "tags": ["cache:redis"],
+        "keywords": ["redis", "cache", "kv", "in-memory"],
+        "services": ["redis"],
+    },
+    "kafka": {
+        "tags": ["queue:kafka", "messaging"],
+        "keywords": ["kafka", "streaming", "events", "queue"],
+        "services": ["kafka"],
+    },
+    "pgadmin": {"tags": ["tool:pgadmin", "admin"], "keywords": ["pgadmin", "admin", "gui"]},
+    "wordpress": {
+        "tags": ["web", "cms", "lang:php"],
+        "keywords": ["wordpress", "cms", "blog", "php"],
+    },
+    "prometheus": {
+        "tags": ["monitoring", "metrics"],
+        "keywords": ["prometheus", "metrics", "observability", "monitoring"],
+    },
+    "grafana": {
+        "tags": ["monitoring", "dashboards"],
+        "keywords": ["grafana", "dashboards", "visualization", "observability"],
+    },
+    "elasticsearch": {
+        "tags": ["search", "logging"],
+        "keywords": ["elasticsearch", "search", "logs"],
+    },
+    "logstash": {"tags": ["logging"], "keywords": ["logstash", "logs", "pipeline"]},
+    "kibana": {"tags": ["logging", "dashboards"], "keywords": ["kibana", "logs", "dashboards"]},
+}
+
+
+def _dedupe(seq: list[str]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for item in seq:
+        if item not in seen:
+            seen.add(item)
+            out.append(item)
+    return out
+
+
+def derive_selection(
+    name: str, label: str, description: str
+) -> dict[str, list[str]]:
+    """Build the `selection` block (tags, keywords, use_cases, services)
+    from the sample's component tokens plus its index label/description."""
+    tokens = re.split(r"[-_/]", name.lower())
+    tags: list[str] = []
+    keywords: list[str] = []
+    services: list[str] = []
+
+    for token in tokens:
+        comp = COMPONENT_MAP.get(token)
+        if not comp:
+            continue
+        tags += comp.get("tags", [])
+        keywords += comp.get("keywords", [])
+        services += comp.get("services", [])
+        keywords.append(token)
+
+    # Always-useful keywords from the human label (e.g. "Node.js", "PostgreSQL").
+    keywords += [w for w in re.split(r"[^a-z0-9]+", label.lower()) if len(w) > 1]
+
+    # Use cases: the index description (when present) plus a generated summary.
+    use_cases: list[str] = []
+    if description and not description.startswith("Docker Compose sample stack"):
+        use_cases.append(description.rstrip("."))
+    use_cases.append(f"{label} stack via Docker Compose")
+
+    return {
+        "tags": _dedupe(tags),
+        "keywords": _dedupe(keywords),
+        "services": _dedupe(services),
+        "use_cases": _dedupe(use_cases),
+    }
+
+
 def yaml_quote(value: str) -> str:
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def render_template_yaml(display: str, description: str, files: list[Path]) -> str:
+def _yaml_list(key: str, values: list[str], indent: str = "  ") -> list[str]:
+    if not values:
+        return [f"{indent}{key}: []"]
+    out = [f"{indent}{key}:"]
+    out += [f"{indent}  - {yaml_quote(v)}" for v in values]
+    return out
+
+
+def render_template_yaml(
+    display: str, description: str, files: list[Path], selection: dict[str, list[str]]
+) -> str:
     lines = [
         f"name: {yaml_quote(display)}",
         f"description: {yaml_quote(description)}",
@@ -163,6 +333,25 @@ def render_template_yaml(display: str, description: str, files: list[Path]) -> s
         "language_files:",
         "  common:",
         "    - '*'",
+        "",
+        "# Selection metadata: drives intent-based orchestration",
+        "# (`iii project init --intent \"...\"`). 使用する場面 / 使用条件.",
+        "selection:",
+    ]
+    lines += _yaml_list("use_cases", selection["use_cases"])
+    lines += _yaml_list("tags", selection["tags"])
+    lines += _yaml_list("keywords", selection["keywords"])
+    lines += [
+        "  conditions:",
+        "    requires_docker: true",
+    ]
+    lines += _yaml_list("services", selection["services"], indent="    ")
+    lines += _yaml_list(
+        "notes",
+        ["Intended for local development; not production-ready as-is."],
+        indent="    ",
+    )
+    lines += [
         "",
         "files:",
     ]
@@ -201,8 +390,9 @@ def import_sample(
         shutil.copy2(sample_dir / rel, dest)
 
     display, description = derive_meta(name, readme_index)
+    selection = derive_selection(name, display, description)
     (dest_dir / "template.yaml").write_text(
-        render_template_yaml(display, description, files), encoding="utf-8"
+        render_template_yaml(display, description, files, selection), encoding="utf-8"
     )
     print(f"  imported {name}: {len(files)} files -> {dest_dir.relative_to(REPO_ROOT)}")
     return True

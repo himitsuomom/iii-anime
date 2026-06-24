@@ -15,6 +15,32 @@ language_files:
   common:
     - '*'
 
+# Selection metadata: drives intent-based orchestration
+# (`iii project init --intent "..."`). 使用する場面 / 使用条件.
+selection:
+  use_cases:
+    - "Sample setup for postgreSQL database with pgAdmin web interface"
+    - "PostgreSQL / pgAdmin stack via Docker Compose"
+  tags:
+    - "db:postgres"
+    - "database"
+    - "tool:pgadmin"
+    - "admin"
+  keywords:
+    - "postgres"
+    - "postgresql"
+    - "sql"
+    - "relational"
+    - "pgadmin"
+    - "admin"
+    - "gui"
+  conditions:
+    requires_docker: true
+    services:
+      - "postgres"
+    notes:
+      - "Intended for local development; not production-ready as-is."
+
 files:
   - ".env"
   - "README.md"

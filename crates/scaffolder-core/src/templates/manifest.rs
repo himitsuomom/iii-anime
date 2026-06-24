@@ -133,6 +133,57 @@ pub struct RootManifest {
     pub shared_files: Vec<SharedFile>,
 }
 
+/// Conditions under which a template is applicable ("使用条件").
+///
+/// These describe the prerequisites and intended boundaries of a template so
+/// the orchestrator (and the user) can reason about whether it fits the
+/// situation at hand. Everything is optional and advisory unless a caller
+/// chooses to hard-filter on it.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SelectionConditions {
+    /// The template needs Docker / Docker Compose available to run.
+    #[serde(default)]
+    pub requires_docker: bool,
+
+    /// External services the stack provides or expects (e.g. `postgres`,
+    /// `redis`). Used both as selection signal and as documentation.
+    #[serde(default)]
+    pub services: Vec<String>,
+
+    /// Free-form applicability notes (e.g. "local development only, not
+    /// production-ready").
+    #[serde(default)]
+    pub notes: Vec<String>,
+}
+
+/// Structured selection metadata that lets the orchestrator auto-pick a
+/// template from a free-text intent or an explicit set of tags ("使用する場面").
+///
+/// Fully optional and backward compatible: templates without a `selection`
+/// block simply carry empty metadata and are matched on their name and
+/// description alone.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SelectionProfile {
+    /// Human-readable scenarios this template is a good fit for. Matched as
+    /// phrases against the user's intent.
+    #[serde(default)]
+    pub use_cases: Vec<String>,
+
+    /// Capability / stack tags. Convention: `category:value` (e.g. `db:postgres`,
+    /// `lang:go`, `proxy:nginx`) or a bare keyword (e.g. `web`, `monitoring`).
+    /// Both the full tag and the part after `:` are matchable.
+    #[serde(default)]
+    pub tags: Vec<String>,
+
+    /// Extra keywords (including synonyms) matched against the intent query.
+    #[serde(default)]
+    pub keywords: Vec<String>,
+
+    /// Applicability conditions.
+    #[serde(default)]
+    pub conditions: SelectionConditions,
+}
+
 /// Per-template manifest (templates/<name>/template.yaml)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TemplateManifest {
@@ -183,6 +234,11 @@ pub struct TemplateManifest {
     /// Post-creation steps shown to the user (after the auto-generated `cd` step)
     #[serde(default)]
     pub next_steps: Vec<String>,
+
+    /// Selection metadata driving intent-based orchestration. Optional; absent
+    /// blocks parse as empty and the template is matched on name/description.
+    #[serde(default)]
+    pub selection: SelectionProfile,
 }
 
 impl TemplateManifest {
@@ -243,6 +299,44 @@ mod tests {
             manifest.next_steps[0],
             "Continue with the quickstart at https://iii.dev/docs/quickstart"
         );
+    }
+
+    #[test]
+    fn selection_defaults_to_empty_when_absent() {
+        let manifest: TemplateManifest =
+            serde_yaml::from_str(&minimal_manifest_yaml(None)).unwrap();
+        assert!(manifest.selection.tags.is_empty());
+        assert!(manifest.selection.use_cases.is_empty());
+        assert!(!manifest.selection.conditions.requires_docker);
+    }
+
+    #[test]
+    fn selection_block_parses() {
+        let yaml = r#"
+name: T
+description: d
+version: '0.1.0'
+files:
+  - compose.yaml
+selection:
+  use_cases:
+    - 'Go API with Postgres'
+  tags:
+    - 'lang:go'
+    - 'db:postgres'
+  keywords:
+    - golang
+  conditions:
+    requires_docker: true
+    services:
+      - postgres
+"#;
+        let manifest: TemplateManifest = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(manifest.selection.tags, vec!["lang:go", "db:postgres"]);
+        assert_eq!(manifest.selection.keywords, vec!["golang"]);
+        assert_eq!(manifest.selection.use_cases, vec!["Go API with Postgres"]);
+        assert!(manifest.selection.conditions.requires_docker);
+        assert_eq!(manifest.selection.conditions.services, vec!["postgres"]);
     }
 
     #[test]

@@ -15,6 +15,36 @@ language_files:
   common:
     - '*'
 
+# Selection metadata: drives intent-based orchestration
+# (`iii project init --intent "..."`). 使用する場面 / 使用条件.
+selection:
+  use_cases:
+    - "Sample Node.js application with Nginx proxy and a Redis database"
+    - "NGINX / Node.js / Redis stack via Docker Compose"
+  tags:
+    - "web"
+    - "proxy:nginx"
+    - "lang:node"
+    - "cache:redis"
+  keywords:
+    - "nginx"
+    - "reverse-proxy"
+    - "proxy"
+    - "node"
+    - "nodejs"
+    - "javascript"
+    - "redis"
+    - "cache"
+    - "kv"
+    - "in-memory"
+    - "js"
+  conditions:
+    requires_docker: true
+    services:
+      - "redis"
+    notes:
+      - "Intended for local development; not production-ready as-is."
+
 files:
   - "README.md"
   - "compose.yaml"

@@ -94,6 +94,7 @@ impl From<CliCreateArgs> for CreateArgs {
         CreateArgs {
             template_dir: args.template_dir,
             template: args.template,
+            intent: None,
             directory: args.directory,
             languages: args.languages,
             skip_tool_check: args.skip_iii,

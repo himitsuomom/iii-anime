@@ -60,6 +60,12 @@ pub struct InitArgs {
     #[arg(short, long)]
     pub template: Option<String>,
 
+    /// Describe what you want to build (e.g. "a Go REST API with a postgres
+    /// database") and let the orchestrator auto-select the best-fit template.
+    /// Triggers the scaffolder TUI; ignored when --template is given.
+    #[arg(long)]
+    pub intent: Option<String>,
+
     /// Local directory to use for templates instead of fetching from remote
     /// (for template development and tests).
     #[arg(long = "template-dir")]
@@ -97,10 +103,11 @@ pub struct GenerateDockerArgs {
 }
 
 fn template_flow_requested(args: &InitArgs) -> bool {
-    // Only --template triggers the interactive scaffolder TUI. The bare flow
-    // also uses scaffolder-core under the hood, but goes through the
-    // non-interactive `apply_template` helper.
-    args.template.is_some()
+    // Either an explicit --template or an --intent (orchestrated selection)
+    // triggers the interactive scaffolder TUI. The bare flow also uses
+    // scaffolder-core under the hood, but goes through the non-interactive
+    // `apply_template` helper.
+    args.template.is_some() || args.intent.is_some()
 }
 
 pub async fn run(args: ProjectArgs) -> i32 {
@@ -221,6 +228,7 @@ async fn run_init_with_template(args: InitArgs) -> i32 {
     let create_args = scaffolder_core::tui::CreateArgs {
         template_dir: args.template_dir.as_ref().map(PathBuf::from),
         template: args.template.clone(),
+        intent: args.intent.clone(),
         directory: target_dir.clone(),
         languages: None,
         skip_tool_check: args.skip_iii,

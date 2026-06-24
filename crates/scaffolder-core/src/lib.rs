@@ -12,6 +12,7 @@
 
 pub mod cli;
 pub mod iii;
+pub mod orchestrator;
 pub mod product;
 pub mod runtime;
 pub mod telemetry;
@@ -20,9 +21,13 @@ pub mod tui;
 
 // Re-export main types for convenience
 pub use iii::IiiConfig;
+pub use orchestrator::{
+    Recommendation, Selection, SelectionQuery, TemplateEntry, auto_select, rank,
+};
 pub use product::ProductConfig;
 pub use runtime::{Language, RuntimeInfo, check_runtimes};
 pub use templates::{
-    LanguageFiles, RootManifest, TemplateFetcher, TemplateManifest, TemplateSource, copy_template,
+    LanguageFiles, RootManifest, SelectionConditions, SelectionProfile, TemplateFetcher,
+    TemplateManifest, TemplateSource, copy_template,
 };
 pub use tui::run;

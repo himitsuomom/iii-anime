@@ -7,9 +7,23 @@
 //! parses, and copying it lands the bundled files (including a compose file)
 //! into a target directory with no language selected.
 
-use scaffolder_core::{LanguageFiles, TemplateFetcher, copy_template};
+use scaffolder_core::{
+    LanguageFiles, Selection, SelectionQuery, TemplateEntry, TemplateFetcher, auto_select,
+    copy_template, rank,
+};
 use std::path::PathBuf;
 use tempfile::TempDir;
+
+/// Load every registered template as an orchestrator [`TemplateEntry`].
+async fn load_catalog(fetcher: &mut TemplateFetcher) -> Vec<TemplateEntry> {
+    let root = fetcher.fetch_root_manifest().await.unwrap();
+    let mut catalog = Vec::new();
+    for name in &root.templates {
+        let manifest = fetcher.fetch_template_manifest(name).await.unwrap();
+        catalog.push(TemplateEntry::from_manifest(name, &manifest));
+    }
+    catalog
+}
 
 /// Absolute path to the repo's `templates/iii` product directory.
 fn templates_dir() -> PathBuf {
@@ -83,6 +97,100 @@ async fn every_registered_template_scaffolds_with_no_language_selected() {
                 out.path().join(file).exists(),
                 "template '{name}' missing expected file '{file}'"
             );
+        }
+    }
+}
+
+#[tokio::test]
+async fn every_template_carries_selection_metadata() {
+    let mut fetcher = TemplateFetcher::from_local(templates_dir(), "test");
+    let catalog = load_catalog(&mut fetcher).await;
+
+    for entry in &catalog {
+        assert!(
+            !entry.profile.tags.is_empty(),
+            "template '{}' has no selection tags",
+            entry.name
+        );
+        assert!(
+            !entry.profile.use_cases.is_empty(),
+            "template '{}' has no use cases",
+            entry.name
+        );
+        assert!(
+            entry.profile.conditions.requires_docker,
+            "compose template '{}' should require docker",
+            entry.name
+        );
+    }
+}
+
+#[tokio::test]
+async fn orchestrator_ranks_expected_template_first_for_intents() {
+    let mut fetcher = TemplateFetcher::from_local(templates_dir(), "test");
+    let catalog = load_catalog(&mut fetcher).await;
+
+    // (intent, expected top-ranked catalog name) over the real catalog. The
+    // top of the ranking is the orchestrator's contract; whether it's a
+    // confident auto-pick vs. an ambiguous shortlist is a UX threshold.
+    let cases = [
+        (
+            "a Go REST API with a postgres database",
+            "nginx-golang-postgres",
+        ),
+        (
+            "node web app that needs a redis cache",
+            "nginx-nodejs-redis",
+        ),
+        (
+            "metrics monitoring with grafana dashboards",
+            "prometheus-grafana",
+        ),
+        ("a wordpress blog", "wordpress-mysql"),
+        ("django python web application", "django"),
+    ];
+
+    for (intent, expected) in cases {
+        let ranked = rank(&catalog, &SelectionQuery::from_intent(intent));
+        let top = ranked
+            .first()
+            .unwrap_or_else(|| panic!("intent '{intent}' matched nothing; expected '{expected}'"));
+        assert_eq!(
+            top.name,
+            expected,
+            "intent '{intent}' should rank '{expected}' first, got {:?}",
+            ranked
+                .iter()
+                .map(|r| (&r.name, r.score))
+                .collect::<Vec<_>>()
+        );
+    }
+}
+
+#[tokio::test]
+async fn orchestrator_confidently_auto_selects_distinctive_intents() {
+    let mut fetcher = TemplateFetcher::from_local(templates_dir(), "test");
+    let catalog = load_catalog(&mut fetcher).await;
+
+    // Intents distinctive enough that exactly one template stands out.
+    let cases = [
+        (
+            "node web app that needs a redis cache",
+            "nginx-nodejs-redis",
+        ),
+        (
+            "metrics monitoring with grafana dashboards",
+            "prometheus-grafana",
+        ),
+    ];
+
+    for (intent, expected) in cases {
+        match auto_select(&catalog, &SelectionQuery::from_intent(intent)) {
+            Selection::Confident(rec) => assert_eq!(
+                rec.name, expected,
+                "intent '{intent}' should confidently pick '{expected}'"
+            ),
+            other => panic!("intent '{intent}' expected confident '{expected}', got {other:?}"),
         }
     }
 }

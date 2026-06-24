@@ -22,6 +22,16 @@ fn fixtures() -> PathBuf {
         .join("templates")
 }
 
+/// The repo's imported compose-sample template store (`templates/iii`).
+fn compose_templates() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("templates")
+        .join("iii")
+        .canonicalize()
+        .expect("templates/iii should exist at the repo root")
+}
+
 #[test]
 fn project_init_creates_minimum_scaffold() {
     let dir = tempdir().unwrap();
@@ -389,6 +399,62 @@ fn project_init_rejects_languages_flag() {
     assert!(
         stderr.contains("unexpected argument") || stderr.contains("--languages"),
         "expected clap rejection mentioning --languages:\n{stderr}"
+    );
+}
+
+#[test]
+fn project_init_with_intent_auto_selects_and_scaffolds_compose_stack() {
+    // A distinctive intent should let the orchestrator confidently pick a
+    // template and scaffold it end-to-end with no interactive prompts.
+    let dir = tempdir().unwrap();
+    let out = iii_bin()
+        .args(["project", "init", "--skip-iii", "--intent"])
+        .arg("a node web app that needs a redis cache")
+        .arg("--template-dir")
+        .arg(compose_templates())
+        .arg("--directory")
+        .arg(dir.path())
+        .output()
+        .expect("failed to run iii");
+    assert!(
+        out.status.success(),
+        "intent-based init failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("Matched template: NGINX / Node.js / Redis"),
+        "orchestrator should report the matched template:\n{stderr}"
+    );
+
+    // The nginx-nodejs-redis stack landed.
+    assert!(dir.path().join("compose.yaml").exists());
+    assert!(dir.path().join("web").join("server.js").exists());
+    assert!(dir.path().join("nginx").join("nginx.conf").exists());
+    assert!(dir.path().join(".iii").join("project.ini").exists());
+}
+
+#[test]
+fn project_init_with_unmatched_intent_reports_no_match() {
+    // An intent that matches nothing falls back to the interactive list, which
+    // can't be driven without a TTY — but the orchestrator's "no match" notice
+    // must be emitted first.
+    let dir = tempdir().unwrap();
+    let out = iii_bin()
+        .args(["project", "init", "--skip-iii", "--intent"])
+        .arg("quantum blockchain machine learning")
+        .arg("--template-dir")
+        .arg(compose_templates())
+        .arg("--directory")
+        .arg(dir.path())
+        .output()
+        .expect("failed to run iii");
+
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("No template matched"),
+        "expected a no-match notice for an unmatched intent:\n{stderr}"
     );
 }
 

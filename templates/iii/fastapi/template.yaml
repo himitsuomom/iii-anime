@@ -15,6 +15,28 @@ language_files:
   common:
     - '*'
 
+# Selection metadata: drives intent-based orchestration
+# (`iii project init --intent "..."`). 使用する場面 / 使用条件.
+selection:
+  use_cases:
+    - "FastAPI stack via Docker Compose"
+  tags:
+    - "web"
+    - "api"
+    - "lang:python"
+    - "framework:fastapi"
+  keywords:
+    - "fastapi"
+    - "python"
+    - "rest"
+    - "openapi"
+    - "async"
+  conditions:
+    requires_docker: true
+    services: []
+    notes:
+      - "Intended for local development; not production-ready as-is."
+
 files:
   - "Dockerfile"
   - "README.md"

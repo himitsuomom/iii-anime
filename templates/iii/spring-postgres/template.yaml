@@ -1,5 +1,5 @@
 name: "Spring / PostgreSQL"
-description: "Sample Java application"
+description: "Sample Java application with Spring framework and a Postgres database."
 version: "0.1.0"
 min_iii_version: "0.11.0"
 
@@ -14,6 +14,34 @@ optional: []
 language_files:
   common:
     - '*'
+
+# Selection metadata: drives intent-based orchestration
+# (`iii project init --intent "..."`). 使用する場面 / 使用条件.
+selection:
+  use_cases:
+    - "Sample Java application with Spring framework and a Postgres database"
+    - "Spring / PostgreSQL stack via Docker Compose"
+  tags:
+    - "web"
+    - "api"
+    - "lang:java"
+    - "framework:spring"
+    - "db:postgres"
+    - "database"
+  keywords:
+    - "spring"
+    - "java"
+    - "springboot"
+    - "postgres"
+    - "postgresql"
+    - "sql"
+    - "relational"
+  conditions:
+    requires_docker: true
+    services:
+      - "postgres"
+    notes:
+      - "Intended for local development; not production-ready as-is."
 
 files:
   - "README.md"

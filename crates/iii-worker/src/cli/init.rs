@@ -236,6 +236,7 @@ pub async fn run(args: InitArgs) -> i32 {
     let create_args = tui::CreateArgs {
         template_dir: args.template_dir.as_ref().map(PathBuf::from),
         template: Some("worker-bare".to_string()),
+        intent: None,
         directory: Some(root.clone()),
         languages: languages_arg,
         skip_tool_check: args.skip_iii,
