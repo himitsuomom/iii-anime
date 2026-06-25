@@ -90,7 +90,12 @@ class ProductGenerator:
             messages=[{"role": "user", "content": user_prompt}],
         )
 
-        raw = response.content[0].text.strip()
+        block = response.content[0]
+        if not isinstance(block, anthropic.types.TextBlock):
+            raise ValueError(
+                f"Claude APIがテキスト以外のブロックを返しました: {type(block).__name__}"
+            )
+        raw = block.text.strip()
         return self._parse_response(raw, inp)
 
     def generate_batch(self, inputs: list[ProductInput]) -> list[ProductListing]:

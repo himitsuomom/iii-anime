@@ -35,6 +35,10 @@ strict_equality = true
 module = [
     "shopify.*",
     "tenacity.*",
+    # iii SDK は workspace 内のローカルパッケージ。EC 単体の型チェックには
+    # インストール不要（worker アダプタが遅延 import するのみ）。
+    "iii",
+    "iii.*",
 ]
 ignore_missing_imports = true
 

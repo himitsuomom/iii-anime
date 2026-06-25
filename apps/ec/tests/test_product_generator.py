@@ -3,6 +3,7 @@
 import json
 from unittest.mock import MagicMock, patch
 
+import anthropic
 import pytest
 
 from src.product.generator import ProductGenerator, _build_user_prompt
@@ -120,7 +121,7 @@ class TestProductGenerator:
         mock_claude_response: dict[str, object],
     ) -> None:
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text=json.dumps(mock_claude_response))]
+        mock_message.content = [MagicMock(spec=anthropic.types.TextBlock, text=json.dumps(mock_claude_response))]
 
         with patch("anthropic.Anthropic") as mock_anthropic_cls:
             mock_client = mock_anthropic_cls.return_value
@@ -150,7 +151,7 @@ class TestProductGenerator:
         mock_claude_response: dict[str, object],
     ) -> None:
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text=json.dumps(mock_claude_response))]
+        mock_message.content = [MagicMock(spec=anthropic.types.TextBlock, text=json.dumps(mock_claude_response))]
 
         with patch("anthropic.Anthropic") as mock_anthropic_cls:
             mock_client = mock_anthropic_cls.return_value

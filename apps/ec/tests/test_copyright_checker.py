@@ -3,6 +3,7 @@
 import json
 from unittest.mock import MagicMock, patch
 
+import anthropic
 import pytest
 
 from src.product.copyright_checker import CopyrightChecker, CopyrightCheckResult
@@ -35,7 +36,7 @@ def unsafe_response() -> dict[str, object]:
 
 def _make_mock_message(response_dict: dict[str, object]) -> MagicMock:
     mock_message = MagicMock()
-    mock_message.content = [MagicMock(text=json.dumps(response_dict))]
+    mock_message.content = [MagicMock(spec=anthropic.types.TextBlock, text=json.dumps(response_dict))]
     return mock_message
 
 

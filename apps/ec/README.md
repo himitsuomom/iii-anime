@@ -58,3 +58,22 @@ python -m pytest src/
 - [ ] Week 2-4: Shopify 出品スクリプト（`src/listing/`）
 - [ ] Month 2: 価格分析・需要予測（`src/analytics/`）
 - [ ] Month 3+: PODtomatic 連携でフルオート化
+
+## iii ワーカー連携（モノレポ統合 / Phase 2）
+
+`src/worker/` は本パイプラインを iii エンジンに登録する薄いアダプタ層です。
+他サービス（`apps/automation-studio` など）から `namespace::function` で疎結合に呼び出せます。
+
+登録関数: `products::describe` / `copyright::check` / `analytics::price` /
+`analytics::demand` / `pipeline::run`（各々 `POST /ec/*` の HTTP トリガー付き）。
+
+```bash
+# iii Python SDK はローカル workspace パッケージ（PyPI ではない）
+uv pip install -e ../../sdk/packages/python/iii
+
+# 起動（ANTHROPIC_API_KEY 未設定ならオフライン代替で稼働）
+III_URL=ws://localhost:49134 python -m src.worker.app
+```
+
+設計の詳細は `apps/automation-studio/docs/integration-architecture/README.md` の §12 を参照。
+ワーカーのテストは `tests/test_worker.py`（オフライン・SDK 不要）。

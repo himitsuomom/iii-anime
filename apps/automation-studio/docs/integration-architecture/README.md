@@ -155,9 +155,10 @@ sequenceDiagram
 
 ## 9. 段階的ロードマップ
 
-- **Phase 0 — EC を取り込む … ✅ 完了**: zip 受領 → `apps/ec/` に取り込み済み。`make ci-ec` で **128 tests pass / ruff clean**（mypy は §11 の既知2件あり）。
+- **Phase 0 — EC を取り込む … ✅ 完了**: zip 受領 → `apps/ec/` に取り込み済み。`make ci-ec` で **128 tests pass / ruff clean**。
 - **Phase 1 — `packages/contracts`**: 代表エンティティを JSON Schema 化＋TS/Pydantic 生成（本リポに雛形あり）。実 EC モデル（`ProductInput`/`ProductListing`/`CopyrightCheckResult` 等）に合わせて項目を確定。
-- **Phase 2 — EC を iii worker 化**: `apps/ec` に iii worker アダプタを追加し、`products::load` / `products::describe` / `copyright::check` / `listing::*` / `analytics::*` / `pipeline::run` を登録（ラップ対象＝`ResalePipeline`・`ProductGenerator`・`listing/*`・`analytics/*`）。説明生成の重複を `ai::describe-product` 側へ寄せるか決定。
+- **Phase 2 — EC を iii worker 化 … ✅ 実装済み**: `apps/ec/src/worker/` に薄いアダプタ層を追加（下記 §12）。`products::describe` / `copyright::check` / `analytics::price` / `analytics::demand` / `pipeline::run` を登録し、各々に HTTP トリガー（`POST /ec/*`）を付与。ラップ対象＝`ProductGenerator`・`CopyrightChecker`・`ResalePipeline`・`PriceTracker`・`DemandAnalyzer`。**APIキー無しでもオフライン代替で稼働**。mypy strict / ruff clean / **146 tests pass**（既知2件も解消）。
+  - 未実装（次フェーズ送り）: `products::load`（CSV/JSON ローダの worker 化）と独立した `listing::shopify/mercari/podtomatic`（現状は `pipeline::run` 内で Shopify 認証時のみ出品）。説明生成の重複を `ai::describe-product` へ一本化するかは未決（§10）。
 - **Phase 3 — AS を iii worker 化**: `ai::*` を公開。Dashboard のモック値を実データに置換。
 - **Phase 4 — 非同期フロー**: 一括出品・問い合わせ自動応答をキュー/stateトリガーで配線。トレース有効化。
 - **Phase 5 — CI/deploy 統合**: EC を uv+hatchling へ統一、`ci.yml` に `ec-python-ci` 追加、コンテナ＆Terraform でデプロイ一本化。
@@ -179,7 +180,33 @@ POD（Print on Demand）転売自動化パイプライン（Python 3.11・CLIバ
   - `src/io/product_loader.py`, `src/pipeline.py`（`ResalePipeline`）, `src/config.py`
   - `scripts/`（`run_pipeline` 等）, `tests/`（**128件・外部APIを完全モック**）, `prompts/`, `data/sample_products.csv`, `docs/`
 - 検証コマンド: `make ci-ec`（install→ruff→pytest）。型チェックは `make typecheck-ec`。
-- **既知の課題（Phase 2 で対応）**: mypy strict で 2件のエラー（`product/generator.py`・`copyright_checker.py` の Anthropic SDK union 型 `TextBlock|ToolUseBlock` の `.text` 参照）。取り込みは原状を尊重し未修正。
+- **既知の課題 … ✅ 解消（Phase 2）**: mypy strict の 2件（`product/generator.py`・`copyright_checker.py` の Anthropic SDK union 型 `TextBlock|ToolUseBlock` の `.text` 参照）は型ナローイング（`isinstance(block, anthropic.types.TextBlock)`）で解消。`make typecheck-ec` は **clean**。
+
+## 12. Phase 2 実装: iii worker アダプタ（apps/ec/src/worker）
+
+EC を作り替えず、エンジン境界だけを足す薄い層。**純粋部品（エンジン非依存・オフラインテスト可能）** と **接続部（`iii` SDK を遅延 import）** を分離している。
+
+| ファイル | 役割 |
+|---|---|
+| `serializers.py` | ドメイン dataclass ↔ JSON dict の相互変換（純粋関数） |
+| `offline.py` | `OfflineProductGenerator` / `OfflineCopyrightChecker`（キー無し時の決定論フォールバック。AS の `offline.ts` と同思想） |
+| `services.py` | `build_services()`：`ANTHROPIC_API_KEY` 有無で本物/オフラインを選択、Shopify 認証時のみ出品クライアント生成 |
+| `handlers.py` | `(data: dict, services) -> dict` の関数本体（エンジン非依存） |
+| `app.py` | `register_ec_functions(iii, services)` で関数＋HTTPトリガー登録／`main()` でエンジン接続・常駐 |
+
+**登録される関数IDとHTTP（すべて POST）**:
+
+| 関数ID | HTTP パス | 実モジュール |
+|---|---|---|
+| `products::describe` | `/ec/describe` | `product/generator.py`（or オフライン代替） |
+| `copyright::check` | `/ec/copyright-check` | `product/copyright_checker.py`（or 代替） |
+| `analytics::price` | `/ec/analytics/price` | `analytics/price_tracker.py` |
+| `analytics::demand` | `/ec/analytics/demand` | `analytics/demand_analyzer.py` |
+| `pipeline::run` | `/ec/pipeline/run` | `pipeline.py`（`ResalePipeline`：著作権→生成→任意出品） |
+
+- HTTP の `ApiRequest`（`body` ネスト）と `trigger()` の生 payload の両方を `_unwrap_payload()` で受け付ける。
+- 起動: `III_URL=ws://localhost:49134 python -m src.worker.app`（`apps/ec` から）。キー無しなら自動で `offline` モード。
+- テスト（`tests/test_worker.py`・18件）は `force_offline=True` と偽エンジンで完結し、**ネットワーク/APIキー/iii SDK 不要**。
 
 ---
 
