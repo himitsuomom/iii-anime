@@ -1,0 +1,6 @@
+# Local environment / secrets
+.env
+
+# Persistent data volumes (bind-mounted by docker-compose)
+surreal_data/
+notebook_data/
