@@ -2,22 +2,14 @@ import Anthropic from '@anthropic-ai/sdk'
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { getClient, MODEL } from '../anthropic.ts'
+import { type ChatMessage, INQUIRY_SYSTEM as SYSTEM } from '../lib/inquiry.ts'
 import { offlineChatReply } from '../lib/offline.ts'
 
 export const chatRoute = new Hono()
 
-interface ChatMessage {
-  role: 'user' | 'assistant'
-  content: string
-}
-
 interface ChatBody {
   messages?: ChatMessage[]
 }
-
-const SYSTEM = `あなたは日本のECショップのカスタマーサポートAIアシスタントです。
-お客様からの問い合わせ（商品の詳細、在庫、配送、返品・交換など）に、丁寧で簡潔な日本語で回答します。
-確実でない情報は断定せず、「担当者が確認します」と案内してください。`
 
 chatRoute.post('/', async (c) => {
   let body: ChatBody

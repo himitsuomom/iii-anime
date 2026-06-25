@@ -107,11 +107,18 @@ def main() -> None:
     from iii import register_worker  # 遅延 import: SDK 非依存を保つ
 
     url = os.environ.get("III_URL", "ws://localhost:49134")
-    services = build_services()
-    mode = "offline (no ANTHROPIC_API_KEY)" if services.offline else "live (Claude API)"
-    print(f"[ec-worker] connecting to {url} — mode: {mode}")
-
     iii = register_worker(url)
+
+    # 説明生成は既定で remote（automation-studio の ai::describe-product / opus）へ
+    # 一本化し、失敗時はローカル/オフラインへ退避する。EC_DESCRIBE_BACKEND=local で
+    # 従来のローカル生成に固定できる。
+    use_remote = os.environ.get("EC_DESCRIBE_BACKEND", "remote").lower() != "local"
+    services = build_services(describe_trigger=iii.trigger if use_remote else None)
+
+    describe_mode = "remote ai::describe-product (opus)" if use_remote else "local"
+    base_mode = "offline (no ANTHROPIC_API_KEY)" if services.offline else "live (Claude API)"
+    print(f"[ec-worker] connecting to {url} — describe: {describe_mode}, local-fallback: {base_mode}")
+
     register_ec_functions(iii, services)
     iii.connect()
     registered = [fid for fid, _, _ in SYNC_FUNCTIONS] + [fid for fid, _, _ in ASYNC_FUNCTIONS]

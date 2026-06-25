@@ -26,6 +26,7 @@ from src.worker.handlers import (
     handle_products_load,
 )
 from src.worker.offline import OfflineCopyrightChecker, OfflineProductGenerator
+from src.worker.remote import RemoteProductGenerator
 from src.worker.serializers import (
     product_input_from_dict,
     product_input_to_dict,
@@ -424,3 +425,94 @@ async def test_listing_raises_when_no_credentials() -> None:
         await handle_list_mercari(_sample_listing_payload(), services)
     with pytest.raises(ValueError, match="PODtomatic"):
         await handle_list_podtomatic(_sample_listing_payload(), services)
+
+
+# ---- Phase B: RemoteProductGenerator（説明生成の一本化） ----
+
+
+def _sample_input() -> ProductInput:
+    return ProductInput(
+        name="Mountain Mug",
+        category="Mugs",
+        design_concept="minimalist mountain",
+        target_audience="hikers",
+        platform=Platform.SHOPIFY,
+        language=Language.EN,
+        niche_keywords=["hiking", "outdoor"],
+    )
+
+
+def test_remote_generator_maps_response() -> None:
+    calls: list[dict[str, Any]] = []
+
+    def trigger(req: dict[str, Any]) -> dict[str, Any]:
+        calls.append(req)
+        return {
+            "title": "Remote Title",
+            "description": "Remote description.",
+            "bullets": ["b1", "b2"],
+            "seoKeywords": ["k1", "k2"],
+            "source": "claude",
+        }
+
+    gen = RemoteProductGenerator(trigger, fallback=OfflineProductGenerator())
+    listing = gen.generate(_sample_input())
+
+    # 正しい関数IDと productName で呼ばれる
+    assert calls[0]["function_id"] == "ai::describe-product"
+    assert calls[0]["payload"]["productName"] == "Mountain Mug"
+    assert "hiking, outdoor" in calls[0]["payload"]["keywords"]
+    # 応答が ProductListing に写像される
+    assert listing.title == "Remote Title"
+    assert listing.bullet_points == ["b1", "b2"]
+    assert listing.seo_keywords == ["k1", "k2"]
+    # AS は tags を返さないので niche_keywords が使われる
+    assert listing.tags == ["hiking", "outdoor"]
+    assert listing.platform == Platform.SHOPIFY
+
+
+def test_remote_generator_falls_back_on_exception() -> None:
+    def trigger(req: dict[str, Any]) -> dict[str, Any]:
+        raise RuntimeError("engine unreachable")
+
+    sentinel = OfflineProductGenerator()
+    gen = RemoteProductGenerator(trigger, fallback=sentinel)
+    inp = _sample_input()
+    listing = gen.generate(inp)
+    # fallback（オフライン生成器）の出力になる
+    assert listing == sentinel.generate(inp)
+
+
+def test_remote_generator_falls_back_on_invalid_response() -> None:
+    def trigger(req: dict[str, Any]) -> dict[str, Any]:
+        return {"title": "", "description": ""}  # 不正（title/description 欠落）
+
+    fallback = OfflineProductGenerator()
+    gen = RemoteProductGenerator(trigger, fallback=fallback)
+    inp = _sample_input()
+    assert gen.generate(inp) == fallback.generate(inp)
+
+
+def test_build_services_uses_remote_when_trigger_given() -> None:
+    def trigger(req: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "title": "T",
+            "description": "D",
+            "bullets": [],
+            "seoKeywords": [],
+            "source": "claude",
+        }
+
+    services = build_services(force_offline=True, describe_trigger=trigger)
+    assert isinstance(services.generator, RemoteProductGenerator)
+    # products::describe が remote 経由になる
+    out = handle_describe(
+        {
+            "name": "n",
+            "category": "c",
+            "design_concept": "d",
+            "target_audience": "t",
+        },
+        services,
+    )
+    assert out["title"] == "T"

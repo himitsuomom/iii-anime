@@ -6,8 +6,9 @@ Shopify 認証情報がある場合のみ出品クライアントを生成する
 """
 
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Protocol, cast
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 from src.analytics.demand_analyzer import DemandAnalyzer
 from src.analytics.price_tracker import PriceTracker
@@ -69,23 +70,39 @@ def _has_podtomatic_creds() -> bool:
     return bool(os.environ.get("PODTOMATIC_API_KEY", "").strip())
 
 
-def build_services(*, force_offline: bool = False) -> Services:
+def build_services(
+    *,
+    force_offline: bool = False,
+    describe_trigger: Callable[[dict[str, Any]], Any] | None = None,
+) -> Services:
     """環境に応じてサービス一式を構築する。
 
     Args:
         force_offline: True なら API キーの有無に関わらずオフライン代替を使う
             （テスト・ローカル検証用）。出品クライアントも生成しない。
+        describe_trigger: 与えると説明生成を automation-studio の
+            `ai::describe-product`（opus）へ委譲する（iii.trigger 互換）。
+            remote 失敗時は下のローカル/オフライン生成器へ自動退避する。
     """
     offline = force_offline or not _has_anthropic_key()
 
-    generator: GeneratorLike
+    local_generator: GeneratorLike
     checker: CheckerLike
     if offline:
-        generator = OfflineProductGenerator()
+        local_generator = OfflineProductGenerator()
         checker = OfflineCopyrightChecker()
     else:
-        generator = ProductGenerator()
+        local_generator = ProductGenerator()
         checker = CopyrightChecker()
+
+    # 説明生成: trigger があれば remote（opus）へ一本化、無ければローカル/オフライン。
+    generator: GeneratorLike
+    if describe_trigger is not None:
+        from src.worker.remote import RemoteProductGenerator
+
+        generator = RemoteProductGenerator(describe_trigger, fallback=local_generator)
+    else:
+        generator = local_generator
 
     # 出品クライアントは実認証情報がある時だけ生成（無ければ None）。モジュール
     # エイリアスで遅延 import し、TYPE_CHECKING 用のクラス名を再束縛しない。

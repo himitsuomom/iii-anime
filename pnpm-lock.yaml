@@ -32,6 +32,9 @@ importers:
       hono:
         specifier: ^4.12.26
         version: 4.12.26
+      iii-sdk:
+        specifier: workspace:*
+        version: link:../../sdk/packages/node/iii
       lucide-react:
         specifier: ^0.563.0
         version: 0.563.0(react@19.2.4)

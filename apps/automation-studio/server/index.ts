@@ -2,6 +2,7 @@ import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 import { hasApiKey } from './anthropic.ts'
+import { startAiWorker } from './iii-worker.ts'
 import { chatRoute } from './routes/chat.ts'
 import { generateRoute } from './routes/generate.ts'
 
@@ -33,3 +34,14 @@ serve({ fetch: app.fetch, port }, (info) => {
     console.warn('  ⚠  ANTHROPIC_API_KEY is not set — running in offline mode (template / FAQ fallbacks).')
   }
 })
+
+// When III_URL is set, also join the iii engine as a worker and expose the AI
+// functions (ai::describe-product / ai::answer-inquiry). HTTP-only runs (no
+// III_URL) skip this entirely.
+startAiWorker(process.env.III_URL)
+  .then((worker) => {
+    if (worker) console.log(`automation-studio worker registered on ${process.env.III_URL}`)
+  })
+  .catch((err) => {
+    console.error('failed to start iii worker:', err)
+  })
