@@ -864,3 +864,72 @@ jobs:
 
       - name: Build console binary
         run: cargo build -p iii-console --release
+
+  # ──────────────────────────────────────────────────────────────
+  # apps/ec — POD resale automation (Python). Tests mock all external
+  # APIs, so this runs fully offline (no engine artifact needed).
+  # ──────────────────────────────────────────────────────────────
+
+  ec-python-ci:
+    name: EC Python (apps/ec)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "apps/ec/requirements.txt"
+
+      - name: Install dependencies
+        run: make install-ec
+
+      - name: Lint
+        run: make lint-ec
+
+      - name: Type check
+        run: make typecheck-ec
+
+      - name: Test (offline, mocked)
+        run: make test-ec
+
+  # ──────────────────────────────────────────────────────────────
+  # apps/automation-studio — AI business-automation tool (TS). Unit
+  # tests target pure logic and run offline (no engine, no API key).
+  # ──────────────────────────────────────────────────────────────
+
+  automation-studio-ci:
+    name: Automation Studio (apps/automation-studio)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build iii SDK deps (needed by the worker module)
+        run: |
+          pnpm --filter @iii-dev/observability build
+          pnpm --filter iii-sdk build
+
+      - name: Lint
+        run: pnpm --filter @iii/automation-studio lint
+
+      - name: Type check
+        run: pnpm --filter @iii/automation-studio type-check
+
+      - name: Test (offline)
+        run: pnpm --filter @iii/automation-studio test
