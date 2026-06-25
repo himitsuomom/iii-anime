@@ -1,4 +1,5 @@
-import { Logger, TriggerAction } from 'iii-sdk'
+import { TriggerAction } from 'iii-sdk'
+import { Logger } from './logger'
 import { useApi } from './hooks'
 import { iii } from './iii'
 

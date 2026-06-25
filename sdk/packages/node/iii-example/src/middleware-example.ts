@@ -1,4 +1,4 @@
-import { Logger } from 'iii-sdk'
+import { Logger } from './logger'
 import { iii } from './iii'
 
 const logger = new Logger(undefined, 'middleware-example')
