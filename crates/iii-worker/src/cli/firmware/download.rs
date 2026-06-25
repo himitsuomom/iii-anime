@@ -348,18 +348,26 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_ensure_libkrunfw_errors_when_not_embedded_and_not_installed() {
-        let result = ensure_libkrunfw().await;
-        if super::super::libkrunfw_bytes::LIBKRUNFW_BYTES.is_empty() {
-            if resolve_libkrunfw_dir().is_none() {
-                // Without embedded bytes and no local install, the function attempts
-                // a download which will fail in test environments (no matching release).
-                // It should error with either a download failure or a connection error.
-                assert!(
-                    result.is_err(),
-                    "should error when not embedded and not installed"
-                );
-            }
+    async fn test_ensure_libkrunfw_without_embed_or_install_is_consistent() {
+        // Only meaningful when there is neither an embedded firmware nor a local install.
+        if !super::super::libkrunfw_bytes::LIBKRUNFW_BYTES.is_empty()
+            || resolve_libkrunfw_dir().is_some()
+        {
+            return;
+        }
+        // In this configuration ensure_libkrunfw() attempts a network download, so the
+        // outcome is environment-dependent: offline runners get Err, while a networked
+        // runner with a matching release gets Ok. Asserting a fixed Err made this test
+        // flaky. Assert the invariant that always holds instead:
+        //   - Err is acceptable (no firmware could be obtained), or
+        //   - Ok must point at a firmware path that actually exists on disk.
+        match ensure_libkrunfw().await {
+            Err(_) => {}
+            Ok(path) => assert!(
+                path.exists(),
+                "ensure_libkrunfw returned Ok but path does not exist: {}",
+                path.display()
+            ),
         }
     }
 }
