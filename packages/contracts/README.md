@@ -1,11 +1,18 @@
-# @iii/contracts — 統合コントラクト（設計スケルトン）
+# @iii/contracts — 統合コントラクト（Phase 1）
 
 EC(Python) ⇄ Automation Studio(TS) の**統合境界**。`schemas/*.json`（JSON Schema）を**唯一の正本**とし、
 TypeScript 型と Python(Pydantic) モデルを**自動生成**して両言語で共有します。
 
-> これは統合アーキテクチャ（`apps/automation-studio/docs/integration-architecture/`）の **Phase 1 雛形**です。
-> 現時点では pnpm workspace には未登録（ビルドグラフに影響させないため）。Phase 1 着手時に
-> `pnpm-workspace.yaml` の `packages:` に `packages/contracts` を追加し、生成を turbo/Makefile に組み込みます。
+> **Phase 1 確定済み**: スキーマを**実装済みの iii 関数 I/O**に合わせて確定しました
+> （`ProductInput` / `ProductListing` / `CopyrightCheckResult` / `NicheScore`（apps/ec 由来・snake_case）、
+> `DescribeRequest` / `GeneratedDescription`（ai::describe-product・camelCase）等）。
+> 生成は `make contracts-codegen` で再現できます（下記）。
+>
+> なお `ProductListing`(EC, snake_case) と `GeneratedDescription`(AS, camelCase) は**別形**で、
+> `apps/ec/src/worker/remote.py` の `RemoteProductGenerator` が両者を写像します。
+>
+> pnpm workspace への登録（生成物を両 app が直接 import）は Phase 5 のパッケージング統一に合わせて行う予定
+> （現時点では生成物を artifact として保持し、ビルドグラフに影響させない）。
 
 ## 構成
 
@@ -20,15 +27,19 @@ packages/contracts/
 
 ## 生成コマンド（検証済み）
 
-TypeScript（`json-schema-to-typescript`）:
+リポジトリルートから一括再生成:
 ```bash
-npx -y json-schema-to-typescript@15 schemas/commerce.schema.json \
-  --unreachableDefinitions --no-additionalProperties > generated/typescript/commerce.ts
+make contracts-codegen
 ```
 
-Python / Pydantic v2（`datamodel-code-generator`）:
+個別に実行する場合（`packages/contracts/` から）:
 ```bash
-uvx datamodel-code-generator \
+# TypeScript（json-schema-to-typescript）
+npx -y json-schema-to-typescript@15 schemas/commerce.schema.json \
+  --unreachableDefinitions --no-additionalProperties > generated/typescript/commerce.ts
+
+# Python / Pydantic v2（datamodel-code-generator）
+uvx --from datamodel-code-generator datamodel-codegen \
   --input schemas/commerce.schema.json --input-file-type jsonschema \
   --output generated/python/commerce.py
 ```

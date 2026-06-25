@@ -6,6 +6,21 @@
  */
 
 /**
+ * Target marketplace (mirrors apps/ec src/product/models.py Platform).
+ *
+ * This interface was referenced by `CommerceContracts`'s JSON-Schema
+ * via the `definition` "Platform".
+ */
+export type Platform = "shopify" | "mercari" | "etsy" | "amazon";
+/**
+ * Listing language (mirrors apps/ec Language).
+ *
+ * This interface was referenced by `CommerceContracts`'s JSON-Schema
+ * via the `definition` "Language".
+ */
+export type Language = "en" | "ja";
+
+/**
  * Canonical integration contracts shared between apps/ec (Python) and apps/automation-studio (TypeScript). This file is the single source of truth; TS types and Pydantic models are generated from it.
  */
 export interface CommerceContracts {}
@@ -156,4 +171,62 @@ export interface PriceQuote {
    */
   expectedMargin: number;
   rationale?: string;
+}
+/**
+ * Input to products::describe / pipeline::run. Mirrors apps/ec ProductInput (snake_case).
+ *
+ * This interface was referenced by `CommerceContracts`'s JSON-Schema
+ * via the `definition` "ProductInput".
+ */
+export interface ProductInput {
+  name: string;
+  category: string;
+  design_concept: string;
+  target_audience: string;
+  platform?: Platform;
+  language?: Language;
+  price_range?: string;
+  niche_keywords?: string[];
+}
+/**
+ * Output of products::describe / input to listing::*. Mirrors apps/ec ProductListing (snake_case). Distinct from the camelCase GeneratedDescription returned by ai::describe-product; RemoteProductGenerator maps between them.
+ *
+ * This interface was referenced by `CommerceContracts`'s JSON-Schema
+ * via the `definition` "ProductListing".
+ */
+export interface ProductListing {
+  title: string;
+  description: string;
+  bullet_points: string[];
+  tags: string[];
+  seo_keywords: string[];
+  platform: Platform;
+  language: Language;
+}
+/**
+ * Output of copyright::check. Mirrors apps/ec CopyrightCheckResult.
+ *
+ * This interface was referenced by `CommerceContracts`'s JSON-Schema
+ * via the `definition` "CopyrightCheckResult".
+ */
+export interface CopyrightCheckResult {
+  is_safe: boolean;
+  risk_level: "low" | "medium" | "high";
+  issues: string[];
+  recommendation: string;
+}
+/**
+ * Per-keyword item in the analytics::demand result. Mirrors apps/ec NicheScore.
+ *
+ * This interface was referenced by `CommerceContracts`'s JSON-Schema
+ * via the `definition` "NicheScore".
+ */
+export interface NicheScore {
+  keyword: string;
+  /**
+   * 0–1 mean trend score.
+   */
+  demand_score: number;
+  competition_level: "low" | "medium" | "high";
+  recommended: boolean;
 }

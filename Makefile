@@ -19,7 +19,7 @@ export III_TELEMETRY_ENABLED := false
         init-build-x86 init-build-aarch64 init-build-all \
         sandbox sandbox-debug \
         test-sdk-node test-sdk-python test-sdk-rust test-sdk-all \
-        install-ec lint-ec typecheck-ec test-ec ci-ec \
+        install-ec lint-ec typecheck-ec test-ec ci-ec contracts-codegen \
         lint-python lint-rust lint-console lint \
         fmt-check fmt-check-rust fmt-check-all \
         typecheck-node typecheck-python typecheck \
@@ -58,6 +58,23 @@ typecheck-ec:
 
 test-ec:
 	cd $(EC_DIR) && uv run --no-project pytest -q
+
+
+# ── Contracts (packages/contracts — JSON Schema → TS & Pydantic) ─────────────────
+# schemas/*.json is the single source of truth; regenerate both targets from it.
+
+CONTRACTS_DIR := packages/contracts
+
+contracts-codegen:
+	cd $(CONTRACTS_DIR) && \
+		npx -y json-schema-to-typescript@15 schemas/commerce.schema.json \
+			--unreachableDefinitions --no-additionalProperties \
+			> generated/typescript/commerce.ts && \
+		uvx --from datamodel-code-generator datamodel-codegen \
+			--input schemas/commerce.schema.json --input-file-type jsonschema \
+			--output generated/python/commerce.py
+	@echo "[contracts] regenerated TS + Pydantic from schemas/commerce.schema.json"
+
 
 ci-ec: install-ec lint-ec test-ec
 

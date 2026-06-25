@@ -142,6 +142,71 @@
         "rationale": { "type": "string" }
       },
       "required": ["sku", "suggestedPrice", "expectedMargin"]
+    },
+    "Platform": {
+      "type": "string",
+      "enum": ["shopify", "mercari", "etsy", "amazon"],
+      "description": "Target marketplace (mirrors apps/ec src/product/models.py Platform)."
+    },
+    "Language": {
+      "type": "string",
+      "enum": ["en", "ja"],
+      "description": "Listing language (mirrors apps/ec Language)."
+    },
+    "ProductInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Input to products::describe / pipeline::run. Mirrors apps/ec ProductInput (snake_case).",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "design_concept": { "type": "string" },
+        "target_audience": { "type": "string" },
+        "platform": { "$ref": "#/$defs/Platform" },
+        "language": { "$ref": "#/$defs/Language" },
+        "price_range": { "type": "string" },
+        "niche_keywords": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["name", "category", "design_concept", "target_audience"]
+    },
+    "ProductListing": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Output of products::describe / input to listing::*. Mirrors apps/ec ProductListing (snake_case). Distinct from the camelCase GeneratedDescription returned by ai::describe-product; RemoteProductGenerator maps between them.",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "bullet_points": { "type": "array", "items": { "type": "string" } },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "seo_keywords": { "type": "array", "items": { "type": "string" } },
+        "platform": { "$ref": "#/$defs/Platform" },
+        "language": { "$ref": "#/$defs/Language" }
+      },
+      "required": ["title", "description", "bullet_points", "tags", "seo_keywords", "platform", "language"]
+    },
+    "CopyrightCheckResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Output of copyright::check. Mirrors apps/ec CopyrightCheckResult.",
+      "properties": {
+        "is_safe": { "type": "boolean" },
+        "risk_level": { "type": "string", "enum": ["low", "medium", "high"] },
+        "issues": { "type": "array", "items": { "type": "string" } },
+        "recommendation": { "type": "string" }
+      },
+      "required": ["is_safe", "risk_level", "issues", "recommendation"]
+    },
+    "NicheScore": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Per-keyword item in the analytics::demand result. Mirrors apps/ec NicheScore.",
+      "properties": {
+        "keyword": { "type": "string" },
+        "demand_score": { "type": "number", "description": "0–1 mean trend score." },
+        "competition_level": { "type": "string", "enum": ["low", "medium", "high"] },
+        "recommended": { "type": "boolean" }
+      },
+      "required": ["keyword", "demand_score", "competition_level", "recommended"]
     }
   }
 }
