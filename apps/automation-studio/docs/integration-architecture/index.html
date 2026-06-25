@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>統合アーキテクチャ — EC(couxo9) × Automation Studio</title>
+    <style>
+      :root {
+        --bg: #0a0a0a; --surface: #121212; --elevated: #181818; --border: #2a2a2a;
+        --fg: #f4f4f4; --muted: #8a8a8a; --secondary: #b4b4b4; --accent: #f3f724; --accent-fg: #0a0a0a;
+        --doing: #3b82f6; --warn: #f59e0b; --ok: #22c55e;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--fg);
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; }
+      header { padding: 28px 32px; border-bottom: 1px solid var(--border); }
+      header h1 { margin: 0; font-size: 20px; }
+      header p { margin: 6px 0 0; color: var(--secondary); font-size: 14px; }
+      .badge { display: inline-block; margin-top: 10px; padding: 2px 8px; border-radius: 999px;
+        font-size: 12px; background: rgba(245,158,11,.12); color: var(--warn); border: 1px solid rgba(245,158,11,.3); }
+      nav { position: sticky; top: 0; z-index: 5; display: flex; gap: 4px; flex-wrap: wrap;
+        padding: 10px 24px; background: var(--surface); border-bottom: 1px solid var(--border); }
+      nav button { background: transparent; border: 0; color: var(--secondary); font-size: 14px;
+        padding: 8px 14px; border-radius: 8px; cursor: pointer; }
+      nav button:hover { background: var(--elevated); color: var(--fg); }
+      nav button.active { background: var(--elevated); color: var(--accent); font-weight: 600; }
+      main { max-width: 1000px; margin: 0 auto; padding: 28px 32px 80px; }
+      section { display: none; }
+      section.active { display: block; }
+      h2 { font-size: 17px; margin: 0 0 12px; }
+      h3 { font-size: 15px; color: var(--secondary); margin: 28px 0 10px; }
+      p, li { color: var(--secondary); font-size: 14px; }
+      .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; margin: 14px 0; }
+      .grid { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; }
+      @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+      th { color: var(--muted); font-weight: 500; }
+      code { background: var(--elevated); padding: 1px 6px; border-radius: 4px; font-size: 12px;
+        font-family: "JetBrains Mono", monospace; color: var(--accent); }
+      .mermaid { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin: 14px 0; overflow-x: auto;
+        white-space: pre-wrap; font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--secondary); }
+      .mermaid[data-processed] { white-space: normal; font-family: inherit; color: inherit; }
+      .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; background: var(--elevated); color: var(--secondary); }
+      .phase { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--border); }
+      .phase input { margin-top: 4px; width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+      .phase .ttl { font-weight: 600; color: var(--fg); }
+      .phase.block .ttl::after { content: " ⚠ ブロッカー"; color: var(--warn); font-weight: 500; font-size: 12px; }
+      .done .ttl { text-decoration: line-through; color: var(--muted); }
+      .progress { height: 8px; background: var(--elevated); border-radius: 999px; overflow: hidden; margin: 8px 0 18px; }
+      .progress > div { height: 100%; background: var(--accent); width: 0; transition: width .2s; }
+      .note { font-size: 12px; color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>統合アーキテクチャ設計</h1>
+      <p>EC(couxo9・Python) × Automation Studio(TS) を iii オーケストレーション基盤でモノレポ統合</p>
+      <span class="badge">contract-first / iii backbone / monorepo</span>
+    </header>
+
+    <nav id="tabs">
+      <button data-tab="overview" class="active">全体像</button>
+      <button data-tab="components">コンポーネント</button>
+      <button data-tab="sequences">シーケンス</button>
+      <button data-tab="contracts">コントラクト</button>
+      <button data-tab="roadmap">ロードマップ</button>
+    </nav>
+
+    <main>
+      <section id="overview" class="active">
+        <h2>方針</h2>
+        <div class="card">
+          <p><strong>1. モノレポ統合</strong> — EC(Python) と Automation Studio(TS) を1リポジトリに同居。</p>
+          <p><strong>2. iii をバックボーンに</strong> — 両者を <code>iii worker</code> 化し、エンジン(<code>ws://localhost:49134</code>)経由の
+            JSON/WebSocket で連携。<code>trigger()</code> 同期 / <code>TriggerAction.Enqueue</code> 非同期 / <code>Void</code> 投げっぱなし。</p>
+          <p><strong>3. 単一の真実 = <code>packages/contracts</code></strong> — JSON Schema から TS型と Pydantic を生成し両言語で共有。</p>
+        </div>
+        <h3>制約（重要）</h3>
+        <div class="card">
+          <p>・<code>couxo9</code>/EC は private・Python・本セッションのスコープ外で<strong>内部実装を参照できない</strong>。
+            よって <strong>contract-first</strong> 設計とし、EC は<strong>薄いアダプタで worker 化</strong>（実装が判明しても差分を局所化）。</p>
+          <p>・EC をスコープに取り込む手順は <span class="pill">Phase 0</span>（現状ブロッカー）。</p>
+        </div>
+        <h3>ターゲット構成</h3>
+        <div class="card"><pre style="margin:0;color:var(--secondary);font-size:12.5px;font-family:'JetBrains Mono',monospace;white-space:pre-wrap">iii-anime/ (monorepo)
+├─ engine/                         iii ランタイム（既存）
+├─ apps/
+│  ├─ ec/                          ★ EC本体(Python) = couxo9 + 薄いiii workerアダプタ
+│  └─ automation-studio/           既存(TS) UI + Honoサーバ + iii worker(ai::*)
+├─ packages/
+│  └─ contracts/                   ★ JSON Schema → TS型 & Pydantic（統合境界）
+└─ sdk/packages/{node,python}/iii  既存SDK</pre></div>
+      </section>
+
+      <section id="components">
+        <h2>コンポーネント図</h2>
+        <div class="mermaid">
+flowchart TB
+  subgraph Browser["ブラウザ"]
+    UI_EC["EC ストアUI"]
+    UI_AS["Automation Studio UI"]
+  end
+  subgraph Engine["iii engine (ws://49134)"]
+    Q[("Queues / Cron / State / PubSub")]
+    REG["Worker &amp; Function Registry / Tracing"]
+  end
+  subgraph ECW["apps/ec — Python worker"]
+    F1["catalog::*"]
+    F2["orders::*"]
+    F3["inventory::*"]
+    F4["pricing::*"]
+  end
+  subgraph ASW["apps/automation-studio — TS worker + Hono"]
+    A1["ai::describe-product"]
+    A2["ai::answer-inquiry"]
+    A3["ai::suggest-price"]
+    OFF["offline fallback"]
+  end
+  CL[("Claude API claude-opus-4-8")]
+  UI_EC -->|"api::method::/path"| Engine
+  UI_AS -->|"/api → Hono"| ASW
+  ECW <-->|"register / trigger"| Engine
+  ASW <-->|"register / trigger"| Engine
+  Engine --- Q
+  Engine --- REG
+  A1 -. "ANTHROPIC_API_KEY" .-> CL
+  A2 -. "fallback" .-> OFF
+        </div>
+        <p class="note">EC のフレームワークは未確認だが、worker アダプタが境界となるため図の右半分（AS/AI）と左半分（EC/ドメイン）は独立に進化できる。</p>
+      </section>
+
+      <section id="sequences">
+        <h2>① 商品説明の一括生成（非同期キュー）</h2>
+        <div class="mermaid">
+sequenceDiagram
+  participant U as 運用者UI(AS)
+  participant AS as automation-studio worker
+  participant E as engine(queue)
+  participant EC as apps/ec worker
+  U->>AS: 対象商品IDリストで一括生成
+  loop 各商品
+    AS->>E: trigger(ai::describe-product, Enqueue{queue:"ai-gen"})
+    E->>AS: 実行（Claude or テンプレ）
+    AS->>E: trigger(catalog::update-description,{id,result})
+    E->>EC: 説明文を保存
+  end
+  AS-->>U: 進捗・完了
+        </div>
+        <h2>② 問い合わせ自動応答（state駆動）</h2>
+        <div class="mermaid">
+sequenceDiagram
+  participant EC as apps/ec
+  participant E as engine
+  participant AS as automation-studio
+  EC->>E: 新規問い合わせ（state trigger 発火）
+  E->>AS: ai::answer-inquiry(inquiry)
+  AS->>E: orders::get(orderId) で文脈取得
+  E->>EC: 注文情報
+  EC-->>AS: order
+  AS->>E: 応答下書き（Claude/FAQ）→ EC へ反映 or 人間レビュー
+        </div>
+        <p class="note">③ KPIダッシュボード: <code>Dashboard.tsx</code> のモック <code>KPIS</code> を <code>orders::stats</code> / <code>inventory::alerts</code> の <code>trigger()</code> 取得に置換。</p>
+      </section>
+
+      <section id="contracts">
+        <h2>統合API（関数コントラクト）</h2>
+        <p>関数IDは <code>namespace::function</code>（グローバル一意・worker非依存）。これがサービス間の契約。</p>
+        <div class="card">
+          <table>
+            <thead><tr><th>提供元</th><th>関数ID</th><th>入力 → 出力</th></tr></thead>
+            <tbody>
+              <tr><td>apps/ec</td><td><code>catalog::get</code></td><td>{id} → Product</td></tr>
+              <tr><td>apps/ec</td><td><code>catalog::update-description</code></td><td>{id, GeneratedDescription} → {ok}</td></tr>
+              <tr><td>apps/ec</td><td><code>orders::stats</code></td><td>{period} → OrderStats</td></tr>
+              <tr><td>apps/ec</td><td><code>inventory::alerts</code></td><td>{} → InventoryAlert[]</td></tr>
+              <tr><td>apps/ec</td><td><code>pricing::context</code></td><td>{sku} → PricingContext</td></tr>
+              <tr><td>automation-studio</td><td><code>ai::describe-product</code></td><td>DescribeRequest → GeneratedDescription</td></tr>
+              <tr><td>automation-studio</td><td><code>ai::answer-inquiry</code></td><td>Inquiry → {reply, source}</td></tr>
+              <tr><td>automation-studio</td><td><code>ai::suggest-price</code></td><td>{sku} → PriceQuote</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h3>単一の真実: packages/contracts</h3>
+        <div class="card">
+          <p>正本 <code>schemas/commerce.schema.json</code> → 生成（本リポで検証済み）:</p>
+          <p>・TS: <code>json-schema-to-typescript</code> → <code>generated/typescript/commerce.ts</code>（<code>tsc --strict</code> 通過）<br>
+             ・Python: <code>datamodel-code-generator</code> → <code>generated/python/commerce.py</code>（Pydantic v2）</p>
+          <p class="note">エンティティ: Money / Product / Order / OrderItem / OrderStats / InventoryItem / InventoryAlert / Inquiry / PricingContext / PriceQuote / GeneratedDescription / DescribeRequest</p>
+        </div>
+      </section>
+
+      <section id="roadmap">
+        <h2>段階的ロードマップ</h2>
+        <div class="progress"><div id="bar"></div></div>
+        <p id="progress-label" class="note"></p>
+        <div id="phases"></div>
+        <p class="note" style="margin-top:18px">チェック状態はこのブラウザに保存されます（localStorage）。</p>
+      </section>
+    </main>
+
+    <!-- Core interactivity: plain script, no external deps. Works offline / if the CDN is blocked. -->
+    <script>
+      const tabs = document.querySelectorAll('#tabs button')
+      const sections = document.querySelectorAll('main section')
+      // exposed so the mermaid-enhancement module can render the active tab's diagrams
+      window.__renderActive = () => {}
+      tabs.forEach((b) =>
+        b.addEventListener('click', () => {
+          tabs.forEach((x) => x.classList.remove('active'))
+          sections.forEach((s) => s.classList.remove('active'))
+          b.classList.add('active')
+          document.getElementById(b.dataset.tab).classList.add('active')
+          window.__renderActive()
+        }),
+      )
+
+      const PHASES = [
+        { id: 'p0', t: 'Phase 0 — EC をスコープに取り込む', d: 'EC用にリポジトリ・スコープ追加 or 両リポを含む新セッション。完了まで contracts は仮定値。', block: true },
+        { id: 'p1', t: 'Phase 1 — packages/contracts', d: '代表エンティティを JSON Schema 化＋TS/Pydantic 生成（雛形あり）。挙動変更なし。' },
+        { id: 'p2', t: 'Phase 2 — EC を iii worker 化', d: '既存サービス層/HTTP APIを薄くラップし catalog/orders/inventory/pricing::* を登録。' },
+        { id: 'p3', t: 'Phase 3 — AS を iii worker 化', d: 'ai::* を公開。Dashboard のモック値を実データに置換。' },
+        { id: 'p4', t: 'Phase 4 — 非同期フロー', d: '一括説明生成・問い合わせ自動応答をキュー/stateトリガーで配線。トレース有効化。' },
+        { id: 'p5', t: 'Phase 5 — CI/deploy 統合', d: 'Makefile/turbo/CI 拡張、コンテナ＆Terraform でデプロイ一本化。' },
+      ]
+      const KEY = 'iii-integration-roadmap'
+      const state = JSON.parse(localStorage.getItem(KEY) || '{}')
+      const wrap = document.getElementById('phases')
+      const bar = document.getElementById('bar')
+      const label = document.getElementById('progress-label')
+      function refresh() {
+        const done = PHASES.filter((p) => state[p.id]).length
+        bar.style.width = `${Math.round((done / PHASES.length) * 100)}%`
+        label.textContent = `${done} / ${PHASES.length} フェーズ完了`
+      }
+      PHASES.forEach((p) => {
+        const row = document.createElement('label')
+        row.className = 'phase' + (p.block ? ' block' : '') + (state[p.id] ? ' done' : '')
+        row.innerHTML = `<input type="checkbox" ${state[p.id] ? 'checked' : ''}/>
+          <span><span class="ttl">${p.t}</span><br><span class="note">${p.d}</span></span>`
+        const cb = row.querySelector('input')
+        cb.addEventListener('change', () => {
+          state[p.id] = cb.checked
+          localStorage.setItem(KEY, JSON.stringify(state))
+          row.classList.toggle('done', cb.checked)
+          refresh()
+        })
+        wrap.appendChild(row)
+      })
+      refresh()
+    </script>
+
+    <!-- Progressive enhancement: render Mermaid diagrams if the CDN is reachable. -->
+    <!-- If it fails (offline / blocked), the .mermaid blocks stay readable as plain DSL text. -->
+    <script type="module">
+      try {
+        const { default: mermaid } = await import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs')
+        mermaid.initialize({
+          startOnLoad: false, theme: 'dark', securityLevel: 'loose',
+          themeVariables: { primaryColor: '#181818', primaryTextColor: '#f4f4f4', lineColor: '#8a8a8a', fontSize: '13px' },
+        })
+        const rendered = new Set()
+        window.__renderActive = async () => {
+          const active = document.querySelector('main section.active')
+          if (!active || rendered.has(active.id)) return
+          const nodes = active.querySelectorAll('.mermaid:not([data-processed])')
+          if (nodes.length) {
+            try { await mermaid.run({ nodes }) } catch (e) { /* leave DSL text fallback */ }
+          }
+          rendered.add(active.id)
+        }
+        window.__renderActive()
+      } catch (e) {
+        // CDN unavailable — diagrams remain as readable Mermaid source. Core UI is unaffected.
+      }
+    </script>
+  </body>
+</html>

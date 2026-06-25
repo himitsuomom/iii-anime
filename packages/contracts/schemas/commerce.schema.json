@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iii.dev/contracts/commerce/v1",
+  "title": "CommerceContracts",
+  "description": "Canonical integration contracts shared between apps/ec (Python) and apps/automation-studio (TypeScript). This file is the single source of truth; TS types and Pydantic models are generated from it.",
+  "type": "object",
+  "$defs": {
+    "Money": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Minor-unit money to avoid float drift (e.g. 1200 = ¥1,200 when currency JPY has 0 decimals).",
+      "properties": {
+        "amount": { "type": "integer", "description": "Amount in the currency's minor unit." },
+        "currency": { "type": "string", "description": "ISO 4217 code, e.g. JPY, USD." }
+      },
+      "required": ["amount", "currency"]
+    },
+    "GeneratedDescription": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Output of ai::describe-product. Mirrors apps/automation-studio GeneratedDescription.",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "bullets": { "type": "array", "items": { "type": "string" } },
+        "seoKeywords": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["title", "description", "bullets", "seoKeywords"]
+    },
+    "DescribeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Input to ai::describe-product.",
+      "properties": {
+        "productName": { "type": "string" },
+        "features": { "type": "string" },
+        "keywords": { "type": "string" },
+        "tone": { "type": "string" }
+      },
+      "required": ["productName"]
+    },
+    "Product": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "sku": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "$ref": "#/$defs/Money" },
+        "imageUrls": { "type": "array", "items": { "type": "string", "format": "uri" } },
+        "status": { "type": "string", "enum": ["draft", "active", "archived"] }
+      },
+      "required": ["id", "sku", "name", "price", "status"]
+    },
+    "OrderItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sku": { "type": "string" },
+        "quantity": { "type": "integer", "minimum": 1 },
+        "unitPrice": { "$ref": "#/$defs/Money" }
+      },
+      "required": ["sku", "quantity", "unitPrice"]
+    },
+    "Order": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "paid", "shipped", "cancelled", "refunded"] },
+        "items": { "type": "array", "items": { "$ref": "#/$defs/OrderItem" } },
+        "total": { "$ref": "#/$defs/Money" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "status", "items", "total", "createdAt"]
+    },
+    "OrderStats": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Aggregates for the KPI dashboard (orders::stats).",
+      "properties": {
+        "period": { "type": "string", "description": "e.g. 2026-06 or last-30d." },
+        "revenue": { "$ref": "#/$defs/Money" },
+        "orderCount": { "type": "integer" },
+        "autoReplyRate": { "type": "number", "description": "0–1 fraction of inquiries auto-answered." }
+      },
+      "required": ["period", "revenue", "orderCount"]
+    },
+    "InventoryItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sku": { "type": "string" },
+        "onHand": { "type": "integer", "minimum": 0 },
+        "reorderPoint": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["sku", "onHand", "reorderPoint"]
+    },
+    "InventoryAlert": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sku": { "type": "string" },
+        "onHand": { "type": "integer" },
+        "severity": { "type": "string", "enum": ["low", "out"] }
+      },
+      "required": ["sku", "onHand", "severity"]
+    },
+    "Inquiry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Input to ai::answer-inquiry.",
+      "properties": {
+        "id": { "type": "string" },
+        "orderId": { "type": "string" },
+        "message": { "type": "string" }
+      },
+      "required": ["id", "message"]
+    },
+    "PricingContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Output of pricing::context; cost/fee inputs consumed by ai::suggest-price.",
+      "properties": {
+        "sku": { "type": "string" },
+        "cost": { "$ref": "#/$defs/Money" },
+        "platformFeePercent": { "type": "number" },
+        "paymentFeePercent": { "type": "number" },
+        "shipping": { "$ref": "#/$defs/Money" }
+      },
+      "required": ["sku", "cost", "platformFeePercent", "paymentFeePercent", "shipping"]
+    },
+    "PriceQuote": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Output of ai::suggest-price.",
+      "properties": {
+        "sku": { "type": "string" },
+        "suggestedPrice": { "$ref": "#/$defs/Money" },
+        "expectedMargin": { "type": "number", "description": "0–1 fraction." },
+        "rationale": { "type": "string" }
+      },
+      "required": ["sku", "suggestedPrice", "expectedMargin"]
+    }
+  }
+}
