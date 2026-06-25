@@ -85,3 +85,7 @@ CLAUDE.md
 
 # Impeccable editor hook cache
 .impeccable/
+
+# skills CLI install artifacts
+.agents/
+skills-lock.json

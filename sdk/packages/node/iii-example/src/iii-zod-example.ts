@@ -10,7 +10,9 @@ const outputSchema = z.object({
   value: z.string(),
 })
 
-async function helloWorld(input: z.infer<typeof inputSchema>): Promise<z.infer<typeof outputSchema>> {
+async function helloWorld(
+  input: z.infer<typeof inputSchema>,
+): Promise<z.infer<typeof outputSchema>> {
   return { value: `${input.scope}::${input.key}` }
 }
 

@@ -1,4 +1,4 @@
-import { Logger } from 'iii-sdk'
+import { Logger } from '@iii-dev/observability'
 import { iii } from './iii'
 
 const logger = new Logger(undefined, 'middleware-example')
@@ -9,7 +9,7 @@ const logger = new Logger(undefined, 'middleware-example')
 
 // Auth middleware: checks for a valid API key in the Authorization header.
 // Returns 401 if missing or invalid, otherwise continues to the next step.
-iii.registerFunction('middleware::auth', async (req) => {
+iii.registerFunction('middleware::auth', async req => {
   const authHeader = req.request?.headers?.authorization
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     logger.warn('Auth middleware rejected request: missing or invalid token')
@@ -26,7 +26,7 @@ iii.registerFunction('middleware::auth', async (req) => {
 })
 
 // Request logger middleware: logs method and path, then continues.
-iii.registerFunction('middleware::request-logger', async (req) => {
+iii.registerFunction('middleware::request-logger', async req => {
   logger.info('Incoming request', {
     method: req.request?.method,
     path: Object.keys(req.request?.path_params ?? {}).length > 0 ? req.request.path_params : 'none',
@@ -76,7 +76,7 @@ iii.registerTrigger({
 })
 
 // Protected endpoint: auth only
-iii.registerFunction('api::users-create', async (req) => {
+iii.registerFunction('api::users-create', async req => {
   const { name, email } = req.body ?? {}
   if (!name || !email) {
     return { status_code: 400, body: { error: 'name and email are required' } }
@@ -96,4 +96,6 @@ iii.registerTrigger({
   },
 })
 
-logger.info('Middleware example registered: GET /health (public), GET /users (auth+logger), POST /users (auth)')
+logger.info(
+  'Middleware example registered: GET /health (public), GET /users (auth+logger), POST /users (auth)',
+)

@@ -124,14 +124,16 @@ iii.registerFunction("orders::validate", async (order) => {
   return { ...order, valid: true };
 });
 
-iii.registerFunction("orders::process", async (order) => {
+// HTTP entry point: read the order from req.body and return a response envelope.
+iii.registerFunction("orders::process", async (req) => {
+  const order = req.body;
   const validated = await iii.trigger({ function_id: "orders::validate", payload: order });
   await iii.trigger({
     function_id: "orders::charge",
     payload: validated,
     action: TriggerAction.Enqueue({ queue: "payments" }),
   });
-  return { accepted: true, orderId: validated.id };
+  return { status_code: 202, body: { accepted: true, orderId: validated.id } };
 });
 
 iii.registerTrigger({
@@ -153,14 +155,15 @@ def validate(order):
         raise ValueError("missing order id")
     return {**order, "valid": True}
 
-def process(order):
+def process(req):
+    order = req.get("body", {})
     validated = iii.trigger({"function_id": "orders::validate", "payload": order})
     iii.trigger({
         "function_id": "orders::charge",
         "payload": validated,
         "action": {"type": "enqueue", "queue": "payments"},
     })
-    return {"accepted": True, "orderId": validated["id"]}
+    return {"status_code": 202, "body": {"accepted": True, "orderId": validated["id"]}}
 
 iii.register_function("orders::validate", validate)
 iii.register_function("orders::process", process)
@@ -190,9 +193,10 @@ iii.register_function(RegisterFunction::new("orders::validate", |order: serde_js
 }))?;
 
 let process_client = iii.clone();
-iii.register_function(RegisterFunction::new_async("orders::process", move |order: serde_json::Value| {
+iii.register_function(RegisterFunction::new_async("orders::process", move |req: serde_json::Value| {
     let iii = process_client.clone();
     async move {
+        let order = req["body"].clone();
         let validated = iii.trigger(TriggerRequest::new("orders::validate", order)).await?;
         iii.trigger(TriggerRequest {
             function_id: "orders::charge".into(),
@@ -200,7 +204,7 @@ iii.register_function(RegisterFunction::new_async("orders::process", move |order
             action: Some(TriggerAction::Enqueue { queue: "payments".into() }),
             timeout_ms: None,
         }).await?;
-        Ok(json!({ "accepted": true, "order": validated }))
+        Ok(json!({ "status_code": 202, "body": { "accepted": true, "order": validated } }))
     }
 }))?;
 

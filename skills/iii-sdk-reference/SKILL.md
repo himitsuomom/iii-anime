@@ -31,7 +31,7 @@ cargo add iii-sdk
 
 | SDK | Package | Best for | Important caveat |
 | --- | --- | --- | --- |
-| Node.js | `iii-sdk` | Server-side TypeScript/JavaScript workers | Supports custom headers, Logger, OpenTelemetry, HTTP-invoked functions |
+| Node.js | `iii-sdk` | Server-side TypeScript/JavaScript workers | Supports custom headers, OpenTelemetry, HTTP-invoked functions |
 | Browser | `iii-browser-sdk` | Web apps and interactive UI callbacks | Connect through an RBAC-protected listener; keep secrets server-side |
 | Python | `iii-sdk` | Sync or async Python workers | Use `trigger_async` inside async handlers |
 | Rust | `iii-sdk` | High-performance tokio workers | Handler error type should map into `IIIError` |
@@ -50,7 +50,7 @@ cargo add iii-sdk
 ## Node.js
 
 ```typescript
-import { Logger, registerWorker } from "iii-sdk";
+import { registerWorker } from "iii-sdk";
 
 const iii = registerWorker("ws://localhost:49134", {
   workerName: "node-worker",
@@ -58,13 +58,13 @@ const iii = registerWorker("ws://localhost:49134", {
 });
 
 iii.registerFunction("users::lookup", async (input) => {
-  new Logger().info("looking up user", { userId: input.userId });
+  console.log("looking up user", { userId: input.userId });
   return { userId: input.userId, name: "Ada" };
 });
 ```
 
-Node supports custom WebSocket headers, `Logger`, OpenTelemetry options, HTTP-invoked function
-registration, trigger metadata, channels, and custom trigger types.
+Node supports custom WebSocket headers, OpenTelemetry options (logs flow through `console.*`),
+HTTP-invoked function registration, trigger metadata, channels, and custom trigger types.
 
 ## Browser
 
@@ -91,7 +91,7 @@ custom WebSocket headers and must not hold backend secrets.
 ## Python
 
 ```python
-from iii import InitOptions, Logger, register_worker
+from iii import InitOptions, register_worker
 
 iii = register_worker(
     address="ws://localhost:49134",
@@ -99,14 +99,15 @@ iii = register_worker(
 )
 
 def lookup_user(data):
-    Logger().info("looking up user", {"userId": data["userId"]})
+    print("looking up user", {"userId": data["userId"]})
     return {"userId": data["userId"], "name": "Ada"}
 
 iii.register_function("users::lookup", lookup_user)
 ```
 
 Python handlers may be sync or async. Use `await iii.trigger_async(request)` inside async handlers,
-and `iii.trigger(request)` in sync contexts. `ApiResponse` uses camelCase `statusCode`.
+and `iii.trigger(request)` in sync contexts. HTTP response envelopes use snake_case `status_code`
+(with optional `headers` and `body`).
 
 ## Rust
 

@@ -230,6 +230,9 @@ importers:
 
   sdk/packages/node/iii-example:
     dependencies:
+      '@iii-dev/observability':
+        specifier: workspace:*
+        version: link:../observability
       iii-sdk:
         specifier: workspace:*
         version: link:../iii

@@ -18,7 +18,8 @@ export const state: IState = {
     iii.trigger({ function_id: 'state::set', payload: input }),
   delete: (input: StateDeleteInput): Promise<StateDeleteResult> =>
     iii.trigger({ function_id: 'state::delete', payload: input }),
-  list: <TData>(input: StateListInput): Promise<TData[]> => iii.trigger({ function_id: 'state::list', payload: input }),
+  list: <TData>(input: StateListInput): Promise<TData[]> =>
+    iii.trigger({ function_id: 'state::list', payload: input }),
   update: <TData>(input: StateUpdateInput): Promise<StateUpdateResult<TData> | null> =>
     iii.trigger({ function_id: 'state::update', payload: input }),
 }

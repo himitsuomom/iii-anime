@@ -66,18 +66,25 @@ cargo add iii-sdk
 
 ### TypeScript
 
+An HTTP-triggered function receives the full request object (the body is on `req.body`) and returns
+a response envelope `{ status_code, headers?, body }`. Logging goes through standard `console.*`,
+which the SDK captures via OpenTelemetry — there is no `Logger` export.
+
 ```typescript
-import { registerWorker, Logger, TriggerAction } from "iii-sdk";
+import { registerWorker, type ApiRequest, type ApiResponse } from "iii-sdk";
 
 const iii = registerWorker(process.env.III_URL ?? "ws://localhost:49134");
 
 iii.registerFunction(
   "hello::greet",
-  async (input) => {
-    const logger = new Logger();
-    const name = input?.name ?? "world";
-    logger.info("Greeting user", { name });
-    return { message: `Hello, ${name}!` };
+  async (req: ApiRequest<{ name?: string }>): Promise<ApiResponse> => {
+    const name = req?.body?.name ?? "world";
+    console.log("Greeting user", { name });
+    return {
+      status_code: 200,
+      headers: { "Content-Type": "application/json" },
+      body: { message: `Hello, ${name}!` },
+    };
   },
   { description: "Greet a user by name" },
 );
@@ -92,15 +99,19 @@ iii.registerTrigger({
 ### Python
 
 ```python
-from iii import register_worker, InitOptions, Logger
+from iii import register_worker, InitOptions
 
 iii = register_worker(address="ws://localhost:49134", options=InitOptions(worker_name="hello-worker"))
 
-def greet(data):
-    logger = Logger()
-    name = data.get("name", "world") if isinstance(data, dict) else "world"
-    logger.info("Greeting user", {"name": name})
-    return {"message": f"Hello, {name}!"}
+def greet(req):
+    body = req.get("body", {}) if isinstance(req, dict) else {}
+    name = body.get("name", "world")
+    print("Greeting user", {"name": name})
+    return {
+        "status_code": 200,
+        "headers": {"Content-Type": "application/json"},
+        "body": {"message": f"Hello, {name}!"},
+    }
 
 iii.register_function("hello::greet", greet, description="Greet a user by name")
 iii.register_trigger({"type": "http", "function_id": "hello::greet", "config": {"api_path": "/hello", "http_method": "POST"}})
@@ -109,17 +120,20 @@ iii.register_trigger({"type": "http", "function_id": "hello::greet", "config": {
 ### Rust
 
 ```rust
-use iii_sdk::{register_worker, InitOptions, Logger, RegisterFunction, RegisterTriggerInput};
+use iii_sdk::{register_worker, InitOptions, RegisterFunction, RegisterTriggerInput};
 use serde_json::json;
 
 let iii = register_worker("ws://127.0.0.1:49134", InitOptions::default());
 
 iii.register_function(
     RegisterFunction::new("hello::greet", |input: serde_json::Value| -> Result<serde_json::Value, String> {
-        let logger = Logger::new();
-        let name = input["name"].as_str().unwrap_or("world");
-        logger.info("Greeting user", Some(json!({ "name": name })));
-        Ok(json!({ "message": format!("Hello, {}!", name) }))
+        let name = input["body"]["name"].as_str().unwrap_or("world");
+        println!("Greeting user: {}", name);
+        Ok(json!({
+            "status_code": 200,
+            "headers": { "Content-Type": "application/json" },
+            "body": { "message": format!("Hello, {}!", name) }
+        }))
     }).description("Greet a user by name"),
 );
 
