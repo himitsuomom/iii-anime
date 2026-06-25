@@ -78,9 +78,9 @@
         </div>
         <h3>制約（重要）</h3>
         <div class="card">
-          <p>・<code>couxo9</code>/EC は private・Python・本セッションのスコープ外で<strong>内部実装を参照できない</strong>。
-            よって <strong>contract-first</strong> 設計とし、EC は<strong>薄いアダプタで worker 化</strong>（実装が判明しても差分を局所化）。</p>
-          <p>・EC をスコープに取り込む手順は <span class="pill">Phase 0</span>（現状ブロッカー）。</p>
+          <p>・<code>couxo9</code>/EC（POD転売自動化パイプライン・Python 3.11）は zip 受領で <strong>apps/ec に取り込み済み</strong>
+            （<code>make ci-ec</code> で 128 tests pass）。引き続き <strong>contract-first</strong> 設計で、EC は<strong>薄いアダプタで worker 化</strong>。</p>
+          <p>・<span class="pill">Phase 0 完了</span> — 次は contracts 確定（Phase 1）→ EC worker 化（Phase 2）。</p>
         </div>
         <h3>ターゲット構成</h3>
         <div class="card"><pre style="margin:0;color:var(--secondary);font-size:12.5px;font-family:'JetBrains Mono',monospace;white-space:pre-wrap">iii-anime/ (monorepo)
@@ -106,10 +106,10 @@ flowchart TB
     REG["Worker &amp; Function Registry / Tracing"]
   end
   subgraph ECW["apps/ec — Python worker"]
-    F1["catalog::*"]
-    F2["orders::*"]
-    F3["inventory::*"]
-    F4["pricing::*"]
+    F1["products::load / describe"]
+    F2["copyright::check"]
+    F3["listing::shopify / mercari / podtomatic"]
+    F4["analytics::* / pipeline::run"]
   end
   subgraph ASW["apps/automation-studio — TS worker + Hono"]
     A1["ai::describe-product"]
@@ -170,14 +170,14 @@ sequenceDiagram
           <table>
             <thead><tr><th>提供元</th><th>関数ID</th><th>入力 → 出力</th></tr></thead>
             <tbody>
-              <tr><td>apps/ec</td><td><code>catalog::get</code></td><td>{id} → Product</td></tr>
-              <tr><td>apps/ec</td><td><code>catalog::update-description</code></td><td>{id, GeneratedDescription} → {ok}</td></tr>
-              <tr><td>apps/ec</td><td><code>orders::stats</code></td><td>{period} → OrderStats</td></tr>
-              <tr><td>apps/ec</td><td><code>inventory::alerts</code></td><td>{} → InventoryAlert[]</td></tr>
-              <tr><td>apps/ec</td><td><code>pricing::context</code></td><td>{sku} → PricingContext</td></tr>
-              <tr><td>automation-studio</td><td><code>ai::describe-product</code></td><td>DescribeRequest → GeneratedDescription</td></tr>
-              <tr><td>automation-studio</td><td><code>ai::answer-inquiry</code></td><td>Inquiry → {reply, source}</td></tr>
-              <tr><td>automation-studio</td><td><code>ai::suggest-price</code></td><td>{sku} → PriceQuote</td></tr>
+              <tr><td>apps/ec</td><td><code>products::load</code></td><td>src/io/product_loader.py → ProductInput[]</td></tr>
+              <tr><td>apps/ec</td><td><code>products::describe</code></td><td>src/product/generator.py → ProductListing</td></tr>
+              <tr><td>apps/ec</td><td><code>copyright::check</code></td><td>src/product/copyright_checker.py</td></tr>
+              <tr><td>apps/ec</td><td><code>listing::shopify/mercari/podtomatic</code></td><td>src/listing/*.py</td></tr>
+              <tr><td>apps/ec</td><td><code>analytics::price / demand</code></td><td>src/analytics/*.py</td></tr>
+              <tr><td>apps/ec</td><td><code>pipeline::run</code></td><td>src/pipeline.py (ResalePipeline)</td></tr>
+              <tr><td>automation-studio</td><td><code>ai::describe-product</code></td><td>DescribeRequest → GeneratedDescription（キー無→テンプレ）</td></tr>
+              <tr><td>automation-studio</td><td><code>ai::answer-inquiry</code></td><td>Inquiry → {reply, source}（キー無→FAQ）</td></tr>
             </tbody>
           </table>
         </div>
@@ -216,9 +216,9 @@ sequenceDiagram
       )
 
       const PHASES = [
-        { id: 'p0', t: 'Phase 0 — EC をスコープに取り込む', d: 'EC用にリポジトリ・スコープ追加 or 両リポを含む新セッション。完了まで contracts は仮定値。', block: true },
-        { id: 'p1', t: 'Phase 1 — packages/contracts', d: '代表エンティティを JSON Schema 化＋TS/Pydantic 生成（雛形あり）。挙動変更なし。' },
-        { id: 'p2', t: 'Phase 2 — EC を iii worker 化', d: '既存サービス層/HTTP APIを薄くラップし catalog/orders/inventory/pricing::* を登録。' },
+        { id: 'p0', t: 'Phase 0 — EC を取り込む（完了）', d: 'zip 受領 → apps/ec に取り込み済み。make ci-ec で 128 tests pass / ruff clean。' },
+        { id: 'p1', t: 'Phase 1 — packages/contracts', d: '実 EC モデル(ProductInput/ProductListing 等)に合わせて JSON Schema を確定＋TS/Pydantic 生成。' },
+        { id: 'p2', t: 'Phase 2 — EC を iii worker 化', d: 'ResalePipeline/ProductGenerator/listing/analytics をラップし products/copyright/listing/analytics/pipeline::* を登録。' },
         { id: 'p3', t: 'Phase 3 — AS を iii worker 化', d: 'ai::* を公開。Dashboard のモック値を実データに置換。' },
         { id: 'p4', t: 'Phase 4 — 非同期フロー', d: '一括説明生成・問い合わせ自動応答をキュー/stateトリガーで配線。トレース有効化。' },
         { id: 'p5', t: 'Phase 5 — CI/deploy 統合', d: 'Makefile/turbo/CI 拡張、コンテナ＆Terraform でデプロイ一本化。' },

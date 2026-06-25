@@ -9,6 +9,7 @@ STOP_SCRIPT         := bash scripts/stop-iii.sh
 III_URL             := ws://localhost:49199
 III_HTTP_URL        := http://localhost:3199
 PYTHON_SDK_DIR      := sdk/packages/python/iii
+EC_DIR              := apps/ec
 
 export III_TELEMETRY_ENABLED := false
 
@@ -18,6 +19,7 @@ export III_TELEMETRY_ENABLED := false
         init-build-x86 init-build-aarch64 init-build-all \
         sandbox sandbox-debug \
         test-sdk-node test-sdk-python test-sdk-rust test-sdk-all \
+        install-ec lint-ec typecheck-ec test-ec ci-ec \
         lint-python lint-rust lint-console lint \
         fmt-check fmt-check-rust fmt-check-all \
         typecheck-node typecheck-python typecheck \
@@ -39,6 +41,25 @@ install-python:
 install-hooks:
 	git config core.hooksPath .githooks
 	@echo "[hooks] pre-commit installed (core.hooksPath=.githooks)"
+
+
+# ── EC app (apps/ec — POD resale automation, Python) ────────────────────────────
+# Uses requirements.txt + a local .venv (not uv-project mode). Tests mock all
+# external APIs, so `test-ec` runs fully offline with no API key.
+
+install-ec:
+	cd $(EC_DIR) && uv venv --python 3.11 && uv pip install -r requirements.txt
+
+lint-ec:
+	cd $(EC_DIR) && uv run --no-project ruff check src
+
+typecheck-ec:
+	cd $(EC_DIR) && uv run --no-project mypy src
+
+test-ec:
+	cd $(EC_DIR) && uv run --no-project pytest -q
+
+ci-ec: install-ec lint-ec test-ec
 
 
 # ── Engine ────────────────────────────────────────────────────────────────────
