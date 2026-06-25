@@ -38,8 +38,8 @@ def _wait_for(predicate: Any, timeout: float = 30.0, interval: float = 0.5) -> A
 
 @pytest.fixture(scope="module")
 def client() -> Any:
+    # register_worker() は接続まで完了して返る（connect 呼び出し不要）。
     iii = register_worker(III_URL)
-    iii.connect()
     # worker 登録の伝播を待つ
     time.sleep(2.0)
     yield iii

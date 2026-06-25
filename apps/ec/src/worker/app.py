@@ -160,9 +160,9 @@ def main() -> None:
     base_mode = "offline (no ANTHROPIC_API_KEY)" if services.offline else "live (Claude API)"
     print(f"[ec-worker] connecting to {url} — describe: {describe_mode}, local-fallback: {base_mode}")
 
+    # register_worker() は既に接続済み（_wait_until_connected）なので connect 呼び出しは不要。
     register_ec_functions(iii, services)
     register_ec_orchestration(iii, services)
-    iii.connect()
     registered = [fid for fid, _, _ in SYNC_FUNCTIONS] + [fid for fid, _, _ in ASYNC_FUNCTIONS]
     registered += ["pipeline::run-batch", "pipeline::status", "pipeline::run-tracked"]
     print(f"[ec-worker] registered: {', '.join(registered)}")

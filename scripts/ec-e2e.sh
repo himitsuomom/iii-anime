@@ -34,7 +34,8 @@ log "preparing EC venv + iii SDK…"
 make install-ec
 ( cd apps/ec && uv pip install -e ../../sdk/packages/python/iii >/dev/null )
 
-log "building iii node SDK + starting automation-studio worker…"
+log "building iii node SDK (+ observability dep) + starting automation-studio worker…"
+pnpm --filter @iii-dev/observability build >/dev/null 2>&1 || log "warn: observability build failed"
 pnpm --filter iii-sdk build >/dev/null 2>&1 || log "warn: iii-sdk build failed (AS worker may not start)"
 ( III_URL="$III_URL" pnpm --filter @iii/automation-studio start >/tmp/ec-e2e-as.log 2>&1 ) &
 AS_PID=$!
