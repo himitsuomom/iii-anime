@@ -1,0 +1,37 @@
+# Structured index of the curated list, extracted from its README
+# headings by scripts/import-awesome-lists.py.
+source: "https://github.com/DovAmir/awesome-design-patterns"
+title: "Awesome Software and Architectural Design Patterns"
+license: "See source repository"
+category_count: 15
+categories:
+  - name: "Programming Language Design Patterns"
+    subcategories: []
+  - name: "General Architecture"
+    subcategories: []
+  - name: "Cloud Architecture"
+    subcategories: []
+  - name: "Serverless Architecture"
+    subcategories: []
+  - name: "Micro services & Distributed Systems"
+    subcategories: []
+  - name: "Internet of things"
+    subcategories: []
+  - name: "Big Data"
+    subcategories: []
+  - name: "Machine Learning"
+    subcategories: []
+  - name: "Databases and Storage"
+    subcategories: []
+  - name: "DevOps & containers"
+    subcategories: []
+  - name: "Mobile"
+    subcategories: []
+  - name: "Front-End Development"
+    subcategories: []
+  - name: "Security"
+    subcategories: []
+  - name: "Books"
+    subcategories: []
+  - name: "Other Awesome Lists"
+    subcategories: []

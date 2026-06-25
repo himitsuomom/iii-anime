@@ -1,0 +1,17 @@
+# Structured index of the curated list, extracted from its README
+# headings by scripts/import-awesome-lists.py.
+source: "https://github.com/papers-we-love/papers-we-love"
+title: "Papers We Love"
+license: "See source repository"
+category_count: 3
+categories:
+  - name: "Info"
+    subcategories:
+      - "Other Good Places to Find Papers"
+      - "How To Read a Paper"
+      - "Applications/Ideas built around Papers We Love"
+      - "Download papers"
+  - name: "Contributing Guidelines"
+    subcategories: []
+  - name: "Copyright"
+    subcategories: []

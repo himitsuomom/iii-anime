@@ -1,0 +1,63 @@
+name: "Awesome Scalability"
+description: "Scalability, system design, and high-performance backend patterns"
+version: "0.1.0"
+min_iii_version: "0.11.0"
+
+# Reference / knowledge-pack template: docs-only, language-agnostic.
+treat_required_as_included: true
+requires: []
+optional: []
+
+# Copy every bundled file regardless of language selection.
+language_files:
+  common:
+    - '*'
+
+# Selection metadata for intent-based orchestration.
+# 使用する場面 / 使用条件. Tagged kind:reference (no Docker, no stack).
+selection:
+  use_cases:
+    - "Scalability, system design, and high-performance backend patterns"
+    - "Find curated Awesome Scalability resources, libraries, and tools"
+    - "Reference list / knowledge pack for Awesome Scalability"
+  tags:
+    - "kind:reference"
+    - "awesome"
+    - "docs"
+    - "topic:scalability"
+    - "topic:system-design"
+    - "topic:architecture"
+  keywords:
+    - "scalability"
+    - "system-design"
+    - "architecture"
+    - "distributed"
+    - "performance"
+    - "backend"
+    - "awesome"
+    - "content"
+    - "principle"
+    - "availability"
+    - "stability"
+    - "intelligence"
+    - "interview"
+    - "organization"
+    - "talk"
+    - "piece"
+    - "cake"
+  conditions:
+    requires_docker: false
+    services: []
+    notes:
+      - "Source: https://github.com/binhnguyennus/awesome-scalability"
+      - "License: MIT"
+      - "Curated link list — snapshot of the upstream README."
+
+files:
+  - "RESOURCES.md"
+  - "index.yaml"
+
+next_steps:
+  - "Browse the curated list in RESOURCES.md"
+  - "See index.yaml for the categories it covers"
+  - "Source: https://github.com/binhnguyennus/awesome-scalability"

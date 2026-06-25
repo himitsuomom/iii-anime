@@ -1,0 +1,23 @@
+# Structured index of the curated list, extracted from its README
+# headings by scripts/import-awesome-lists.py.
+source: "https://github.com/trimstray/the-book-of-secret-knowledge"
+title: "cat >filename ... - overwrite the file"
+license: "MIT"
+category_count: 7
+categories:
+  - name: "notebook_with_decorative_cover: &nbsp;What is it?"
+    subcategories: []
+  - name: "restroom: &nbsp;For whom?"
+    subcategories: []
+  - name: "information_source: &nbsp;Contributing"
+    subcategories:
+      - "Code Contributors"
+      - "Financial Contributors"
+  - name: "newspaper: &nbsp;RSS Feed & Updates"
+    subcategories: []
+  - name: "ballot_box_with_check: &nbsp;ToDo"
+    subcategories: []
+  - name: "anger: &nbsp;Table of Contents"
+    subcategories: []
+  - name: "trident: &nbsp;The Book of Secret Knowledge (Chapters)"
+    subcategories: []

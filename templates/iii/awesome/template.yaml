@@ -1,0 +1,76 @@
+name: "Awesome"
+description: "A curated meta-list of awesome lists across every topic"
+version: "0.1.0"
+min_iii_version: "0.11.0"
+
+# Reference / knowledge-pack template: docs-only, language-agnostic.
+treat_required_as_included: true
+requires: []
+optional: []
+
+# Copy every bundled file regardless of language selection.
+language_files:
+  common:
+    - '*'
+
+# Selection metadata for intent-based orchestration.
+# 使用する場面 / 使用条件. Tagged kind:reference (no Docker, no stack).
+selection:
+  use_cases:
+    - "A curated meta-list of awesome lists across every topic"
+    - "Find curated Awesome resources, libraries, and tools"
+    - "Reference list / knowledge pack for Awesome"
+  tags:
+    - "kind:reference"
+    - "awesome"
+    - "docs"
+    - "meta"
+    - "topic:index"
+  keywords:
+    - "awesome"
+    - "list"
+    - "curated"
+    - "meta"
+    - "directory"
+    - "index"
+    - "platforms"
+    - "programming"
+    - "languages"
+    - "front"
+    - "end"
+    - "development"
+    - "back"
+    - "computer"
+    - "science"
+    - "big"
+    - "data"
+    - "theory"
+    - "books"
+    - "editors"
+    - "gaming"
+    - "environment"
+    - "entertainment"
+    - "databases"
+    - "media"
+    - "learn"
+    - "security"
+    - "content"
+    - "management"
+    - "systems"
+    - "hardware"
+  conditions:
+    requires_docker: false
+    services: []
+    notes:
+      - "Source: https://github.com/sindresorhus/awesome"
+      - "License: CC0-1.0"
+      - "Curated link list — snapshot of the upstream README."
+
+files:
+  - "RESOURCES.md"
+  - "index.yaml"
+
+next_steps:
+  - "Browse the curated list in RESOURCES.md"
+  - "See index.yaml for the categories it covers"
+  - "Source: https://github.com/sindresorhus/awesome"

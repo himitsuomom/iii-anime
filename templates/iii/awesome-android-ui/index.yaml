@@ -1,0 +1,9 @@
+# Structured index of the curated list, extracted from its README
+# headings by scripts/import-awesome-lists.py.
+source: "https://github.com/wasabeef/awesome-android-ui"
+title: "Awesome Android Ui"
+license: "MIT"
+category_count: 1
+categories:
+  - name: "Maintainers"
+    subcategories: []

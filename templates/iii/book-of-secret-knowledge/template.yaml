@@ -1,0 +1,82 @@
+name: "cat >filename ... - overwrite the file"
+description: "Sysadmin, security, networking, and hacking tools, cheatsheets, and knowledge"
+version: "0.1.0"
+min_iii_version: "0.11.0"
+
+# Reference / knowledge-pack template: docs-only, language-agnostic.
+treat_required_as_included: true
+requires: []
+optional: []
+
+# Copy every bundled file regardless of language selection.
+language_files:
+  common:
+    - '*'
+
+# Selection metadata for intent-based orchestration.
+# 使用する場面 / 使用条件. Tagged kind:reference (no Docker, no stack).
+selection:
+  use_cases:
+    - "Sysadmin, security, networking, and hacking tools, cheatsheets, and knowledge"
+    - "Find curated cat >filename ... - overwrite the file resources, libraries, and tools"
+    - "Reference list / knowledge pack for cat >filename ... - overwrite the file"
+  tags:
+    - "kind:reference"
+    - "awesome"
+    - "docs"
+    - "topic:security"
+    - "topic:sysadmin"
+    - "topic:networking"
+  keywords:
+    - "security"
+    - "sysadmin"
+    - "networking"
+    - "devops"
+    - "cheatsheet"
+    - "cli"
+    - "hacking"
+    - "book"
+    - "of"
+    - "secret"
+    - "knowledge"
+    - "notebook"
+    - "with"
+    - "decorative"
+    - "cover"
+    - "nbsp"
+    - "what"
+    - "restroom"
+    - "for"
+    - "whom"
+    - "information"
+    - "source"
+    - "contributing"
+    - "newspaper"
+    - "rss"
+    - "feed"
+    - "updates"
+    - "ballot"
+    - "box"
+    - "check"
+    - "todo"
+    - "anger"
+    - "table"
+    - "contents"
+    - "trident"
+    - "the"
+  conditions:
+    requires_docker: false
+    services: []
+    notes:
+      - "Source: https://github.com/trimstray/the-book-of-secret-knowledge"
+      - "License: MIT"
+      - "Curated link list — snapshot of the upstream README."
+
+files:
+  - "RESOURCES.md"
+  - "index.yaml"
+
+next_steps:
+  - "Browse the curated list in RESOURCES.md"
+  - "See index.yaml for the categories it covers"
+  - "Source: https://github.com/trimstray/the-book-of-secret-knowledge"

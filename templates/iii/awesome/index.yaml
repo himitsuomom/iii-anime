@@ -1,0 +1,61 @@
+# Structured index of the curated list, extracted from its README
+# headings by scripts/import-awesome-lists.py.
+source: "https://github.com/sindresorhus/awesome"
+title: "Awesome"
+license: "CC0-1.0"
+category_count: 27
+categories:
+  - name: "Platforms"
+    subcategories: []
+  - name: "Programming Languages"
+    subcategories: []
+  - name: "Front-End Development"
+    subcategories: []
+  - name: "Back-End Development"
+    subcategories: []
+  - name: "Computer Science"
+    subcategories: []
+  - name: "Big Data"
+    subcategories: []
+  - name: "Theory"
+    subcategories: []
+  - name: "Books"
+    subcategories: []
+  - name: "Editors"
+    subcategories: []
+  - name: "Gaming"
+    subcategories: []
+  - name: "Development Environment"
+    subcategories: []
+  - name: "Entertainment"
+    subcategories: []
+  - name: "Databases"
+    subcategories: []
+  - name: "Media"
+    subcategories: []
+  - name: "Learn"
+    subcategories: []
+  - name: "Security"
+    subcategories: []
+  - name: "Content Management Systems"
+    subcategories: []
+  - name: "Hardware"
+    subcategories: []
+  - name: "Business"
+    subcategories: []
+  - name: "Work"
+    subcategories: []
+  - name: "Networking"
+    subcategories: []
+  - name: "Decentralized Systems"
+    subcategories: []
+  - name: "Health and Social Science"
+    subcategories: []
+  - name: "Events"
+    subcategories: []
+  - name: "Testing"
+    subcategories: []
+  - name: "Miscellaneous"
+    subcategories: []
+  - name: "Related"
+    subcategories: []

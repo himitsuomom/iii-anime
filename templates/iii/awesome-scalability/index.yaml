@@ -1,0 +1,31 @@
+# Structured index of the curated list, extracted from its README
+# headings by scripts/import-awesome-lists.py.
+source: "https://github.com/binhnguyennus/awesome-scalability"
+title: "Awesome Scalability"
+license: "MIT"
+category_count: 12
+categories:
+  - name: "Content"
+    subcategories: []
+  - name: "Principle"
+    subcategories: []
+  - name: "Scalability"
+    subcategories: []
+  - name: "Availability"
+    subcategories: []
+  - name: "Stability"
+    subcategories: []
+  - name: "Performance"
+    subcategories: []
+  - name: "Intelligence"
+    subcategories: []
+  - name: "Architecture"
+    subcategories: []
+  - name: "Interview"
+    subcategories: []
+  - name: "Organization"
+    subcategories: []
+  - name: "Talk"
+    subcategories: []
+  - name: "A Piece of Cake"
+    subcategories: []

@@ -1,0 +1,101 @@
+# Structured index of the curated list, extracted from its README
+# headings by scripts/import-awesome-lists.py.
+source: "https://github.com/jaywcjlove/awesome-mac"
+title: "Awesome Mac"
+license: "CC0-1.0"
+category_count: 26
+categories:
+  - name: "Reading and Writing Tools"
+    subcategories:
+      - "Text Editors"
+      - "Office"
+      - "Markdown Tools !Awesome Listawesome-list Icon"
+      - "Note-taking"
+      - "Journaling"
+      - "Writing"
+      - "Ebooks"
+      - "RSS"
+      - "Others"
+  - name: "Developer Tools"
+    subcategories:
+      - "IDEs"
+      - "Developer Utilities"
+      - "Regular Expression Editors"
+      - "API Development and Analysis"
+      - "Network Analysis"
+      - "Frameworks For Hybrid Applications"
+      - "Version Control"
+      - "Virtualization"
+      - "Databases"
+  - name: "Terminal Apps"
+    subcategories: []
+  - name: "Design and Product"
+    subcategories:
+      - "Design Tools"
+      - "Prototyping and Mind-Mapping Tools"
+      - "Screenshot Tools"
+      - "Screen Recording"
+      - "Other Tools"
+  - name: "AI Tools"
+    subcategories: []
+  - name: "Communication"
+    subcategories:
+      - "Collaboration and Team Tools"
+      - "Email Clients"
+      - "File Sharing"
+  - name: "Data Recovery Tools"
+    subcategories: []
+  - name: "Audio and Video Tools"
+    subcategories:
+      - "Audio Record and Process"
+  - name: "Download Management Tools"
+    subcategories: []
+  - name: "Cloud Storage"
+    subcategories: []
+  - name: "Input Methods"
+    subcategories: []
+  - name: "Voice-to-Text"
+    subcategories: []
+  - name: "Browsers"
+    subcategories: []
+  - name: "Translation Tools"
+    subcategories: []
+  - name: "Education"
+    subcategories: []
+  - name: "Finance"
+    subcategories: []
+  - name: "Encryption"
+    subcategories: []
+  - name: "Security Tools"
+    subcategories: []
+  - name: "Proxy and VPN Tools"
+    subcategories: []
+  - name: "Utilities"
+    subcategories:
+      - "Clipboard Tools"
+      - "Menu Bar Tools"
+      - "Cleanup and Uninstall"
+      - "File Organization Tools"
+      - "General Tools"
+      - "To-Do Lists"
+      - "Productivity"
+      - "Window Management"
+      - "Password Management"
+      - "Finder Tools"
+      - "Quality of Life Improvements"
+      - "System Related Tools"
+  - name: "Gaming Software"
+    subcategories: []
+  - name: "Remote Login Software"
+    subcategories: []
+  - name: "QuickLook Plugins"
+    subcategories: []
+  - name: "Third Party App Markets"
+    subcategories:
+      - "Package Managers"
+  - name: "Mac App Download Sites"
+    subcategories:
+      - "Genuine Sites"
+      - "Pirated software download site blocklist"
+  - name: "Podcasts"
+    subcategories: []

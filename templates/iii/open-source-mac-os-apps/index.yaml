@@ -1,0 +1,45 @@
+# Structured index of the curated list, extracted from its README
+# headings by scripts/import-awesome-lists.py.
+source: "https://github.com/serhii-londar/open-source-mac-os-apps"
+title: "Open Source Mac Os Apps"
+license: "CC0-1.0"
+category_count: 4
+categories:
+  - name: "Support"
+    subcategories: []
+  - name: "Statistics"
+    subcategories: []
+  - name: "Languages"
+    subcategories: []
+  - name: "Applications"
+    subcategories:
+      - "Audio (39)"
+      - "Backup (6)"
+      - "Browser (13)"
+      - "Chat (20)"
+      - "Cryptocurrency (5)"
+      - "Database (18)"
+      - "Development (16)"
+      - "Downloader (10)"
+      - "Editors (7)"
+      - "Extensions (14)"
+      - "Finder (13)"
+      - "Games (13)"
+      - "Graphics (17)"
+      - "IDE (14)"
+      - "Images (17)"
+      - "Keyboard (10)"
+      - "Mail (7)"
+      - "Medical (1)"
+      - "Menubar (52)"
+      - "Music (16)"
+      - "News (6)"
+      - "Notes (19)"
+      - "Other (25)"
+      - "Player (6)"
+      - "Podcast (7)"
+      - "Productivity (78)"
+      - "Screensaver (10)"
+      - "Security (11)"
+      - "Sharing Files (11)"
+      - "Social Networking (9)"

@@ -1,0 +1,225 @@
+# Structured index of the curated list, extracted from its README
+# headings by scripts/import-awesome-lists.py.
+source: "https://github.com/vsouza/awesome-ios"
+title: "Awesome Ios"
+license: "MIT"
+category_count: 76
+categories:
+  - name: "Contributing and Collaborating"
+    subcategories: []
+  - name: "Premium Resources | Follow"
+    subcategories: []
+  - name: "Analytics"
+    subcategories: []
+  - name: "App Routing"
+    subcategories: []
+  - name: "App Store"
+    subcategories: []
+  - name: "Apple TV"
+    subcategories: []
+  - name: "Architecture Patterns"
+    subcategories: []
+  - name: "ARKit"
+    subcategories: []
+  - name: "Authentication"
+    subcategories: []
+  - name: "Blockchain"
+    subcategories: []
+  - name: "Books"
+    subcategories: []
+  - name: "Cache"
+    subcategories: []
+  - name: "Charts"
+    subcategories: []
+  - name: "Code Injection"
+    subcategories: []
+  - name: "Code Quality"
+    subcategories:
+      - "Linter"
+  - name: "Color"
+    subcategories: []
+  - name: "Command Line"
+    subcategories: []
+  - name: "Concurrency"
+    subcategories: []
+  - name: "Core Data"
+    subcategories: []
+  - name: "Courses"
+    subcategories:
+      - "Getting Started"
+  - name: "Database"
+    subcategories: []
+  - name: "Data Structures / Algorithms"
+    subcategories: []
+  - name: "Date & Time"
+    subcategories: []
+  - name: "Debugging"
+    subcategories: []
+  - name: "Dependency Injection"
+    subcategories: []
+  - name: "Dependency / Package Manager"
+    subcategories: []
+  - name: "Deployment / Distribution"
+    subcategories: []
+  - name: "EventBus"
+    subcategories: []
+  - name: "Files"
+    subcategories: []
+  - name: "Functional Programming"
+    subcategories: []
+  - name: "Games"
+    subcategories: []
+  - name: "GCD"
+    subcategories: []
+  - name: "Gesture"
+    subcategories: []
+  - name: "Graphics"
+    subcategories: []
+  - name: "Hardware"
+    subcategories:
+      - "Bluetooth"
+      - "Camera"
+      - "Force Touch"
+      - "iBeacon"
+      - "Location"
+      - "Other Hardware"
+  - name: "Layout"
+    subcategories: []
+  - name: "Localization"
+    subcategories: []
+  - name: "Logging"
+    subcategories: []
+  - name: "Machine Learning"
+    subcategories: []
+  - name: "Maps"
+    subcategories: []
+  - name: "Math"
+    subcategories: []
+  - name: "Media"
+    subcategories:
+      - "Audio"
+      - "GIF"
+      - "Image"
+      - "Media Processing"
+      - "PDF"
+      - "Streaming"
+      - "Video"
+  - name: "Messaging"
+    subcategories: []
+  - name: "Networking"
+    subcategories: []
+  - name: "Newsletters"
+    subcategories: []
+  - name: "Notifications"
+    subcategories:
+      - "Push Notifications"
+      - "Push Notification Providers"
+  - name: "Objective-C Runtime"
+    subcategories: []
+  - name: "Optimization"
+    subcategories: []
+  - name: "Other Awesome Lists"
+    subcategories: []
+  - name: "Parsing"
+    subcategories:
+      - "CSV"
+      - "JSON"
+      - "XML & HTML"
+      - "Other Parsing"
+  - name: "Passbook"
+    subcategories: []
+  - name: "Payments"
+    subcategories: []
+  - name: "Permissions"
+    subcategories: []
+  - name: "Podcasts"
+    subcategories: []
+  - name: "Project setup"
+    subcategories:
+      - "Prototyping"
+  - name: "Rapid Development"
+    subcategories: []
+  - name: "Reactive Programming"
+    subcategories:
+      - "React-Like"
+  - name: "Reference"
+    subcategories: []
+  - name: "Reflection"
+    subcategories: []
+  - name: "Regex"
+    subcategories: []
+  - name: "SDK"
+    subcategories:
+      - "Official"
+      - "Unofficial"
+  - name: "Security"
+    subcategories:
+      - "Encryption"
+      - "Keychain"
+  - name: "Server"
+    subcategories: []
+  - name: "Style Guides"
+    subcategories: []
+  - name: "Testing"
+    subcategories:
+      - "TDD / BDD"
+      - "A/B Testing"
+      - "UI Testing"
+      - "Other Testing"
+  - name: "Text"
+    subcategories:
+      - "Font"
+  - name: "UI"
+    subcategories:
+      - "Activity Indicator"
+      - "Animation"
+      - "Transition"
+      - "Alert & Action Sheet"
+      - "Badge"
+      - "Button"
+      - "Calendar"
+      - "Cards"
+      - "Form & Settings"
+      - "Keyboard"
+      - "Label"
+      - "Login"
+      - "Menu"
+      - "Navigation Bar"
+      - "PickerView"
+      - "Popup"
+      - "ProgressView"
+      - "Pull to Refresh"
+      - "Rating Stars"
+      - "ScrollView"
+      - "Segmented Control"
+      - "Slider"
+      - "Splash View"
+      - "Status Bar"
+      - "Stepper"
+      - "Switch"
+      - "Tab Bar"
+      - "Table View / Collection View"
+      - "Tag"
+      - "TextField & TextView"
+  - name: "Utility"
+    subcategories: []
+  - name: "User Consent"
+    subcategories: []
+  - name: "VR"
+    subcategories: []
+  - name: "Walkthrough / Intro / Tutorial"
+    subcategories: []
+  - name: "Websites"
+    subcategories: []
+  - name: "WebSocket"
+    subcategories: []
+  - name: "Tools"
+    subcategories: []
+  - name: "Tutorials and Keynotes"
+    subcategories:
+      - "UI Templates"
+  - name: "Xcode"
+    subcategories:
+      - "Extensions"
+      - "Themes"
+      - "Other Xcode"

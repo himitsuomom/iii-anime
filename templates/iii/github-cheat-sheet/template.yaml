@@ -1,0 +1,52 @@
+name: "GitHub Cheat Sheet"
+description: "Cool Git and GitHub features, tips, and tricks"
+version: "0.1.0"
+min_iii_version: "0.11.0"
+
+# Reference / knowledge-pack template: docs-only, language-agnostic.
+treat_required_as_included: true
+requires: []
+optional: []
+
+# Copy every bundled file regardless of language selection.
+language_files:
+  common:
+    - '*'
+
+# Selection metadata for intent-based orchestration.
+# 使用する場面 / 使用条件. Tagged kind:reference (no Docker, no stack).
+selection:
+  use_cases:
+    - "Cool Git and GitHub features, tips, and tricks"
+    - "Find curated GitHub Cheat Sheet resources, libraries, and tools"
+    - "Reference list / knowledge pack for GitHub Cheat Sheet"
+  tags:
+    - "kind:reference"
+    - "awesome"
+    - "docs"
+    - "topic:git"
+    - "topic:cheatsheet"
+  keywords:
+    - "git"
+    - "github"
+    - "cheatsheet"
+    - "version-control"
+    - "tips"
+    - "cheat"
+    - "sheet"
+  conditions:
+    requires_docker: false
+    services: []
+    notes:
+      - "Source: https://github.com/tiimgreen/github-cheat-sheet"
+      - "License: MIT"
+      - "Curated link list — snapshot of the upstream README."
+
+files:
+  - "RESOURCES.md"
+  - "index.yaml"
+
+next_steps:
+  - "Browse the curated list in RESOURCES.md"
+  - "See index.yaml for the categories it covers"
+  - "Source: https://github.com/tiimgreen/github-cheat-sheet"

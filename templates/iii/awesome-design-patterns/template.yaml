@@ -1,0 +1,74 @@
+name: "Awesome Software and Architectural Design Patterns"
+description: "Software design and architecture patterns"
+version: "0.1.0"
+min_iii_version: "0.11.0"
+
+# Reference / knowledge-pack template: docs-only, language-agnostic.
+treat_required_as_included: true
+requires: []
+optional: []
+
+# Copy every bundled file regardless of language selection.
+language_files:
+  common:
+    - '*'
+
+# Selection metadata for intent-based orchestration.
+# 使用する場面 / 使用条件. Tagged kind:reference (no Docker, no stack).
+selection:
+  use_cases:
+    - "Software design and architecture patterns"
+    - "Find curated Awesome Software and Architectural Design Patterns resources, libraries, and tools"
+    - "Reference list / knowledge pack for Awesome Software and Architectural Design Patterns"
+  tags:
+    - "kind:reference"
+    - "awesome"
+    - "docs"
+    - "topic:design-patterns"
+    - "topic:architecture"
+  keywords:
+    - "design-patterns"
+    - "architecture"
+    - "oop"
+    - "software-design"
+    - "patterns"
+    - "awesome"
+    - "design"
+    - "programming"
+    - "language"
+    - "general"
+    - "cloud"
+    - "serverless"
+    - "micro"
+    - "services"
+    - "distributed"
+    - "systems"
+    - "internet"
+    - "things"
+    - "big"
+    - "data"
+    - "machine"
+    - "learning"
+    - "databases"
+    - "and"
+    - "storage"
+    - "devops"
+    - "containers"
+    - "mobile"
+    - "front"
+  conditions:
+    requires_docker: false
+    services: []
+    notes:
+      - "Source: https://github.com/DovAmir/awesome-design-patterns"
+      - "License: See source repository"
+      - "Curated link list — snapshot of the upstream README."
+
+files:
+  - "RESOURCES.md"
+  - "index.yaml"
+
+next_steps:
+  - "Browse the curated list in RESOURCES.md"
+  - "See index.yaml for the categories it covers"
+  - "Source: https://github.com/DovAmir/awesome-design-patterns"

@@ -1,0 +1,15 @@
+# Structured index of the curated list, extracted from its README
+# headings by scripts/import-awesome-lists.py.
+source: "https://github.com/521xueweihan/HelloGitHub"
+title: "Hellogithub"
+license: "See source repository"
+category_count: 4
+categories:
+  - name: "简介"
+    subcategories: []
+  - name: "内容"
+    subcategories: []
+  - name: "赞助"
+    subcategories: []
+  - name: "声明"
+    subcategories: []

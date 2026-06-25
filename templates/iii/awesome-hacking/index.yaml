@@ -1,0 +1,15 @@
+# Structured index of the curated list, extracted from its README
+# headings by scripts/import-awesome-lists.py.
+source: "https://github.com/Hack-with-Github/Awesome-Hacking"
+title: "Awesome Hacking"
+license: "CC0-1.0"
+category_count: 4
+categories:
+  - name: "Awesome Repositories"
+    subcategories: []
+  - name: "Other Useful Repositories"
+    subcategories: []
+  - name: "Need More ?"
+    subcategories: []
+  - name: "Contributions"
+    subcategories: []

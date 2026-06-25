@@ -1,0 +1,43 @@
+# Structured index of the curated list, extracted from its README
+# headings by scripts/import-awesome-lists.py.
+source: "https://github.com/awesome-selfhosted/awesome-selfhosted"
+title: "Awesome-Selfhosted"
+license: "CC-BY-SA"
+category_count: 3
+categories:
+  - name: "Software"
+    subcategories:
+      - "Analytics"
+      - "Archiving and Digital Preservation (DP)"
+      - "Automation"
+      - "Backup"
+      - "Blogging Platforms"
+      - "Booking and Scheduling"
+      - "Bookmarks and Link Sharing"
+      - "Calendar & Contacts"
+      - "Communication - Custom Communication Systems"
+      - "Communication - Email - Complete Solutions"
+      - "Communication - Email - Mail Delivery Agents"
+      - "Communication - Email - Mail Transfer Agents"
+      - "Communication - Email - Mailing Lists and Newsletters"
+      - "Communication - Email - Webmail Clients"
+      - "Communication - IRC"
+      - "Communication - SIP"
+      - "Communication - Social Networks and Forums"
+      - "Communication - Video Conferencing"
+      - "Communication - XMPP - Servers"
+      - "Communication - XMPP - Web Clients"
+      - "Community-Supported Agriculture (CSA)"
+      - "Conference Management"
+      - "Content Management Systems (CMS)"
+      - "Customer Relationship Management (CRM)"
+      - "Database Management"
+      - "DNS"
+      - "Document Management"
+      - "Document Management - E-books"
+      - "Document Management - Institutional Repository and Digital Library Software"
+      - "Document Management - Integrated Library Systems (ILS)"
+  - name: "List of Licenses"
+    subcategories: []
+  - name: "External Links"
+    subcategories: []

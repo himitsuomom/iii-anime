@@ -439,11 +439,13 @@ fn project_init_with_intent_auto_selects_and_scaffolds_compose_stack() {
 fn project_init_with_unmatched_intent_reports_no_match() {
     // An intent that matches nothing falls back to the interactive list, which
     // can't be driven without a TTY — but the orchestrator's "no match" notice
-    // must be emitted first.
+    // must be emitted first. Use nonsense tokens: the catalog now spans many
+    // domains (compose stacks + awesome-list reference packs), so a real-world
+    // phrase would likely match a category somewhere.
     let dir = tempdir().unwrap();
     let out = iii_bin()
         .args(["project", "init", "--skip-iii", "--intent"])
-        .arg("quantum blockchain machine learning")
+        .arg("xyzzy plugh frobnicate qwzzy")
         .arg("--template-dir")
         .arg(compose_templates())
         .arg("--directory")

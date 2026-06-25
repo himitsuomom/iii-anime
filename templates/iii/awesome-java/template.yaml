@@ -1,0 +1,53 @@
+name: "Awesome Java"
+description: "Curated Java frameworks, libraries, and software"
+version: "0.1.0"
+min_iii_version: "0.11.0"
+
+# Reference / knowledge-pack template: docs-only, language-agnostic.
+treat_required_as_included: true
+requires: []
+optional: []
+
+# Copy every bundled file regardless of language selection.
+language_files:
+  common:
+    - '*'
+
+# Selection metadata for intent-based orchestration.
+# 使用する場面 / 使用条件. Tagged kind:reference (no Docker, no stack).
+selection:
+  use_cases:
+    - "Curated Java frameworks, libraries, and software"
+    - "Find curated Awesome Java resources, libraries, and tools"
+    - "Reference list / knowledge pack for Awesome Java"
+  tags:
+    - "kind:reference"
+    - "awesome"
+    - "docs"
+    - "lang:java"
+    - "topic:libraries"
+  keywords:
+    - "java"
+    - "jvm"
+    - "spring"
+    - "libraries"
+    - "frameworks"
+    - "awesome"
+    - "projects"
+    - "resources"
+  conditions:
+    requires_docker: false
+    services: []
+    notes:
+      - "Source: https://github.com/akullpp/awesome-java"
+      - "License: CC-BY-SA"
+      - "Curated link list — snapshot of the upstream README."
+
+files:
+  - "RESOURCES.md"
+  - "index.yaml"
+
+next_steps:
+  - "Browse the curated list in RESOURCES.md"
+  - "See index.yaml for the categories it covers"
+  - "Source: https://github.com/akullpp/awesome-java"

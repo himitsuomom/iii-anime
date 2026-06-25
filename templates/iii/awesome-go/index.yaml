@@ -1,0 +1,223 @@
+# Structured index of the curated list, extracted from its README
+# headings by scripts/import-awesome-lists.py.
+source: "https://github.com/avelino/awesome-go"
+title: "Awesome Go"
+license: "MIT"
+category_count: 80
+categories:
+  - name: "Actor Model"
+    subcategories: []
+  - name: "Artificial Intelligence"
+    subcategories: []
+  - name: "Audio and Music"
+    subcategories: []
+  - name: "Authentication and Authorization"
+    subcategories: []
+  - name: "Blockchain"
+    subcategories: []
+  - name: "Bot Building"
+    subcategories: []
+  - name: "Build Automation"
+    subcategories: []
+  - name: "Command Line"
+    subcategories:
+      - "Advanced Console UIs"
+      - "Standard CLI"
+  - name: "Configuration"
+    subcategories: []
+  - name: "Continuous Integration"
+    subcategories: []
+  - name: "CSS Preprocessors"
+    subcategories: []
+  - name: "Data Integration Frameworks"
+    subcategories: []
+  - name: "Data Structures and Algorithms"
+    subcategories:
+      - "Bit-packing and Compression"
+      - "Bit Sets"
+      - "Bloom and Cuckoo Filters"
+      - "Data Structure and Algorithm Collections"
+      - "Iterators"
+      - "Maps"
+      - "Miscellaneous Data Structures and Algorithms"
+      - "Nullable Types"
+      - "Queues"
+      - "Sets"
+      - "Text Analysis"
+      - "Trees"
+      - "Pipes"
+  - name: "Database"
+    subcategories:
+      - "Caches"
+      - "Databases Implemented in Go"
+      - "Database Schema Migration"
+      - "Database Tools"
+      - "SQL Query Builders"
+  - name: "Database Drivers"
+    subcategories:
+      - "Interfaces to Multiple Backends"
+      - "Relational Database Drivers"
+      - "NoSQL Database Drivers"
+      - "Search and Analytic Databases"
+  - name: "Date and Time"
+    subcategories: []
+  - name: "Distributed Systems"
+    subcategories: []
+  - name: "Dynamic DNS"
+    subcategories: []
+  - name: "Email"
+    subcategories: []
+  - name: "Embeddable Scripting Languages"
+    subcategories: []
+  - name: "Error Handling"
+    subcategories: []
+  - name: "File Handling"
+    subcategories: []
+  - name: "Financial"
+    subcategories: []
+  - name: "Forms"
+    subcategories: []
+  - name: "Functional"
+    subcategories: []
+  - name: "Game Development"
+    subcategories: []
+  - name: "Generators"
+    subcategories: []
+  - name: "Geographic"
+    subcategories: []
+  - name: "Go Compilers"
+    subcategories: []
+  - name: "Goroutines"
+    subcategories: []
+  - name: "GUI"
+    subcategories: []
+  - name: "Hardware"
+    subcategories: []
+  - name: "Images"
+    subcategories: []
+  - name: "IoT (Internet of Things)"
+    subcategories: []
+  - name: "Job Scheduler"
+    subcategories: []
+  - name: "JSON"
+    subcategories: []
+  - name: "Logging"
+    subcategories: []
+  - name: "Machine Learning"
+    subcategories: []
+  - name: "Messaging"
+    subcategories: []
+  - name: "Microsoft Office"
+    subcategories:
+      - "Microsoft Excel"
+      - "Microsoft Word"
+  - name: "Miscellaneous"
+    subcategories:
+      - "Dependency Injection"
+      - "Project Layout"
+      - "Strings"
+      - "Uncategorized"
+  - name: "Natural Language Processing"
+    subcategories:
+      - "Language Detection"
+      - "Morphological Analyzers"
+      - "Slugifiers"
+      - "Tokenizers"
+      - "Translation"
+      - "Transliteration"
+  - name: "Networking"
+    subcategories:
+      - "HTTP Clients"
+  - name: "OpenGL"
+    subcategories: []
+  - name: "ORM"
+    subcategories: []
+  - name: "Package Management"
+    subcategories: []
+  - name: "Performance"
+    subcategories: []
+  - name: "Query Language"
+    subcategories: []
+  - name: "Reflection"
+    subcategories: []
+  - name: "Resource Embedding"
+    subcategories: []
+  - name: "Science and Data Analysis"
+    subcategories: []
+  - name: "Security"
+    subcategories: []
+  - name: "Serialization"
+    subcategories: []
+  - name: "Server Applications"
+    subcategories: []
+  - name: "Stream Processing"
+    subcategories: []
+  - name: "Template Engines"
+    subcategories: []
+  - name: "Testing"
+    subcategories:
+      - "Testing Frameworks"
+      - "Mock"
+      - "Fuzzing and delta-debugging/reducing/shrinking"
+      - "Selenium and browser control tools"
+      - "Fail injection"
+  - name: "Text Processing"
+    subcategories:
+      - "Formatters"
+      - "Markup Languages"
+      - "Parsers/Encoders/Decoders"
+      - "Regular Expressions"
+      - "Sanitation"
+      - "Scrapers"
+      - "RSS"
+      - "Utility/Miscellaneous"
+  - name: "Third-party APIs"
+    subcategories: []
+  - name: "Utilities"
+    subcategories: []
+  - name: "UUID"
+    subcategories: []
+  - name: "Validation"
+    subcategories: []
+  - name: "Version Control"
+    subcategories: []
+  - name: "Video"
+    subcategories: []
+  - name: "Web Frameworks"
+    subcategories:
+      - "Middlewares"
+      - "Routers"
+  - name: "WebAssembly"
+    subcategories: []
+  - name: "Webhooks Server"
+    subcategories: []
+  - name: "Windows"
+    subcategories: []
+  - name: "Workflow Frameworks"
+    subcategories: []
+  - name: "XML"
+    subcategories: []
+  - name: "Zero Trust"
+    subcategories: []
+  - name: "Code Analysis"
+    subcategories: []
+  - name: "Editor Plugins"
+    subcategories: []
+  - name: "Go Generate Tools"
+    subcategories: []
+  - name: "Go Tools"
+    subcategories: []
+  - name: "Software Packages"
+    subcategories:
+      - "DevOps Tools"
+      - "Other Software"
+  - name: "Benchmarks"
+    subcategories: []
+  - name: "Conferences"
+    subcategories: []
+  - name: "E-Books"
+    subcategories:
+      - "E-books for purchase"
+      - "Free e-books"
+  - name: "Gophers"
+    subcategories: []

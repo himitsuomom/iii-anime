@@ -1,0 +1,37 @@
+# Structured index of the curated list, extracted from its README
+# headings by scripts/import-awesome-lists.py.
+source: "https://github.com/enaqx/awesome-react"
+title: "Awesome React"
+license: "See source repository"
+category_count: 2
+categories:
+  - name: "React"
+    subcategories:
+      - "React General Resources"
+      - "React Tutorials"
+      - "React Frameworks"
+      - "React Component Libraries"
+      - "React State Management and Data Fetching"
+      - "React Styling"
+      - "React Icon Libraries"
+      - "React Routing"
+      - "React Development Tools"
+      - "React Libraries"
+      - "React Testing"
+      - "React Awesome Components"
+      - "React Components Sandboxes"
+      - "React Forms"
+      - "React Tables and Grids"
+      - "React Maps"
+      - "React Charts"
+      - "React Renderers"
+      - "React Internationalization"
+      - "React Graphics and Animations"
+      - "React Integration"
+      - "React Real Apps"
+  - name: "React Native"
+    subcategories:
+      - "React Native General Resources"
+      - "React Native Navigation"
+      - "React Native Awesome Components"
+      - "React Native Libraries"

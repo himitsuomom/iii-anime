@@ -1,0 +1,122 @@
+# Structured index of the curated list, extracted from its README
+# headings by scripts/import-awesome-lists.py.
+source: "https://github.com/dkhamsing/open-source-ios-apps"
+title: "Open-Source iOS Apps"
+license: "CC0-1.0"
+category_count: 38
+categories:
+  - name: "Apple TV"
+    subcategories: []
+  - name: "Apple Vision"
+    subcategories: []
+  - name: "Apple Watch"
+    subcategories: []
+  - name: "Browser"
+    subcategories: []
+  - name: "Calculator"
+    subcategories: []
+  - name: "Calendar"
+    subcategories: []
+  - name: "Color"
+    subcategories: []
+  - name: "Clock"
+    subcategories: []
+  - name: "Clone"
+    subcategories: []
+  - name: "Communication"
+    subcategories: []
+  - name: "Developer"
+    subcategories:
+      - "GitHub"
+      - "Terminal"
+  - name: "Education"
+    subcategories: []
+  - name: "Emulator"
+    subcategories: []
+  - name: "Event"
+    subcategories: []
+  - name: "Extension"
+    subcategories:
+      - "Content Blocking"
+      - "Safari Extension"
+      - "Today"
+      - "Widget"
+  - name: "File"
+    subcategories: []
+  - name: "Finance"
+    subcategories:
+      - "Cryptocurrency"
+  - name: "Game"
+    subcategories:
+      - "Cocos2d"
+      - "SpriteKit"
+  - name: "Health"
+    subcategories:
+      - "Contact Tracing"
+      - "Contact Tracing Reference"
+      - "Fitness"
+      - "ResearchKit"
+  - name: "Home"
+    subcategories: []
+  - name: "Location"
+    subcategories: []
+  - name: "Media"
+    subcategories:
+      - "Animoji"
+      - "Audio"
+      - "Content"
+      - "GIF"
+      - "Photo"
+      - "Video"
+  - name: "News"
+    subcategories:
+      - "Hacker News"
+      - "News API"
+      - "RSS"
+  - name: "Official"
+    subcategories: []
+  - name: "Productivity"
+    subcategories: []
+  - name: "Sample"
+    subcategories: []
+  - name: "Scan"
+    subcategories: []
+  - name: "Security"
+    subcategories:
+      - "Password"
+  - name: "Shopping"
+    subcategories: []
+  - name: "Social"
+    subcategories:
+      - "Mastodon"
+  - name: "Tasks"
+    subcategories: []
+  - name: "Text"
+    subcategories:
+      - "Notes"
+  - name: "Timer"
+    subcategories: []
+  - name: "Travel"
+    subcategories: []
+  - name: "Weather"
+    subcategories: []
+  - name: "Misc"
+    subcategories:
+      - "Appcelerator"
+      - "Core Data"
+      - "Firebase"
+      - "Flutter"
+      - "GraphQL"
+      - "Ionic"
+      - "macOS"
+      - "React Native"
+      - "ReactiveCocoa"
+      - "Realm"
+      - "RxSwift"
+      - "SwiftUI"
+      - "VIPER"
+      - "Xamarin"
+  - name: "Bonus"
+    subcategories: []
+  - name: "Contact"
+    subcategories: []

@@ -1,0 +1,78 @@
+name: "Awesome Ios"
+description: "Curated iOS libraries, frameworks, and resources"
+version: "0.1.0"
+min_iii_version: "0.11.0"
+
+# Reference / knowledge-pack template: docs-only, language-agnostic.
+treat_required_as_included: true
+requires: []
+optional: []
+
+# Copy every bundled file regardless of language selection.
+language_files:
+  common:
+    - '*'
+
+# Selection metadata for intent-based orchestration.
+# 使用する場面 / 使用条件. Tagged kind:reference (no Docker, no stack).
+selection:
+  use_cases:
+    - "Curated iOS libraries, frameworks, and resources"
+    - "Find curated Awesome Ios resources, libraries, and tools"
+    - "Reference list / knowledge pack for Awesome Ios"
+  tags:
+    - "kind:reference"
+    - "awesome"
+    - "docs"
+    - "platform:ios"
+    - "lang:swift"
+    - "topic:mobile"
+  keywords:
+    - "ios"
+    - "swift"
+    - "objective-c"
+    - "mobile"
+    - "cocoa"
+    - "libraries"
+    - "awesome"
+    - "contributing"
+    - "and"
+    - "collaborating"
+    - "premium"
+    - "resources"
+    - "follow"
+    - "analytics"
+    - "app"
+    - "routing"
+    - "store"
+    - "apple"
+    - "architecture"
+    - "patterns"
+    - "arkit"
+    - "authentication"
+    - "blockchain"
+    - "books"
+    - "cache"
+    - "charts"
+    - "code"
+    - "injection"
+    - "quality"
+    - "color"
+    - "command"
+    - "line"
+  conditions:
+    requires_docker: false
+    services: []
+    notes:
+      - "Source: https://github.com/vsouza/awesome-ios"
+      - "License: MIT"
+      - "Curated link list — snapshot of the upstream README."
+
+files:
+  - "RESOURCES.md"
+  - "index.yaml"
+
+next_steps:
+  - "Browse the curated list in RESOURCES.md"
+  - "See index.yaml for the categories it covers"
+  - "Source: https://github.com/vsouza/awesome-ios"

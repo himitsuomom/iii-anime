@@ -1,0 +1,147 @@
+# Structured index of the curated list, extracted from its README
+# headings by scripts/import-awesome-lists.py.
+source: "https://github.com/fffaraz/awesome-cpp"
+title: "Awesome C++"
+license: "MIT"
+category_count: 70
+categories:
+  - name: "Standard Libraries"
+    subcategories: []
+  - name: "Frameworks"
+    subcategories: []
+  - name: "Artificial Intelligence"
+    subcategories: []
+  - name: "Asynchronous Event Loop"
+    subcategories: []
+  - name: "Audio"
+    subcategories: []
+  - name: "Biology"
+    subcategories: []
+  - name: "BitTorrent"
+    subcategories: []
+  - name: "Chemistry"
+    subcategories: []
+  - name: "CLI"
+    subcategories: []
+  - name: "Compression"
+    subcategories: []
+  - name: "Concurrency"
+    subcategories: []
+  - name: "Configuration"
+    subcategories: []
+  - name: "Containers"
+    subcategories: []
+  - name: "Cryptography"
+    subcategories: []
+  - name: "CSV"
+    subcategories: []
+  - name: "Database"
+    subcategories: []
+  - name: "Data visualization"
+    subcategories: []
+  - name: "Debug"
+    subcategories: []
+  - name: "Documentation"
+    subcategories: []
+  - name: "DSP"
+    subcategories: []
+  - name: "Font"
+    subcategories: []
+  - name: "Game Engine"
+    subcategories: []
+  - name: "Graph"
+    subcategories: []
+  - name: "GUI"
+    subcategories: []
+  - name: "Graphics"
+    subcategories: []
+  - name: "Image Processing"
+    subcategories: []
+  - name: "Internationalization"
+    subcategories: []
+  - name: "Inter-process communication"
+    subcategories: []
+  - name: "JSON"
+    subcategories: []
+  - name: "Logging"
+    subcategories: []
+  - name: "Machine Learning"
+    subcategories: []
+  - name: "Math"
+    subcategories: []
+  - name: "Memory Allocation"
+    subcategories: []
+  - name: "Multimedia"
+    subcategories: []
+  - name: "Networking"
+    subcategories: []
+  - name: "Office Open XML"
+    subcategories: []
+  - name: "PDF"
+    subcategories: []
+  - name: "Physics"
+    subcategories: []
+  - name: "Reflection"
+    subcategories: []
+  - name: "Regular Expression"
+    subcategories: []
+  - name: "Robotics"
+    subcategories: []
+  - name: "Scientific Computing"
+    subcategories: []
+  - name: "Scripting"
+    subcategories: []
+  - name: "Serialization"
+    subcategories: []
+  - name: "Serial Port"
+    subcategories: []
+  - name: "Sorting"
+    subcategories: []
+  - name: "Video"
+    subcategories: []
+  - name: "Virtual Machines"
+    subcategories: []
+  - name: "Web Application Framework"
+    subcategories: []
+  - name: "XML"
+    subcategories: []
+  - name: "Yaml"
+    subcategories: []
+  - name: "Miscellaneous"
+    subcategories: []
+  - name: "Compiler"
+    subcategories: []
+  - name: "Online Compiler"
+    subcategories: []
+  - name: "Debugger"
+    subcategories: []
+  - name: "Integrated Development Environment"
+    subcategories: []
+  - name: "Build Systems"
+    subcategories: []
+  - name: "Static Code Analysis"
+    subcategories: []
+  - name: "Coding Style Tools"
+    subcategories: []
+  - name: "API Design"
+    subcategories: []
+  - name: "Articles"
+    subcategories: []
+  - name: "Books"
+    subcategories: []
+  - name: "Coding Standards"
+    subcategories: []
+  - name: "Coding Style"
+    subcategories: []
+  - name: "Podcasts"
+    subcategories: []
+  - name: "Talks"
+    subcategories: []
+  - name: "Videos"
+    subcategories: []
+  - name: "Websites"
+    subcategories: []
+  - name: "Weblogs"
+    subcategories: []
+  - name: "Other Awesome Projects"
+    subcategories: []
