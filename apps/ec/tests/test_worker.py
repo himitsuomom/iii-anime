@@ -4,23 +4,33 @@
 APIキー・ネットワーク・iii SDK は不要。
 """
 
+import csv
+import json
+from pathlib import Path
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 
-from src.product.models import Language, Platform, ProductInput
+from src.product.models import Language, Platform, ProductInput, ProductListing
 from src.worker.app import register_ec_functions
 from src.worker.handlers import (
     handle_analytics_demand,
     handle_analytics_price,
     handle_copyright_check,
     handle_describe,
+    handle_list_mercari,
+    handle_list_podtomatic,
+    handle_list_shopify,
     handle_pipeline_run,
+    handle_products_load,
 )
 from src.worker.offline import OfflineCopyrightChecker, OfflineProductGenerator
 from src.worker.serializers import (
     product_input_from_dict,
     product_input_to_dict,
+    product_listing_from_dict,
+    product_listing_to_dict,
 )
 from src.worker.services import Services, build_services
 
@@ -226,15 +236,21 @@ def test_register_ec_functions_registers_all(services: Services) -> None:
     register_ec_functions(engine, services)
     assert set(engine.functions) == {
         "products::describe",
+        "products::load",
         "copyright::check",
         "analytics::price",
         "analytics::demand",
         "pipeline::run",
+        "listing::shopify",
+        "listing::mercari",
+        "listing::podtomatic",
     }
     # 各関数に HTTP トリガーが1つずつ
-    assert len(engine.triggers) == 5
+    assert len(engine.triggers) == len(engine.functions)
     paths = {t["config"]["api_path"] for t in engine.triggers}
     assert "/ec/describe" in paths
+    assert "/ec/products/load" in paths
+    assert "/ec/list/shopify" in paths
     assert all(t["config"]["http_method"] == "POST" for t in engine.triggers)
 
 
@@ -262,3 +278,149 @@ def test_registered_handlers_are_distinct_closures(services: Services) -> None:
     )
     assert "suggested_price" in price
     assert "is_safe" in copyright_out
+
+
+# ---- Phase A: products::load ----
+
+
+def _csv_row(name: str, platform: str = "shopify") -> dict[str, str]:
+    return {
+        "name": name,
+        "category": "Mugs",
+        "design_concept": "mountain",
+        "target_audience": "hikers",
+        "platform": platform,
+        "language": "en",
+        "price_range": "",
+        "niche_keywords": "hiking|outdoor",
+    }
+
+
+def test_products_load_inline_rows(services: Services) -> None:
+    # インライン rows は JSON 流儀（niche_keywords はリスト）。pipe 分割は CSV/JSON ローダ側。
+    row_a = _csv_row("A") | {"niche_keywords": ["hiking", "outdoor"]}
+    out = handle_products_load(
+        {"rows": [row_a, _csv_row("B", "mercari")]}, services
+    )
+    assert out["count"] == 2
+    assert out["products"][0]["name"] == "A"
+    assert out["products"][1]["platform"] == "mercari"
+    assert out["products"][0]["niche_keywords"] == ["hiking", "outdoor"]
+
+
+def test_products_load_from_csv(services: Services, tmp_path: Path) -> None:
+    path = tmp_path / "p.csv"
+    fields = list(_csv_row("A").keys())
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fields)
+        writer.writeheader()
+        writer.writerow(_csv_row("FromCsv"))
+    out = handle_products_load({"source": "csv", "path": str(path)}, services)
+    assert out["count"] == 1
+    assert out["products"][0]["name"] == "FromCsv"
+
+
+def test_products_load_from_json(services: Services, tmp_path: Path) -> None:
+    path = tmp_path / "p.json"
+    path.write_text(
+        json.dumps([_csv_row("FromJson") | {"niche_keywords": ["a", "b"]}]),
+        encoding="utf-8",
+    )
+    out = handle_products_load({"source": "json", "path": str(path)}, services)
+    assert out["count"] == 1
+    assert out["products"][0]["name"] == "FromJson"
+
+
+def test_products_load_requires_source_or_rows(services: Services) -> None:
+    with pytest.raises(ValueError):
+        handle_products_load({}, services)
+    with pytest.raises(ValueError, match="source"):
+        handle_products_load({"path": "x.txt"}, services)
+
+
+# ---- Phase A: serializers (listing roundtrip) ----
+
+
+def test_product_listing_roundtrip() -> None:
+    listing = ProductListing(
+        title="T",
+        description="D",
+        bullet_points=["b1", "b2"],
+        tags=["t1"],
+        seo_keywords=["k1", "k2"],
+        platform=Platform.MERCARI,
+        language=Language.JA,
+    )
+    data = product_listing_to_dict(listing)
+    restored = product_listing_from_dict(data)
+    assert restored == listing
+
+
+def test_product_listing_from_dict_requires_title_description() -> None:
+    with pytest.raises(ValueError):
+        product_listing_from_dict({"title": "only"})
+
+
+# ---- Phase A: listing::* ----
+
+
+def _sample_listing_payload() -> dict[str, Any]:
+    return {
+        "listing": {
+            "title": "Mountain Mug",
+            "description": "A nice mug",
+            "bullet_points": ["b1"],
+            "tags": ["mug"],
+            "seo_keywords": ["mountain mug"],
+            "platform": "shopify",
+            "language": "en",
+        }
+    }
+
+
+@pytest.mark.asyncio
+async def test_listing_shopify_uses_client() -> None:
+    services = build_services(force_offline=True)
+    client = AsyncMock()
+    client.create_product = AsyncMock(return_value={"product": {"id": 1}})
+    services.shopify_client = client
+    out = await handle_list_shopify(_sample_listing_payload(), services)
+    assert out == {"product": {"id": 1}}
+    client.create_product.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_listing_mercari_passes_price() -> None:
+    services = build_services(force_offline=True)
+    client = AsyncMock()
+    client.create_product = AsyncMock(return_value={"item_id": "m1"})
+    services.mercari_client = client
+    payload = _sample_listing_payload() | {"price": 2500}
+    out = await handle_list_mercari(payload, services)
+    assert out == {"item_id": "m1"}
+    # price が int で渡る
+    _, kwargs = client.create_product.call_args
+    args = client.create_product.call_args.args
+    assert 2500 in args or kwargs.get("price") == 2500
+
+
+@pytest.mark.asyncio
+async def test_listing_podtomatic_uses_client() -> None:
+    services = build_services(force_offline=True)
+    client = AsyncMock()
+    client.upload_product = AsyncMock(return_value={"id": "p1", "status": "created"})
+    services.podtomatic_client = client
+    out = await handle_list_podtomatic(_sample_listing_payload(), services)
+    assert out["status"] == "created"
+
+
+@pytest.mark.asyncio
+async def test_listing_raises_when_no_credentials() -> None:
+    services = build_services(force_offline=True)
+    assert services.shopify_client is None
+    with pytest.raises(ValueError, match="Shopify"):
+        await handle_list_shopify(_sample_listing_payload(), services)
+    with pytest.raises(ValueError, match="メルカリ"):
+        await handle_list_mercari(_sample_listing_payload(), services)
+    with pytest.raises(ValueError, match="PODtomatic"):
+        await handle_list_podtomatic(_sample_listing_payload(), services)

@@ -18,7 +18,11 @@ from src.worker.handlers import (
     handle_analytics_price,
     handle_copyright_check,
     handle_describe,
+    handle_list_mercari,
+    handle_list_podtomatic,
+    handle_list_shopify,
     handle_pipeline_run,
+    handle_products_load,
 )
 from src.worker.services import Services, build_services
 
@@ -28,6 +32,7 @@ AsyncHandler = Callable[[dict[str, Any], Services], Awaitable[dict[str, Any]]]
 
 SYNC_FUNCTIONS: list[tuple[str, SyncHandler, str]] = [
     ("products::describe", handle_describe, "/ec/describe"),
+    ("products::load", handle_products_load, "/ec/products/load"),
     ("copyright::check", handle_copyright_check, "/ec/copyright-check"),
     ("analytics::price", handle_analytics_price, "/ec/analytics/price"),
     ("analytics::demand", handle_analytics_demand, "/ec/analytics/demand"),
@@ -35,6 +40,9 @@ SYNC_FUNCTIONS: list[tuple[str, SyncHandler, str]] = [
 
 ASYNC_FUNCTIONS: list[tuple[str, AsyncHandler, str]] = [
     ("pipeline::run", handle_pipeline_run, "/ec/pipeline/run"),
+    ("listing::shopify", handle_list_shopify, "/ec/list/shopify"),
+    ("listing::mercari", handle_list_mercari, "/ec/list/mercari"),
+    ("listing::podtomatic", handle_list_podtomatic, "/ec/list/podtomatic"),
 ]
 
 
@@ -106,8 +114,8 @@ def main() -> None:
     iii = register_worker(url)
     register_ec_functions(iii, services)
     iii.connect()
-    print("[ec-worker] registered: products::describe, copyright::check, "
-          "analytics::price, analytics::demand, pipeline::run")
+    registered = [fid for fid, _, _ in SYNC_FUNCTIONS] + [fid for fid, _, _ in ASYNC_FUNCTIONS]
+    print(f"[ec-worker] registered: {', '.join(registered)}")
 
     try:
         # 接続スレッドを生かしたまま常駐する。

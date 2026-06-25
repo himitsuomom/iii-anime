@@ -7,7 +7,7 @@ Shopify 認証情報がある場合のみ出品クライアントを生成する
 
 import os
 from dataclasses import dataclass
-from typing import Protocol, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 from src.analytics.demand_analyzer import DemandAnalyzer
 from src.analytics.price_tracker import PriceTracker
@@ -16,6 +16,11 @@ from src.product.copyright_checker import CopyrightChecker, CopyrightCheckResult
 from src.product.generator import ProductGenerator
 from src.product.models import ProductInput, ProductListing
 from src.worker.offline import OfflineCopyrightChecker, OfflineProductGenerator
+
+if TYPE_CHECKING:
+    from src.listing.mercari import MercariListing
+    from src.listing.podtomatic import PodtomaticListing
+    from src.listing.shopify import ShopifyListing
 
 
 class GeneratorLike(Protocol):
@@ -40,6 +45,9 @@ class Services:
     price_tracker: PriceTracker
     demand_analyzer: DemandAnalyzer
     offline: bool
+    shopify_client: "ShopifyListing | None" = None
+    mercari_client: "MercariListing | None" = None
+    podtomatic_client: "PodtomaticListing | None" = None
 
 
 def _has_anthropic_key() -> bool:
@@ -53,12 +61,20 @@ def _has_shopify_creds() -> bool:
     )
 
 
+def _has_mercari_creds() -> bool:
+    return bool(os.environ.get("MERCARI_ACCESS_TOKEN", "").strip())
+
+
+def _has_podtomatic_creds() -> bool:
+    return bool(os.environ.get("PODTOMATIC_API_KEY", "").strip())
+
+
 def build_services(*, force_offline: bool = False) -> Services:
     """環境に応じてサービス一式を構築する。
 
     Args:
         force_offline: True なら API キーの有無に関わらずオフライン代替を使う
-            （テスト・ローカル検証用）。
+            （テスト・ローカル検証用）。出品クライアントも生成しない。
     """
     offline = force_offline or not _has_anthropic_key()
 
@@ -71,12 +87,23 @@ def build_services(*, force_offline: bool = False) -> Services:
         generator = ProductGenerator()
         checker = CopyrightChecker()
 
-    shopify_client = None
-    if not offline and _has_shopify_creds():
-        # 出品は実認証情報がある時だけ有効化（無ければ pipeline は生成のみ実施）。
-        from src.listing.shopify import ShopifyListing
+    # 出品クライアントは実認証情報がある時だけ生成（無ければ None）。モジュール
+    # エイリアスで遅延 import し、TYPE_CHECKING 用のクラス名を再束縛しない。
+    shopify_client: ShopifyListing | None = None
+    mercari_client: MercariListing | None = None
+    podtomatic_client: PodtomaticListing | None = None
+    if not force_offline and _has_shopify_creds():
+        from src.listing import shopify as _shopify
 
-        shopify_client = ShopifyListing()
+        shopify_client = _shopify.ShopifyListing()
+    if not force_offline and _has_mercari_creds():
+        from src.listing import mercari as _mercari
+
+        mercari_client = _mercari.MercariListing()
+    if not force_offline and _has_podtomatic_creds():
+        from src.listing import podtomatic as _podtomatic
+
+        podtomatic_client = _podtomatic.PodtomaticListing()
 
     pipeline = ResalePipeline(
         generator=cast(ProductGenerator, generator),
@@ -94,4 +121,7 @@ def build_services(*, force_offline: bool = False) -> Services:
         price_tracker=price_tracker,
         demand_analyzer=demand_analyzer,
         offline=offline,
+        shopify_client=shopify_client,
+        mercari_client=mercari_client,
+        podtomatic_client=podtomatic_client,
     )

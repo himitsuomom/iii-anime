@@ -69,6 +69,38 @@ def product_input_to_dict(inp: ProductInput) -> dict[str, Any]:
     }
 
 
+def product_listing_from_dict(data: dict[str, Any]) -> ProductListing:
+    """dict を ProductListing に変換する（listing::* 出品関数の入力用）。
+
+    title/description は必須。platform/language は未知値を既定値にフォールバック。
+    """
+    title = str(data.get("title", "")).strip()
+    description = str(data.get("description", "")).strip()
+    if not title or not description:
+        raise ValueError("title と description は必須です。")
+
+    platform_raw = str(data.get("platform", Platform.SHOPIFY.value))
+    language_raw = str(data.get("language", Language.EN.value))
+    try:
+        platform = Platform(platform_raw)
+    except ValueError:
+        platform = Platform.SHOPIFY
+    try:
+        language = Language(language_raw)
+    except ValueError:
+        language = Language.EN
+
+    return ProductListing(
+        title=title,
+        description=description,
+        bullet_points=_as_str_list(data.get("bullet_points")),
+        tags=_as_str_list(data.get("tags")),
+        seo_keywords=_as_str_list(data.get("seo_keywords")),
+        platform=platform,
+        language=language,
+    )
+
+
 def product_listing_to_dict(listing: ProductListing) -> dict[str, Any]:
     """ProductListing を JSON 互換 dict に変換する。"""
     return {

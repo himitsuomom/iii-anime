@@ -8,11 +8,14 @@ dict 境界なのでオフラインで直接ユニットテストできる。
 from typing import Any
 
 from src.analytics.price_tracker import DemandSignal
+from src.io.product_loader import load_from_csv, load_from_json
 from src.worker.serializers import (
     copyright_result_to_dict,
     niche_score_to_dict,
     pipeline_result_to_dict,
     product_input_from_dict,
+    product_input_to_dict,
+    product_listing_from_dict,
     product_listing_to_dict,
 )
 from src.worker.services import Services
@@ -23,6 +26,34 @@ def handle_describe(data: dict[str, Any], services: Services) -> dict[str, Any]:
     inp = product_input_from_dict(data)
     listing = services.generator.generate(inp)
     return product_listing_to_dict(listing)
+
+
+def handle_products_load(data: dict[str, Any], services: Services) -> dict[str, Any]:
+    """`products::load` — CSV/JSON ファイルまたはインライン rows を ProductInput[] に読み込む。
+
+    payload:
+      - `{"source": "csv"|"json", "path": "..."}` … ファイルから読み込む
+      - `{"rows": [{name, category, ...}, ...]}` … インライン dict を変換する
+    """
+    rows = data.get("rows")
+    if rows is not None:
+        products = [product_input_from_dict(row) for row in rows]
+    else:
+        source = str(data.get("source", "")).lower()
+        path = data.get("path")
+        if not path:
+            raise ValueError("path（または rows）が必要です。")
+        if source == "csv":
+            products = load_from_csv(str(path))
+        elif source == "json":
+            products = load_from_json(str(path))
+        else:
+            raise ValueError("source は 'csv' または 'json' を指定してください。")
+
+    return {
+        "products": [product_input_to_dict(p) for p in products],
+        "count": len(products),
+    }
 
 
 def handle_copyright_check(data: dict[str, Any], services: Services) -> dict[str, Any]:
@@ -87,3 +118,28 @@ async def handle_pipeline_run(data: dict[str, Any], services: Services) -> dict[
     inp = product_input_from_dict(data)
     result = await services.pipeline.run(inp)
     return pipeline_result_to_dict(result)
+
+
+async def handle_list_shopify(data: dict[str, Any], services: Services) -> dict[str, Any]:
+    """`listing::shopify` — ProductListing を Shopify に出品する。"""
+    if services.shopify_client is None:
+        raise ValueError("Shopify クレデンシャル未設定です（SHOPIFY_STORE_URL / SHOPIFY_ACCESS_TOKEN）。")
+    listing = product_listing_from_dict(data.get("listing") or data)
+    return await services.shopify_client.create_product(listing)
+
+
+async def handle_list_mercari(data: dict[str, Any], services: Services) -> dict[str, Any]:
+    """`listing::mercari` — ProductListing をメルカリに出品する。"""
+    if services.mercari_client is None:
+        raise ValueError("メルカリ クレデンシャル未設定です（MERCARI_ACCESS_TOKEN）。")
+    listing = product_listing_from_dict(data.get("listing") or data)
+    price = int(data.get("price", 1000))
+    return await services.mercari_client.create_product(listing, price)
+
+
+async def handle_list_podtomatic(data: dict[str, Any], services: Services) -> dict[str, Any]:
+    """`listing::podtomatic` — ProductListing を PODtomatic にアップロードする。"""
+    if services.podtomatic_client is None:
+        raise ValueError("PODtomatic クレデンシャル未設定です（PODTOMATIC_API_KEY）。")
+    listing = product_listing_from_dict(data.get("listing") or data)
+    return await services.podtomatic_client.upload_product(listing)
