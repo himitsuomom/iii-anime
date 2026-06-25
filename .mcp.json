@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "qudag": {
+      "command": "qudag",
+      "args": ["mcp", "start", "--transport", "stdio"]
+    }
+  }
+}
