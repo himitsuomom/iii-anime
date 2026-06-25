@@ -56,4 +56,6 @@ iii.registerTrigger({
   config: { api_path: '/counter', http_method: 'POST' },
 })
 
-console.log('hello-demo worker registered: POST /hello -> hello::greet, POST /counter -> counter::bump')
+console.log(
+  'hello-demo worker registered: POST /hello -> hello::greet, POST /counter -> counter::bump',
+)

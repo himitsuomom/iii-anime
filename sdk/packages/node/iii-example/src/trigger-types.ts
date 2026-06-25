@@ -103,11 +103,11 @@ const schedule: TriggerTypeRef<ScheduleTriggerConfig> = iii.registerTriggerType(
   scheduleHandler,
 )
 
-schedule.registerFunction(
-  'example::send_report',
-  async () => ({ sent: true }),
-  { at: '2026-03-25T09:00:00Z', timezone: 'America/Sao_Paulo', repeat_daily: true },
-)
+schedule.registerFunction('example::send_report', async () => ({ sent: true }), {
+  at: '2026-03-25T09:00:00Z',
+  timezone: 'America/Sao_Paulo',
+  repeat_daily: true,
+})
 
 // 3. Built-in trigger types (cron, state, subscribe) — use iii directly
 
@@ -149,7 +149,10 @@ export async function printTriggerTypeCatalog() {
   // `engine::trigger-types::list` was retired in favor of
   // `engine::triggers::list`, which now returns trigger TYPES. The list
   // shape is lean — call `engine::triggers::info` per id for schemas.
-  const { triggers } = await iii.trigger<{ include_internal: boolean }, { triggers: TriggerTypeRow[] }>({
+  const { triggers } = await iii.trigger<
+    { include_internal: boolean },
+    { triggers: TriggerTypeRow[] }
+  >({
     function_id: EngineFunctions.LIST_TRIGGERS,
     payload: { include_internal: false },
   })
