@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "qudag": {
-      "command": "qudag",
-      "args": ["mcp", "start", "--transport", "stdio"]
+      "command": "bash",
+      "args": ["scripts/qudag-mcp.sh"]
     }
   }
 }
