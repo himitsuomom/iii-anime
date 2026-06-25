@@ -5,6 +5,7 @@
  * FAQ fallback so behavior stays consistent.
  */
 import { getClient, MODEL } from '../anthropic.ts'
+import { recordInquiry } from './metrics.ts'
 import { offlineChatReply } from './offline.ts'
 
 export interface ChatMessage {
@@ -33,6 +34,7 @@ export async function answerInquiry(messages: ChatMessage[]): Promise<InquiryRes
 
   const client = getClient()
   if (!client) {
+    recordInquiry()
     return { reply: offlineChatReply(history), source: 'faq' }
   }
 
@@ -49,5 +51,6 @@ export async function answerInquiry(messages: ChatMessage[]): Promise<InquiryRes
 
   const textBlock = message.content.find((b) => b.type === 'text')
   const reply = textBlock && textBlock.type === 'text' ? textBlock.text : ''
+  recordInquiry()
   return { reply, source: 'claude' }
 }

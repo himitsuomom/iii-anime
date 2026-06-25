@@ -6,6 +6,7 @@
  */
 import Anthropic from '@anthropic-ai/sdk'
 import { getClient, MODEL } from '../anthropic.ts'
+import { recordDescription } from './metrics.ts'
 import { buildTemplateDescription, type DescriptionInput, type GeneratedDescription } from './offline.ts'
 
 /** Structured shape Claude is constrained to return. Exported for the worker's response_format. */
@@ -62,6 +63,7 @@ export async function generateDescription(body: Partial<DescriptionInput>): Prom
 
   const client = getClient()
   if (!client) {
+    recordDescription()
     return { result: buildTemplateDescription({ ...body, productName }), source: 'template' }
   }
 
@@ -105,6 +107,7 @@ export async function generateDescription(body: Partial<DescriptionInput>): Prom
   } catch {
     throw new DescribeError('モデル応答の解析に失敗しました。もう一度お試しください。', 502)
   }
+  recordDescription()
   return { result, source: 'claude' }
 }
 

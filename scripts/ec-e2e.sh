@@ -11,6 +11,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 III_URL="ws://localhost:49199"
+# No OTLP collector in the E2E sandbox — disable telemetry export so worker
+# startup stays clean and deterministic.
+export III_TELEMETRY_ENABLED="false"
 EC_PID=""
 AS_PID=""
 

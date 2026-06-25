@@ -23,6 +23,20 @@ export async function fetchHealth(): Promise<{ ok: boolean; hasApiKey: boolean }
   return res.json()
 }
 
+export interface RuntimeStats {
+  descriptionsGenerated: number
+  inquiriesAnswered: number
+  hasApiKey: boolean
+  model: string
+  workerConnected: boolean
+}
+
+export async function fetchStats(): Promise<RuntimeStats> {
+  const res = await fetch('/api/stats')
+  if (!res.ok) throw new Error(await readError(res))
+  return res.json()
+}
+
 export interface GenerateResult {
   result: GeneratedDescription
   source: 'claude' | 'template'

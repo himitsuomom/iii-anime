@@ -1,4 +1,6 @@
-import { Calculator, Clock, Map as MapIcon, MessageSquare, Package, Sparkles, TrendingUp } from 'lucide-react'
+import { Calculator, Map as MapIcon, MessageSquare, Package, Sparkles, TrendingUp } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { fetchStats, type RuntimeStats } from '../lib/api.ts'
 import type { View } from './Sidebar.tsx'
 import { Card, PageHeader } from './ui.tsx'
 
@@ -10,21 +12,54 @@ interface Kpi {
   icon: typeof TrendingUp
 }
 
-// MVP: representative scorecard figures (EOSスコアカード思想)。実運用では実データに差し替える。
-const KPIS: Kpi[] = [
-  { label: '月間売上', value: '¥1,284,000', delta: '+18%', positive: true, icon: TrendingUp },
-  { label: '問い合わせ自動応答率', value: '82%', delta: '+24pt', positive: true, icon: MessageSquare },
-  { label: '週あたり作業時間', value: '6.5h', delta: '-9.5h', positive: true, icon: Clock },
-  { label: '在庫アラート', value: '3件', delta: '要対応', positive: false, icon: Package },
+// 売上・在庫は実データソース（受注DB）が無いためサンプル。AI稼働数はサーバ実測値（下記）。
+const SAMPLE_KPIS: Kpi[] = [
+  { label: '月間売上（サンプル）', value: '¥1,284,000', delta: 'サンプル値', positive: true, icon: TrendingUp },
+  { label: '在庫アラート（サンプル）', value: '3件', delta: 'サンプル値', positive: false, icon: Package },
 ]
 
 export function Dashboard({ onNavigate }: { onNavigate: (view: View) => void }) {
+  const [stats, setStats] = useState<RuntimeStats | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    fetchStats()
+      .then((s) => {
+        if (alive) setStats(s)
+      })
+      .catch(() => {
+        /* オフライン/未起動時は実測カードを「—」表示にフォールバック */
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const live = stats ? `${stats.model}${stats.workerConnected ? ' · worker接続' : ''}` : '取得中…'
+
   return (
     <div className="mx-auto max-w-5xl px-8 py-8">
       <PageHeader title="ダッシュボード" subtitle="「自分がいなくても回る仕組み」の稼働状況を一画面で把握します。" />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {KPIS.map((kpi) => {
+        {/* サーバ実測値（/api/stats） */}
+        <Card>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted">AI説明生成数</span>
+            <Sparkles className="h-4 w-4 text-muted" />
+          </div>
+          <div className="mt-3 text-2xl font-semibold">{stats ? stats.descriptionsGenerated : '—'}</div>
+          <div className="mt-1 text-xs text-success">{live}</div>
+        </Card>
+        <Card>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted">問い合わせ自動応答数</span>
+            <MessageSquare className="h-4 w-4 text-muted" />
+          </div>
+          <div className="mt-3 text-2xl font-semibold">{stats ? stats.inquiriesAnswered : '—'}</div>
+          <div className="mt-1 text-xs text-success">{stats?.hasApiKey ? 'Claude応答' : 'オフライン応答'}</div>
+        </Card>
+        {SAMPLE_KPIS.map((kpi) => {
           const Icon = kpi.icon
           return (
             <Card key={kpi.label}>

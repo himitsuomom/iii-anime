@@ -1,8 +1,9 @@
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
-import { hasApiKey } from './anthropic.ts'
+import { hasApiKey, MODEL } from './anthropic.ts'
 import { startAiWorker } from './iii-worker.ts'
+import { getMetrics } from './lib/metrics.ts'
 import { chatRoute } from './routes/chat.ts'
 import { generateRoute } from './routes/generate.ts'
 
@@ -17,6 +18,15 @@ const app = new Hono()
 
 const api = new Hono()
 api.get('/health', (c) => c.json({ ok: true, hasApiKey: hasApiKey() }))
+// Live runtime metrics for the dashboard (real counts this instance has done).
+api.get('/stats', (c) =>
+  c.json({
+    ...getMetrics(),
+    hasApiKey: hasApiKey(),
+    model: MODEL,
+    workerConnected: Boolean(process.env.III_URL),
+  }),
+)
 api.route('/generate-description', generateRoute)
 api.route('/chat', chatRoute)
 

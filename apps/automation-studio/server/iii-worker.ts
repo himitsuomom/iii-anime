@@ -82,7 +82,18 @@ export function registerAiFunctions(iii: IIIEngine): void {
 export async function startAiWorker(url: string | undefined): Promise<IIIEngine | null> {
   if (!url) return null
   const { registerWorker } = await import('iii-sdk')
-  const iii = registerWorker(url) as unknown as IIIEngine
+  // Enable OpenTelemetry tracing/metrics unless explicitly disabled. iii
+  // propagates traceparent across worker hops, so cross-worker calls
+  // (EC pipeline → ai::describe-product) appear as one trace.
+  const otelEnabled = process.env.III_TELEMETRY_ENABLED !== 'false'
+  const iii = registerWorker(url, {
+    workerName: 'automation-studio',
+    otel: {
+      enabled: otelEnabled,
+      serviceName: 'automation-studio',
+      metricsEnabled: otelEnabled,
+    },
+  }) as unknown as IIIEngine
   registerAiFunctions(iii)
   return iii
 }

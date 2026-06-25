@@ -185,10 +185,20 @@ def register_ec_orchestration(iii: Any, services: Services) -> None:
 
 def main() -> None:
     """ワーカーを起動してエンジンに接続し、常駐する。"""
-    from iii import register_worker  # 遅延 import: SDK 非依存を保つ
+    from iii import InitOptions, register_worker  # 遅延 import: SDK 非依存を保つ
 
     url = os.environ.get("III_URL", "ws://localhost:49134")
-    iii = register_worker(url)
+    # OTel トレーシングを有効化（III_TELEMETRY_ENABLED=false で無効）。iii は
+    # traceparent を worker 間で伝播するため、EC→ai::describe-product のような
+    # クロスワーカー呼び出しが1つのトレースとして観測できる。
+    otel_enabled = os.environ.get("III_TELEMETRY_ENABLED", "").lower() != "false"
+    iii = register_worker(
+        url,
+        InitOptions(
+            worker_name="ec-worker",
+            otel={"enabled": otel_enabled, "service_name": "ec-worker"},
+        ),
+    )
 
     # 説明生成は既定で remote（automation-studio の ai::describe-product / opus）へ
     # 一本化し、失敗時はローカル/オフラインへ退避する。EC_DESCRIBE_BACKEND=local で
