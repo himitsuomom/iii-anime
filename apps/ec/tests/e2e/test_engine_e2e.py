@@ -18,8 +18,6 @@ import pytest
 if not os.environ.get("III_E2E"):
     pytest.skip("III_E2E が未設定のため E2E をスキップします。", allow_module_level=True)
 
-from iii import register_worker  # noqa: E402 — gate の後で import する
-
 
 III_URL = os.environ.get("III_URL", "ws://localhost:49199")
 
@@ -38,6 +36,8 @@ def _wait_for(predicate: Any, timeout: float = 30.0, interval: float = 0.5) -> A
 
 @pytest.fixture(scope="module")
 def client() -> Any:
+    from iii import register_worker  # gate 後に import（iii SDK は E2E 実行時のみ必要）
+
     # register_worker() は接続まで完了して返る（connect 呼び出し不要）。
     iii = register_worker(III_URL)
     # worker 登録の伝播を待つ
@@ -89,6 +89,21 @@ def test_pipeline_batch_async_with_state(client: Any) -> None:
     assert status is not None, "batch が時間内に完了しませんでした"
     assert status["completed"] == 3
     assert all(item["success"] for item in status["items"])
+
+
+def test_ai_describe_product_cross_worker(client: Any) -> None:
+    """automation-studio worker が `ai::describe-product` を提供していれば検証する。"""
+    try:
+        out = client.trigger(
+            {
+                "function_id": "ai::describe-product",
+                "payload": {"productName": "テストマグ", "keywords": "登山,アウトドア"},
+            }
+        )
+    except Exception as exc:  # noqa: BLE001
+        pytest.skip(f"ai::describe-product 未登録（AS worker 未起動）: {exc}")
+    assert out["title"]
+    assert out["source"] in ("claude", "template")
 
 
 def test_state_roundtrip(client: Any) -> None:

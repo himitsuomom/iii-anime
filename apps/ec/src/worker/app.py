@@ -9,8 +9,9 @@
 キーが無い環境ではオフライン代替で稼働する（説明生成・著作権チェック）。
 """
 
+import asyncio
 import os
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Coroutine
 from typing import Any
 
 from src.worker.handlers import (
@@ -34,6 +35,7 @@ from src.worker.services import Services, build_services
 # 関数ID → (同期ハンドラ, HTTP パス)。HTTP メソッドはすべて POST。
 SyncHandler = Callable[[dict[str, Any], Services], dict[str, Any]]
 AsyncHandler = Callable[[dict[str, Any], Services], Awaitable[dict[str, Any]]]
+ReentrantHandler = Callable[[dict[str, Any], Services], Coroutine[Any, Any, dict[str, Any]]]
 
 SYNC_FUNCTIONS: list[tuple[str, SyncHandler, str]] = [
     ("products::describe", handle_describe, "/ec/describe"),
@@ -43,11 +45,19 @@ SYNC_FUNCTIONS: list[tuple[str, SyncHandler, str]] = [
     ("analytics::demand", handle_analytics_demand, "/ec/analytics/demand"),
 ]
 
+# ローカル async（httpx 出品のみ・エンジン再入なし）。loop 上で実行して問題ない。
 ASYNC_FUNCTIONS: list[tuple[str, AsyncHandler, str]] = [
-    ("pipeline::run", handle_pipeline_run, "/ec/pipeline/run"),
     ("listing::shopify", handle_list_shopify, "/ec/list/shopify"),
     ("listing::mercari", handle_list_mercari, "/ec/list/mercari"),
     ("listing::podtomatic", handle_list_podtomatic, "/ec/list/podtomatic"),
+]
+
+# エンジン再入する async（説明生成で `ai::describe-product` を sync trigger する）。
+# iii SDK の sync trigger は loop スレッドから呼べないため、**sync ハンドラ**として
+# 登録し（= 別スレッドで実行される）、内部で `asyncio.run` する。これで pipeline 内の
+# remote 説明生成・後続の state 書き込みが正しく動く。
+REENTRANT_FUNCTIONS: list[tuple[str, ReentrantHandler, str]] = [
+    ("pipeline::run", handle_pipeline_run, "/ec/pipeline/run"),
 ]
 
 
@@ -106,6 +116,31 @@ def register_ec_functions(iii: Any, services: Services) -> None:
             }
         )
 
+    for function_id, reentrant_handler, api_path in REENTRANT_FUNCTIONS:
+        iii.register_function(function_id, _sync_run(reentrant_handler, services))
+        iii.register_trigger(
+            {
+                "type": "http",
+                "function_id": function_id,
+                "config": {"api_path": api_path, "http_method": "POST"},
+            }
+        )
+
+
+def _sync_run(
+    handler: ReentrantHandler, services: Services
+) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    """エンジン再入する async ハンドラを sync ハンドラ化する（別スレッド＋asyncio.run）。
+
+    iii SDK は sync ハンドラを専用スレッドで実行するため、その中からなら sync trigger
+    （`ai::describe-product` / `state::*`）を安全に呼べる。
+    """
+
+    def wrapper(data: dict[str, Any]) -> dict[str, Any]:
+        return asyncio.run(handler(_unwrap_payload(data), services))
+
+    return wrapper
+
 
 def register_ec_orchestration(iii: Any, services: Services) -> None:
     """非同期オーケストレーション関数を登録する（iii.trigger を内部で利用する）。
@@ -115,14 +150,19 @@ def register_ec_orchestration(iii: Any, services: Services) -> None:
     """
     trigger = iii.trigger
 
+    # すべて sync ハンドラとして登録する。run-batch/status は sync trigger を、
+    # run-tracked は pipeline を await しつつ sync trigger で state を書くため、
+    # 専用スレッド上の `asyncio.run` で実行する（loop スレッドからは sync trigger 不可）。
     def run_batch(data: dict[str, Any]) -> dict[str, Any]:
         return handle_pipeline_run_batch(_unwrap_payload(data), services, trigger)
 
     def status(data: dict[str, Any]) -> dict[str, Any]:
         return handle_pipeline_status(_unwrap_payload(data), services, trigger)
 
-    async def run_tracked(data: dict[str, Any]) -> dict[str, Any]:
-        return await handle_pipeline_run_tracked(_unwrap_payload(data), services, trigger)
+    def run_tracked(data: dict[str, Any]) -> dict[str, Any]:
+        return asyncio.run(
+            handle_pipeline_run_tracked(_unwrap_payload(data), services, trigger)
+        )
 
     iii.register_function("pipeline::run-batch", run_batch)
     iii.register_trigger(
@@ -163,7 +203,7 @@ def main() -> None:
     # register_worker() は既に接続済み（_wait_until_connected）なので connect 呼び出しは不要。
     register_ec_functions(iii, services)
     register_ec_orchestration(iii, services)
-    registered = [fid for fid, _, _ in SYNC_FUNCTIONS] + [fid for fid, _, _ in ASYNC_FUNCTIONS]
+    registered = [fid for fid, _, _ in SYNC_FUNCTIONS + ASYNC_FUNCTIONS + REENTRANT_FUNCTIONS]
     registered += ["pipeline::run-batch", "pipeline::status", "pipeline::run-tracked"]
     print(f"[ec-worker] registered: {', '.join(registered)}")
 

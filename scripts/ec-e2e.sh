@@ -24,6 +24,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
+log "pre-flight cleanup (stale workers / engine)…"
+pkill -9 -f "src.worker.app" 2>/dev/null || true
+pkill -9 -f "tsx server/index.ts" 2>/dev/null || true
+make engine-down 2>/dev/null || true
+sleep 1
+
 log "building engine (cargo, may take a few minutes)…"
 make engine-build
 
@@ -37,7 +43,9 @@ make install-ec
 log "building iii node SDK (+ observability dep) + starting automation-studio worker…"
 pnpm --filter @iii-dev/observability build >/dev/null 2>&1 || log "warn: observability build failed"
 pnpm --filter iii-sdk build >/dev/null 2>&1 || log "warn: iii-sdk build failed (AS worker may not start)"
-( III_URL="$III_URL" pnpm --filter @iii/automation-studio start >/tmp/ec-e2e-as.log 2>&1 ) &
+# AS worker only needs the iii registration; use a non-default HTTP port to avoid
+# colliding with any stray 8787 listener.
+( III_URL="$III_URL" PORT=8799 pnpm --filter @iii/automation-studio start >/tmp/ec-e2e-as.log 2>&1 ) &
 AS_PID=$!
 
 log "starting EC worker…"
