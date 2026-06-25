@@ -1,5 +1,5 @@
 import { type EnqueueResult, TriggerAction } from 'iii-sdk'
-import { Logger } from './logger'
+import { Logger } from '@iii-dev/observability'
 import { useApi } from './hooks'
 import { iii } from './iii'
 

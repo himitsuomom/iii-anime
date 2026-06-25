@@ -1,4 +1,4 @@
-import { Logger } from './logger'
+import { Logger } from '@iii-dev/observability'
 import { iii } from './iii'
 
 const logger = new Logger(undefined, 'middleware-example')
