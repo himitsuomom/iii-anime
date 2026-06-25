@@ -24,6 +24,11 @@ from src.worker.handlers import (
     handle_pipeline_run,
     handle_products_load,
 )
+from src.worker.orchestration import (
+    handle_pipeline_run_batch,
+    handle_pipeline_run_tracked,
+    handle_pipeline_status,
+)
 from src.worker.services import Services, build_services
 
 # 関数ID → (同期ハンドラ, HTTP パス)。HTTP メソッドはすべて POST。
@@ -102,6 +107,42 @@ def register_ec_functions(iii: Any, services: Services) -> None:
         )
 
 
+def register_ec_orchestration(iii: Any, services: Services) -> None:
+    """非同期オーケストレーション関数を登録する（iii.trigger を内部で利用する）。
+
+    `pipeline::run-batch` / `pipeline::status` は HTTP トリガー付き。
+    `pipeline::run-tracked` は queue 専用（内部用）なので HTTP トリガーは付けない。
+    """
+    trigger = iii.trigger
+
+    def run_batch(data: dict[str, Any]) -> dict[str, Any]:
+        return handle_pipeline_run_batch(_unwrap_payload(data), services, trigger)
+
+    def status(data: dict[str, Any]) -> dict[str, Any]:
+        return handle_pipeline_status(_unwrap_payload(data), services, trigger)
+
+    async def run_tracked(data: dict[str, Any]) -> dict[str, Any]:
+        return await handle_pipeline_run_tracked(_unwrap_payload(data), services, trigger)
+
+    iii.register_function("pipeline::run-batch", run_batch)
+    iii.register_trigger(
+        {
+            "type": "http",
+            "function_id": "pipeline::run-batch",
+            "config": {"api_path": "/ec/pipeline/run-batch", "http_method": "POST"},
+        }
+    )
+    iii.register_function("pipeline::status", status)
+    iii.register_trigger(
+        {
+            "type": "http",
+            "function_id": "pipeline::status",
+            "config": {"api_path": "/ec/pipeline/status", "http_method": "POST"},
+        }
+    )
+    iii.register_function("pipeline::run-tracked", run_tracked)
+
+
 def main() -> None:
     """ワーカーを起動してエンジンに接続し、常駐する。"""
     from iii import register_worker  # 遅延 import: SDK 非依存を保つ
@@ -120,8 +161,10 @@ def main() -> None:
     print(f"[ec-worker] connecting to {url} — describe: {describe_mode}, local-fallback: {base_mode}")
 
     register_ec_functions(iii, services)
+    register_ec_orchestration(iii, services)
     iii.connect()
     registered = [fid for fid, _, _ in SYNC_FUNCTIONS] + [fid for fid, _, _ in ASYNC_FUNCTIONS]
+    registered += ["pipeline::run-batch", "pipeline::status", "pipeline::run-tracked"]
     print(f"[ec-worker] registered: {', '.join(registered)}")
 
     try:

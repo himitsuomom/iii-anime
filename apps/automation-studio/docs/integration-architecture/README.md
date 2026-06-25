@@ -83,13 +83,16 @@ flowchart TB
 | apps/ec | `listing::shopify` / `listing::mercari` / `listing::podtomatic` | `src/listing/*.py` | `ProductListing` → 出品結果 |
 | apps/ec | `analytics::price` / `analytics::demand` | `src/analytics/{price_tracker,demand_analyzer}.py` | `{sku/keyword}` → 分析結果 |
 | apps/ec | `pipeline::run` | `src/pipeline.py` (`ResalePipeline`) | `ProductInput` → `PipelineResult`（著作権→生成→出品） |
-| automation-studio | `ai::describe-product` | `server/lib/offline.ts` / Claude | `DescribeRequest` → `GeneratedDescription`（キー無→テンプレ） |
-| automation-studio | `ai::answer-inquiry` | `server/lib/offline.ts` / Claude | `Inquiry` → `{reply, source}`（キー無→FAQ） |
+| apps/ec | `pipeline::run-batch` / `pipeline::status` | `src/worker/orchestration.py` | `{products[]}` → `{batch_id}` / `{batch_id}` → 進捗（queue＋state） |
+| apps/ec | `pipeline::run-tracked` | `src/worker/orchestration.py` | （queue 専用・内部）`ProductInput` → 実行＋state 記録 |
+| automation-studio | `ai::describe-product` | `server/lib/describe.ts`（+ `iii-worker.ts`）/ Claude opus | `{productName,features,keywords,tone}` → `{title,description,bullets,seoKeywords,source}`（キー無→テンプレ） |
+| automation-studio | `ai::answer-inquiry` | `server/lib/inquiry.ts`（+ `iii-worker.ts`）/ Claude opus | `{messages}` → `{reply, source}`（キー無→FAQ） |
 
-> **重複の整合（要決定・Phase 2）**: EC の `product/generator.py`（`ProductGenerator`, `claude-sonnet-4-6`）と
-> automation-studio の `ai::describe-product`（`claude-opus-4-8` + オフライン代替）は**役割が重複**。
-> 方針案: ECの説明生成を `ai::describe-product` の呼び出しに置換し、生成ロジックを AS に一本化（モデル/オフライン代替も統一）。
-> `ai::*` は `server/lib/offline.ts` の純ロジックを再利用（キー無しでも稼働）。
+> **重複の整合 … ✅ 一本化済み（Phase B）**: EC の説明生成は `src/worker/remote.py` の
+> `RemoteProductGenerator` で automation-studio の `ai::describe-product`（`claude-opus-4-8`）へ委譲する。
+> **デフォルト remote ＋ ローカル退避**: エンジン未接続/失敗時は EC のローカル（`ProductGenerator`）/
+> オフライン生成へ自動フォールバックするため、EC 単体でも稼働する（`EC_DESCRIBE_BACKEND=local` で固定可）。
+> `ai::*` は `server/lib/{describe,inquiry}.ts` の純ロジックを HTTP ルートと共有（キー無しでも稼働）。
 
 ## 6. 主要シーケンス
 
@@ -158,14 +161,14 @@ sequenceDiagram
 - **Phase 0 — EC を取り込む … ✅ 完了**: zip 受領 → `apps/ec/` に取り込み済み。`make ci-ec` で **128 tests pass / ruff clean**。
 - **Phase 1 — `packages/contracts`**: 代表エンティティを JSON Schema 化＋TS/Pydantic 生成（本リポに雛形あり）。実 EC モデル（`ProductInput`/`ProductListing`/`CopyrightCheckResult` 等）に合わせて項目を確定。
 - **Phase 2 — EC を iii worker 化 … ✅ 実装済み**: `apps/ec/src/worker/` に薄いアダプタ層を追加（下記 §12）。`products::describe` / `copyright::check` / `analytics::price` / `analytics::demand` / `pipeline::run` を登録し、各々に HTTP トリガー（`POST /ec/*`）を付与。ラップ対象＝`ProductGenerator`・`CopyrightChecker`・`ResalePipeline`・`PriceTracker`・`DemandAnalyzer`。**APIキー無しでもオフライン代替で稼働**。mypy strict / ruff clean / **146 tests pass**（既知2件も解消）。
-  - 未実装（次フェーズ送り）: `products::load`（CSV/JSON ローダの worker 化）と独立した `listing::shopify/mercari/podtomatic`（現状は `pipeline::run` 内で Shopify 認証時のみ出品）。説明生成の重複を `ai::describe-product` へ一本化するかは未決（§10）。
-- **Phase 3 — AS を iii worker 化**: `ai::*` を公開。Dashboard のモック値を実データに置換。
-- **Phase 4 — 非同期フロー**: 一括出品・問い合わせ自動応答をキュー/stateトリガーで配線。トレース有効化。
+  - 追加実装済み（Phase A）: `products::load`（CSV/JSON＋インライン rows）と独立した `listing::shopify/mercari/podtomatic`（認証情報がある時のみクライアント生成）。
+- **Phase 3 — AS を iii worker 化 … ✅ 実装済み**: `apps/automation-studio/server/iii-worker.ts` で `ai::describe-product` / `ai::answer-inquiry` を登録（`III_URL` 設定時のみ engine 接続、HTTP は従来通り）。共有ロジックを `server/lib/{describe,inquiry}.ts` に抽出し HTTP ルートと共用。**vitest 21 / type-check / biome clean**。Dashboard のモック実データ化は未了（残作業）。
+- **Phase 4 — 非同期フロー ＋ 説明生成の一本化 … ✅ 実装済み**: EC を remote 生成（`ai::describe-product`/opus）へ一本化（§5 注記）。一括処理を `pipeline::run-batch` → `pipeline::run-tracked`(queue `default`) → `pipeline::status`(state 集計) で配線（§13）。実エンジン E2E は `scripts/ec-e2e.sh` ＋ `apps/ec/tests/e2e/`（`III_E2E` ゲート）。トレース有効化・問い合わせ自動応答フローの配線は残作業。
 - **Phase 5 — CI/deploy 統合**: EC を uv+hatchling へ統一、`ci.yml` に `ec-python-ci` 追加、コンテナ＆Terraform でデプロイ一本化。
 
 ## 10. 未確定事項
 
-- **説明生成の重複整合**（EC `ProductGenerator` vs AS `ai::describe-product`、モデル `sonnet-4-6` vs `opus-4-8`）→ Phase 2 で決定。
+- **説明生成の重複整合 … ✅ 決定済み**（Phase B）: EC をデフォルト remote（`ai::describe-product`/opus）＋ローカル退避に一本化。`sonnet-4-6` は EC のローカル退避経路として残置。
 - 「統合の物理形態」（EC を `iii-anime` に取り込む＝今回の方針 / EC 側へ集約）は最終的にユーザー確認。
 
 ## 11. 取り込み済み EC の実体（apps/ec）
@@ -202,11 +205,31 @@ EC を作り替えず、エンジン境界だけを足す薄い層。**純粋部
 | `copyright::check` | `/ec/copyright-check` | `product/copyright_checker.py`（or 代替） |
 | `analytics::price` | `/ec/analytics/price` | `analytics/price_tracker.py` |
 | `analytics::demand` | `/ec/analytics/demand` | `analytics/demand_analyzer.py` |
+| `products::load` | `/ec/products/load` | `io/product_loader.py`（CSV/JSON / インライン rows） |
 | `pipeline::run` | `/ec/pipeline/run` | `pipeline.py`（`ResalePipeline`：著作権→生成→任意出品） |
+| `listing::shopify` / `listing::mercari` / `listing::podtomatic` | `/ec/list/*` | `listing/*.py`（認証情報がある時のみ） |
 
 - HTTP の `ApiRequest`（`body` ネスト）と `trigger()` の生 payload の両方を `_unwrap_payload()` で受け付ける。
 - 起動: `III_URL=ws://localhost:49134 python -m src.worker.app`（`apps/ec` から）。キー無しなら自動で `offline` モード。
-- テスト（`tests/test_worker.py`・18件）は `force_offline=True` と偽エンジンで完結し、**ネットワーク/APIキー/iii SDK 不要**。
+- テスト（`tests/test_worker.py`）は `force_offline=True` と偽エンジンで完結し、**ネットワーク/APIキー/iii SDK 不要**。
+
+## 13. Phase 3/4 実装: AS worker ＋ 非同期オーケストレーション
+
+**automation-studio worker**（`apps/automation-studio/server/`）:
+
+| ファイル | 役割 |
+|---|---|
+| `lib/describe.ts` | `generateDescription()`（opus or テンプレ）。HTTP ルートと worker で共有 |
+| `lib/inquiry.ts` | `answerInquiry()`（非ストリーム。opus or FAQ）。`/api/chat`（SSE）は従来通り |
+| `iii-worker.ts` | `registerAiFunctions()` で `ai::describe-product` / `ai::answer-inquiry` を登録／`startAiWorker()` は `III_URL` 設定時のみ接続 |
+
+**EC 非同期フロー**（`apps/ec/src/worker/orchestration.py`、`iii.trigger` を利用）:
+
+- `pipeline::run-batch`（`/ec/pipeline/run-batch`）: 各 product を `pipeline::run-tracked` へ queue（`{"type":"enqueue","queue":"default"}`）投入。合計を `state::set`(scope `ec-batch`)。`batch_id` を返す。
+- `pipeline::run-tracked`（queue 専用・HTTP 無し）: pipeline 実行後、**商品ごとに別キー**で `state::set`(scope `ec-batch-items:<batch_id>`, key=index)。read-modify-write を避け queue 並列でも競合しない。
+- `pipeline::status`（`/ec/pipeline/status`）: `state::get`(合計) ＋ `state::list`(処理済み) を集計し `{total, completed, done, items}` を返す。
+
+**実エンジン E2E**: `scripts/ec-e2e.sh` が engine ビルド/起動 → EC worker ＋ AS worker 起動 → `III_E2E=1 pytest tests/e2e` を実行（sync 生成・queue 非同期・state 追跡を実機検証）。`III_E2E` 無しの通常テストはスキップされる。
 
 ---
 

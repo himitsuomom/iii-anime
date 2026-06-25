@@ -26,6 +26,11 @@ from src.worker.handlers import (
     handle_products_load,
 )
 from src.worker.offline import OfflineCopyrightChecker, OfflineProductGenerator
+from src.worker.orchestration import (
+    handle_pipeline_run_batch,
+    handle_pipeline_run_tracked,
+    handle_pipeline_status,
+)
 from src.worker.remote import RemoteProductGenerator
 from src.worker.serializers import (
     product_input_from_dict,
@@ -516,3 +521,124 @@ def test_build_services_uses_remote_when_trigger_given() -> None:
         services,
     )
     assert out["title"] == "T"
+
+
+# ---- Phase C: orchestration（queue / state 配線） ----
+
+
+class _FakeStateEngine:
+    """state::set/get/list と enqueue を in-memory で模した fake trigger。"""
+
+    def __init__(self) -> None:
+        self.store: dict[tuple[str, str], Any] = {}
+        self.enqueued: list[dict[str, Any]] = []
+
+    def trigger(self, req: dict[str, Any]) -> Any:
+        fid = req["function_id"]
+        payload = req.get("payload", {})
+        if req.get("action", {}).get("type") == "enqueue":
+            self.enqueued.append(req)
+            return {"messageReceiptId": f"r{len(self.enqueued)}"}
+        if fid == "state::set":
+            self.store[(payload["scope"], payload["key"])] = payload["value"]
+            return {"new_value": payload["value"]}
+        if fid == "state::get":
+            return self.store.get((payload["scope"], payload["key"]))
+        if fid == "state::list":
+            scope = payload["scope"]
+            return [v for (s, _), v in self.store.items() if s == scope]
+        raise AssertionError(f"unexpected function_id {fid}")
+
+
+def _product(name: str) -> dict[str, Any]:
+    return {
+        "name": name,
+        "category": "Mugs",
+        "design_concept": "plain",
+        "target_audience": "all",
+    }
+
+
+def test_run_batch_enqueues_each_product(services: Services) -> None:
+    engine = _FakeStateEngine()
+    out = handle_pipeline_run_batch(
+        {"products": [_product("A"), _product("B"), _product("C")]}, services, engine.trigger
+    )
+    assert out["total"] == 3
+    assert out["queued"] == 3
+    # 3件が queue に投入され、合計が state に記録される
+    assert len(engine.enqueued) == 3
+    assert all(e["function_id"] == "pipeline::run-tracked" for e in engine.enqueued)
+    assert all(e["action"] == {"type": "enqueue", "queue": "default"} for e in engine.enqueued)
+    assert engine.store[("ec-batch", out["batch_id"])] == {"total": 3}
+    # _batch_id / _index が payload に付与される
+    assert engine.enqueued[1]["payload"]["_index"] == 1
+
+
+def test_run_batch_requires_products(services: Services) -> None:
+    engine = _FakeStateEngine()
+    with pytest.raises(ValueError):
+        handle_pipeline_run_batch({}, services, engine.trigger)
+
+
+@pytest.mark.asyncio
+async def test_run_tracked_records_state(services: Services) -> None:
+    engine = _FakeStateEngine()
+    out = await handle_pipeline_run_tracked(
+        {**_product("A"), "_batch_id": "batch1", "_index": 2}, services, engine.trigger
+    )
+    assert out["success"] is True
+    # 商品ごとに別キーで結果が記録される
+    summary = engine.store[("ec-batch-items:batch1", "2")]
+    assert summary["index"] == 2
+    assert summary["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_status_aggregates_progress(services: Services) -> None:
+    engine = _FakeStateEngine()
+    # batch を作って 3件中 2件だけ処理済みにする
+    batch = handle_pipeline_run_batch(
+        {"products": [_product("A"), _product("B"), _product("C")], "batch_id": "b1"},
+        services,
+        engine.trigger,
+    )
+    for i in (0, 1):
+        await handle_pipeline_run_tracked(
+            {**_product("X"), "_batch_id": "b1", "_index": i}, services, engine.trigger
+        )
+
+    status = handle_pipeline_status({"batch_id": batch["batch_id"]}, services, engine.trigger)
+    assert status["total"] == 3
+    assert status["completed"] == 2
+    assert status["done"] is False
+
+    # 残り1件を処理すると done
+    await handle_pipeline_run_tracked(
+        {**_product("X"), "_batch_id": "b1", "_index": 2}, services, engine.trigger
+    )
+    status2 = handle_pipeline_status({"batch_id": "b1"}, services, engine.trigger)
+    assert status2["completed"] == 3
+    assert status2["done"] is True
+
+
+def test_status_requires_batch_id(services: Services) -> None:
+    engine = _FakeStateEngine()
+    with pytest.raises(ValueError):
+        handle_pipeline_status({}, services, engine.trigger)
+
+
+def test_register_ec_orchestration_registers(services: Services) -> None:
+    from src.worker.app import register_ec_orchestration
+
+    class _Eng(_FakeEngine):
+        def trigger(self, req: dict[str, Any]) -> Any:
+            return None
+
+    engine = _Eng()
+    register_ec_orchestration(engine, services)
+    assert {"pipeline::run-batch", "pipeline::status", "pipeline::run-tracked"} <= set(engine.functions)
+    # run-tracked は HTTP トリガー無し（queue 専用）
+    paths = {t["config"]["api_path"] for t in engine.triggers}
+    assert "/ec/pipeline/run-batch" in paths
+    assert "/ec/pipeline/status" in paths
