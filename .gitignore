@@ -53,7 +53,9 @@ htmlcov/
 Thumbs.db
 
 # AI tools
-.claude/
+.claude/**
+!.claude/skills/
+!.claude/skills/**
 .planning/
 .gstack/
 AGENTS.md
