@@ -10,9 +10,9 @@ free tiers of 16+ LLM providers (Google, Groq, Cerebras, Mistral, OpenRouter, Gi
 Cohere, Cloudflare, HuggingFace, NVIDIA, and more) behind a single **OpenAI-compatible** endpoint. It
 tracks per-provider rate limits, fails over automatically, and stores keys encrypted (AES-256-GCM).
 
-Because the endpoint speaks the OpenAI API, any iii worker can use it as a drop-in LLM backend — for
-example an [agent worker](/tutorials/build-an-agent/overview) or a `content::classify` function — without
-committing to a single paid provider.
+Because the endpoint implements the OpenAI API, any iii worker can use it as a drop-in LLM backend.
+For example, an [agent worker](/tutorials/build-an-agent/overview) or a `content::classify` function
+can call it without committing to a single paid provider.
 
 <Info title="Separate projects">
   FreeLLMAPI is a standalone service, not part of the iii engine. You run it alongside iii (locally
@@ -23,21 +23,21 @@ committing to a single paid provider.
 
 FreeLLMAPI ships as a Docker image. Pick one of the two paths below.
 
-### Option A — Docker one-liner
+### Option A: Docker one-liner
 
 ```bash
 curl -fsSL https://freellmapi.co/install.sh | bash
 ```
 
 This creates `~/freellmapi`, generates an encryption key, pulls the image, and starts the container.
-Re-running is safe — your `.env` and encryption key are preserved.
+Re-running is safe; your `.env` and encryption key are preserved.
 
 <Warning title="Review before piping to a shell">
   Inspect the script before running it if you have not used it before:
   `curl -fsSL https://freellmapi.co/install.sh | less`.
 </Warning>
 
-### Option B — Manual Docker Compose
+### Option B: Manual Docker Compose
 
 **Prerequisites:** Docker, Docker Compose, and OpenSSL.
 
@@ -112,7 +112,7 @@ worker.registerFunction(
 )
 ```
 
-Any other worker — or an agent — can now call `llm::complete` through the engine and reach every
+Any other worker, or an agent, can now call `llm::complete` through the engine and reach every
 provider FreeLLMAPI fronts, with rate-limit tracking and failover handled for you.
 
 ## Environment variables
@@ -123,7 +123,7 @@ FreeLLMAPI reads these (set them in its `.env`, not in iii):
 | --- | --- | --- |
 | `ENCRYPTION_KEY` | Required; encrypts stored provider keys | Generated on setup |
 | `PORT` | Server / dashboard port | `3001` |
-| `HOST_BIND` | Bind address — use `0.0.0.0` for LAN access | `127.0.0.1` |
+| `HOST_BIND` | Bind address; use `0.0.0.0` for LAN access | `127.0.0.1` |
 | `FREELLMAPI_CONTEXT_HANDOFF` | Carry context across mid-conversation model switches | `off` |
 
 On the iii side, the worker above expects `FREELLMAPI_URL` and `FREELLMAPI_KEY` (plus the usual
@@ -134,7 +134,7 @@ On the iii side, the worker above expects `FREELLMAPI_URL` and `FREELLMAPI_KEY` 
 - **Bind address.** FreeLLMAPI binds to `127.0.0.1` by default. If iii runs on another host or in a
   separate container network, set `HOST_BIND=0.0.0.0` and point `FREELLMAPI_URL` at the reachable
   address.
-- **Free tiers have limits.** `model: "auto"` smooths over per-provider quotas, but sustained or
-  latency-sensitive production traffic should still use a paid backend.
+- **Free tiers have limits.** `model: "auto"` distributes requests across per-provider quotas, but
+  sustained or latency-sensitive production traffic should still use a paid backend.
 - **Keep the unified key secret.** Inject `FREELLMAPI_KEY` as an environment variable or secret;
   never commit it.
