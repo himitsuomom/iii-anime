@@ -1,22 +1,8 @@
 import { Calculator, Map as MapIcon, MessageSquare, Package, Sparkles, TrendingUp } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { fetchStats, type RuntimeStats } from '../lib/api.ts'
+import { fetchStats, formatMoney, type RuntimeStats } from '../lib/api.ts'
 import type { View } from './Sidebar.tsx'
 import { Card, PageHeader } from './ui.tsx'
-
-interface Kpi {
-  label: string
-  value: string
-  delta: string
-  positive: boolean
-  icon: typeof TrendingUp
-}
-
-// 売上・在庫は実データソース（受注DB）が無いためサンプル。AI稼働数はサーバ実測値（下記）。
-const SAMPLE_KPIS: Kpi[] = [
-  { label: '月間売上（サンプル）', value: '¥1,284,000', delta: 'サンプル値', positive: true, icon: TrendingUp },
-  { label: '在庫アラート（サンプル）', value: '3件', delta: 'サンプル値', positive: false, icon: Package },
-]
 
 export function Dashboard({ onNavigate }: { onNavigate: (view: View) => void }) {
   const [stats, setStats] = useState<RuntimeStats | null>(null)
@@ -59,21 +45,35 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: View) => void }) 
           <div className="mt-3 text-2xl font-semibold">{stats ? stats.inquiriesAnswered : '—'}</div>
           <div className="mt-1 text-xs text-success">{stats?.hasApiKey ? 'Claude応答' : 'オフライン応答'}</div>
         </Card>
-        {SAMPLE_KPIS.map((kpi) => {
-          const Icon = kpi.icon
-          return (
-            <Card key={kpi.label}>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted">{kpi.label}</span>
-                <Icon className="h-4 w-4 text-muted" />
-              </div>
-              <div className="mt-3 text-2xl font-semibold">{kpi.value}</div>
-              <div className={kpi.positive ? 'mt-1 text-xs text-success' : 'mt-1 text-xs text-warning'}>
-                {kpi.delta}
-              </div>
-            </Card>
-          )
-        })}
+        {/* 実 KPI（engine の orders::stats / inventory::alerts 集計）。worker 未接続時は「未接続」 */}
+        <Card>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted">売上（累計）</span>
+            <TrendingUp className="h-4 w-4 text-muted" />
+          </div>
+          <div className="mt-3 text-2xl font-semibold">
+            {stats?.revenue ? formatMoney(stats.revenue) : stats?.workerConnected ? '¥0' : '—'}
+          </div>
+          <div className="mt-1 text-xs text-muted">
+            {stats?.workerConnected ? `注文 ${stats.orderCount ?? 0} 件` : 'worker未接続'}
+          </div>
+        </Card>
+        <Card>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted">在庫アラート</span>
+            <Package className="h-4 w-4 text-muted" />
+          </div>
+          <div className="mt-3 text-2xl font-semibold">
+            {stats?.workerConnected ? `${stats.inventoryAlertCount ?? 0} 件` : '—'}
+          </div>
+          <div
+            className={
+              (stats?.inventoryAlertCount ?? 0) > 0 ? 'mt-1 text-xs text-warning' : 'mt-1 text-xs text-success'
+            }
+          >
+            {stats?.workerConnected ? ((stats.inventoryAlertCount ?? 0) > 0 ? '要対応' : '良好') : 'worker未接続'}
+          </div>
+        </Card>
       </div>
 
       <h2 className="mt-10 mb-3 text-sm font-semibold text-secondary">クイックアクション</h2>

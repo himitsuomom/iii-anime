@@ -2,10 +2,12 @@ import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 import { hasApiKey, MODEL } from './anthropic.ts'
-import { startAiWorker } from './iii-worker.ts'
+import { getWorker, startAiWorker } from './iii-worker.ts'
+import { fetchDashboardExtras } from './lib/dashboard.ts'
 import { getMetrics } from './lib/metrics.ts'
 import { chatRoute } from './routes/chat.ts'
 import { generateRoute } from './routes/generate.ts'
+import { webhooksRoute } from './routes/webhooks.ts'
 
 // Load environment variables from a local .env file when present (Node ≥ 21.7).
 try {
@@ -18,17 +20,21 @@ const app = new Hono()
 
 const api = new Hono()
 api.get('/health', (c) => c.json({ ok: true, hasApiKey: hasApiKey() }))
-// Live runtime metrics for the dashboard (real counts this instance has done).
-api.get('/stats', (c) =>
-  c.json({
+// Live dashboard metrics: in-process AI counters + real order/inventory KPIs
+// aggregated from the engine (when a worker is connected).
+api.get('/stats', async (c) => {
+  const extras = await fetchDashboardExtras()
+  return c.json({
     ...getMetrics(),
+    ...extras,
     hasApiKey: hasApiKey(),
     model: MODEL,
-    workerConnected: Boolean(process.env.III_URL),
-  }),
-)
+    workerConnected: Boolean(getWorker()),
+  })
+})
 api.route('/generate-description', generateRoute)
 api.route('/chat', chatRoute)
+api.route('/webhooks', webhooksRoute)
 
 app.route('/api', api)
 

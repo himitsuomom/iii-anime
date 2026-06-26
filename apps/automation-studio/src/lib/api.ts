@@ -23,12 +23,32 @@ export async function fetchHealth(): Promise<{ ok: boolean; hasApiKey: boolean }
   return res.json()
 }
 
+export interface Money {
+  amount: number
+  currency: string
+}
+
 export interface RuntimeStats {
   descriptionsGenerated: number
   inquiriesAnswered: number
   hasApiKey: boolean
   model: string
   workerConnected: boolean
+  // Real KPIs aggregated from the engine (present only when a worker is connected).
+  revenue?: Money
+  orderCount?: number
+  inventoryAlertCount?: number
+}
+
+/** Format minor-unit Money for display (e.g. {1284000, JPY} → "¥1,284,000"). */
+export function formatMoney(money: Money): string {
+  const zeroDecimal = ['JPY', 'KRW', 'VND', 'CLP', 'ISK'].includes(money.currency.toUpperCase())
+  const major = zeroDecimal ? money.amount : money.amount / 100
+  try {
+    return new Intl.NumberFormat('ja-JP', { style: 'currency', currency: money.currency }).format(major)
+  } catch {
+    return `${major} ${money.currency}`
+  }
 }
 
 export async function fetchStats(): Promise<RuntimeStats> {

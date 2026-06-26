@@ -14,6 +14,13 @@ import { DESCRIBE_OUTPUT_SCHEMA, generateDescription } from './lib/describe.ts'
 import { answerInquiry, type ChatMessage } from './lib/inquiry.ts'
 import type { DescriptionInput } from './lib/offline.ts'
 
+/** Trigger request shape (mirrors the iii SDK's trigger() input). */
+export interface TriggerRequest {
+  function_id: string
+  payload?: unknown
+  action?: { type: string; queue?: string }
+}
+
 /** Minimal structural type of the engine instance we depend on (keeps this testable). */
 export interface IIIEngine {
   registerFunction: (
@@ -21,7 +28,17 @@ export interface IIIEngine {
     handler: (data: unknown) => Promise<unknown>,
     options?: Record<string, unknown>,
   ) => unknown
+  trigger: (request: TriggerRequest) => Promise<unknown>
   shutdown?: () => void
+}
+
+// Singleton engine handle so HTTP routes (e.g. Shopify webhooks) can trigger
+// worker functions after startAiWorker() has connected.
+let workerInstance: IIIEngine | null = null
+
+/** The connected engine, or null when III_URL is not configured. */
+export function getWorker(): IIIEngine | null {
+  return workerInstance
 }
 
 const DESCRIBE_REQUEST_SCHEMA = {
@@ -95,5 +112,6 @@ export async function startAiWorker(url: string | undefined): Promise<IIIEngine 
     },
   }) as unknown as IIIEngine
   registerAiFunctions(iii)
+  workerInstance = iii
   return iii
 }

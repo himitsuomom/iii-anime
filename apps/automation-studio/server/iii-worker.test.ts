@@ -13,6 +13,10 @@ class FakeEngine implements IIIEngine {
     return { id }
   }
 
+  async trigger(): Promise<unknown> {
+    return null
+  }
+
   /** Get a registered handler, throwing if it is missing. */
   handler(id: string): (data: unknown) => Promise<unknown> {
     const fn = this.functions.get(id)

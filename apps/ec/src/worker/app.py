@@ -31,11 +31,19 @@ from src.worker.orchestration import (
     handle_pipeline_status,
 )
 from src.worker.services import Services, build_services
+from src.worker.store import (
+    handle_inventory_alerts,
+    handle_inventory_upsert,
+    handle_orders_ingest,
+    handle_orders_stats,
+)
 
 # 関数ID → (同期ハンドラ, HTTP パス)。HTTP メソッドはすべて POST。
 SyncHandler = Callable[[dict[str, Any], Services], dict[str, Any]]
 AsyncHandler = Callable[[dict[str, Any], Services], Awaitable[dict[str, Any]]]
 ReentrantHandler = Callable[[dict[str, Any], Services], Coroutine[Any, Any, dict[str, Any]]]
+# 注文/在庫ハンドラは (data, services, trigger) を取る（state を trigger 経由で読み書き）。
+StoreHandler = Callable[[dict[str, Any], Services, Callable[[dict[str, Any]], Any]], dict[str, Any]]
 
 SYNC_FUNCTIONS: list[tuple[str, SyncHandler, str]] = [
     ("products::describe", handle_describe, "/ec/describe"),
@@ -183,6 +191,38 @@ def register_ec_orchestration(iii: Any, services: Services) -> None:
     iii.register_function("pipeline::run-tracked", run_tracked)
 
 
+def register_ec_store(iii: Any, services: Services) -> None:
+    """注文/在庫の永続化・集計関数を登録する（iii.trigger で state を読み書き）。
+
+    すべて sync ハンドラ（state::* を sync trigger するため専用スレッドで実行される）。
+    """
+    trigger = iii.trigger
+
+    store_functions: list[tuple[str, StoreHandler, str]] = [
+        ("orders::ingest", handle_orders_ingest, "/ec/orders/ingest"),
+        ("orders::stats", handle_orders_stats, "/ec/orders/stats"),
+        ("inventory::upsert", handle_inventory_upsert, "/ec/inventory/upsert"),
+        ("inventory::alerts", handle_inventory_alerts, "/ec/inventory/alerts"),
+    ]
+
+    for function_id, store_handler, api_path in store_functions:
+
+        def make_store(h: StoreHandler) -> Callable[[dict[str, Any]], dict[str, Any]]:
+            def wrapper(data: dict[str, Any]) -> dict[str, Any]:
+                return h(_unwrap_payload(data), services, trigger)
+
+            return wrapper
+
+        iii.register_function(function_id, make_store(store_handler))
+        iii.register_trigger(
+            {
+                "type": "http",
+                "function_id": function_id,
+                "config": {"api_path": api_path, "http_method": "POST"},
+            }
+        )
+
+
 def main() -> None:
     """ワーカーを起動してエンジンに接続し、常駐する。"""
     from iii import InitOptions, register_worker  # 遅延 import: SDK 非依存を保つ
@@ -213,8 +253,10 @@ def main() -> None:
     # register_worker() は既に接続済み（_wait_until_connected）なので connect 呼び出しは不要。
     register_ec_functions(iii, services)
     register_ec_orchestration(iii, services)
+    register_ec_store(iii, services)
     registered = [fid for fid, _, _ in SYNC_FUNCTIONS + ASYNC_FUNCTIONS + REENTRANT_FUNCTIONS]
     registered += ["pipeline::run-batch", "pipeline::status", "pipeline::run-tracked"]
+    registered += ["orders::ingest", "orders::stats", "inventory::upsert", "inventory::alerts"]
     print(f"[ec-worker] registered: {', '.join(registered)}")
 
     try:

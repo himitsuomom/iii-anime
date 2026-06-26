@@ -115,3 +115,36 @@ def test_state_roundtrip(client: Any) -> None:
     )
     got = client.trigger({"function_id": "state::get", "payload": {"scope": "e2e-test", "key": "k1"}})
     assert got == {"hello": "world"}
+
+
+def test_orders_ingest_and_stats(client: Any) -> None:
+    for i, amount in enumerate((1000, 2000, 500)):
+        client.trigger(
+            {
+                "function_id": "orders::ingest",
+                "payload": {
+                    "id": f"e2e-order-{i}",
+                    "status": "paid",
+                    "items": [],
+                    "total": {"amount": amount, "currency": "JPY"},
+                    "createdAt": "2026-06-26T00:00:00Z",
+                },
+            }
+        )
+    stats = client.trigger({"function_id": "orders::stats", "payload": {}})
+    assert stats["orderCount"] >= 3
+    assert stats["revenue"]["currency"] == "JPY"
+    assert stats["revenue"]["amount"] >= 3500
+
+
+def test_inventory_alerts(client: Any) -> None:
+    client.trigger(
+        {"function_id": "inventory::upsert", "payload": {"sku": "E2E-OUT", "onHand": 0, "reorderPoint": 5}}
+    )
+    client.trigger(
+        {"function_id": "inventory::upsert", "payload": {"sku": "E2E-OK", "onHand": 50, "reorderPoint": 5}}
+    )
+    out = client.trigger({"function_id": "inventory::alerts", "payload": {}})
+    by_sku = {a["sku"]: a["severity"] for a in out["alerts"]}
+    assert by_sku.get("E2E-OUT") == "out"
+    assert "E2E-OK" not in by_sku

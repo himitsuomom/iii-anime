@@ -19,7 +19,7 @@ export III_TELEMETRY_ENABLED := false
         init-build-x86 init-build-aarch64 init-build-all \
         sandbox sandbox-debug \
         test-sdk-node test-sdk-python test-sdk-rust test-sdk-all \
-        install-ec lint-ec typecheck-ec test-ec ci-ec contracts-codegen \
+        install-ec lint-ec typecheck-ec test-ec ci-ec contracts-codegen seed-demo \
         lint-python lint-rust lint-console lint \
         fmt-check fmt-check-rust fmt-check-all \
         typecheck-node typecheck-python typecheck \
@@ -58,6 +58,12 @@ typecheck-ec:
 
 test-ec:
 	cd $(EC_DIR) && uv run --no-project pytest -q
+
+# Seed sample orders/inventory into a running engine (requires engine + EC worker
+# up, e.g. via scripts/ec-e2e.sh or `make engine-up` + the worker). Lets the
+# dashboard show real KPIs without a live Shopify store.
+seed-demo:
+	cd $(EC_DIR) && III_URL=$(III_URL) uv run --no-project python ../../scripts/seed-demo.py
 
 
 # ── Contracts (packages/contracts — JSON Schema → TS & Pydantic) ─────────────────

@@ -39,6 +39,12 @@ from src.worker.serializers import (
     product_listing_to_dict,
 )
 from src.worker.services import Services, build_services
+from src.worker.store import (
+    handle_inventory_alerts,
+    handle_inventory_upsert,
+    handle_orders_ingest,
+    handle_orders_stats,
+)
 
 
 @pytest.fixture
@@ -642,3 +648,81 @@ def test_register_ec_orchestration_registers(services: Services) -> None:
     paths = {t["config"]["api_path"] for t in engine.triggers}
     assert "/ec/pipeline/run-batch" in paths
     assert "/ec/pipeline/status" in paths
+
+
+# ---- Phase D: orders / inventory persistence + KPI ----
+
+
+def _order(order_id: str, amount: int, currency: str = "JPY") -> dict[str, Any]:
+    return {
+        "id": order_id,
+        "status": "paid",
+        "items": [{"sku": "MUG-1", "quantity": 1, "unitPrice": {"amount": amount, "currency": currency}}],
+        "total": {"amount": amount, "currency": currency},
+        "createdAt": "2026-06-26T00:00:00Z",
+    }
+
+
+def test_orders_ingest_and_stats(services: Services) -> None:
+    engine = _FakeStateEngine()
+    handle_orders_ingest(_order("o1", 1200), services, engine.trigger)
+    handle_orders_ingest(_order("o2", 800), services, engine.trigger)
+    stats = handle_orders_stats({}, services, engine.trigger)
+    assert stats["orderCount"] == 2
+    assert stats["revenue"] == {"amount": 2000, "currency": "JPY"}
+
+
+def test_orders_ingest_is_idempotent(services: Services) -> None:
+    engine = _FakeStateEngine()
+    handle_orders_ingest(_order("dup", 500), services, engine.trigger)
+    handle_orders_ingest(_order("dup", 500), services, engine.trigger)  # 同一 id
+    stats = handle_orders_stats({}, services, engine.trigger)
+    assert stats["orderCount"] == 1
+    assert stats["revenue"]["amount"] == 500
+
+
+def test_orders_ingest_requires_id(services: Services) -> None:
+    engine = _FakeStateEngine()
+    with pytest.raises(ValueError):
+        handle_orders_ingest({"total": {"amount": 1, "currency": "JPY"}}, services, engine.trigger)
+
+
+def test_orders_stats_empty(services: Services) -> None:
+    engine = _FakeStateEngine()
+    stats = handle_orders_stats({"currency": "USD"}, services, engine.trigger)
+    assert stats["orderCount"] == 0
+    assert stats["revenue"] == {"amount": 0, "currency": "USD"}
+
+
+def test_inventory_alerts_thresholds(services: Services) -> None:
+    engine = _FakeStateEngine()
+    handle_inventory_upsert({"sku": "A", "onHand": 0, "reorderPoint": 5}, services, engine.trigger)
+    handle_inventory_upsert({"sku": "B", "onHand": 3, "reorderPoint": 5}, services, engine.trigger)
+    handle_inventory_upsert({"sku": "C", "onHand": 20, "reorderPoint": 5}, services, engine.trigger)
+    out = handle_inventory_alerts({}, services, engine.trigger)
+    by_sku = {a["sku"]: a["severity"] for a in out["alerts"]}
+    assert by_sku == {"A": "out", "B": "low"}  # C は在庫十分でアラート無し
+    assert out["count"] == 2
+
+
+def test_inventory_upsert_requires_sku(services: Services) -> None:
+    engine = _FakeStateEngine()
+    with pytest.raises(ValueError):
+        handle_inventory_upsert({"onHand": 1, "reorderPoint": 0}, services, engine.trigger)
+
+
+def test_register_ec_store_registers(services: Services) -> None:
+    from src.worker.app import register_ec_store
+
+    class _Eng(_FakeEngine):
+        def trigger(self, req: dict[str, Any]) -> Any:
+            return None
+
+    engine = _Eng()
+    register_ec_store(engine, services)
+    assert {"orders::ingest", "orders::stats", "inventory::upsert", "inventory::alerts"} <= set(
+        engine.functions
+    )
+    paths = {t["config"]["api_path"] for t in engine.triggers}
+    assert "/ec/orders/ingest" in paths
+    assert "/ec/inventory/alerts" in paths
