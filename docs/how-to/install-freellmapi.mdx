@@ -1,0 +1,140 @@
+---
+title: "Install FreeLLMAPI for iii"
+description: "Run FreeLLMAPI as a self-hosted, OpenAI-compatible LLM gateway and call it from an iii worker."
+owner: "devrel"
+type: "how-to"
+---
+
+[FreeLLMAPI](https://github.com/tashfeenahmed/freellmapi) is an open-source proxy that aggregates the
+free tiers of 16+ LLM providers (Google, Groq, Cerebras, Mistral, OpenRouter, GitHub Models,
+Cohere, Cloudflare, HuggingFace, NVIDIA, and more) behind a single **OpenAI-compatible** endpoint. It
+tracks per-provider rate limits, fails over automatically, and stores keys encrypted (AES-256-GCM).
+
+Because the endpoint speaks the OpenAI API, any iii worker can use it as a drop-in LLM backend — for
+example an [agent worker](/tutorials/build-an-agent/overview) or a `content::classify` function — without
+committing to a single paid provider.
+
+<Info title="Separate projects">
+  FreeLLMAPI is a standalone service, not part of the iii engine. You run it alongside iii (locally
+  or on the same network) and call it over HTTP. Nothing in this guide modifies the engine.
+</Info>
+
+## 1. Install FreeLLMAPI
+
+FreeLLMAPI ships as a Docker image. Pick one of the two paths below.
+
+### Option A — Docker one-liner
+
+```bash
+curl -fsSL https://freellmapi.co/install.sh | bash
+```
+
+This creates `~/freellmapi`, generates an encryption key, pulls the image, and starts the container.
+Re-running is safe — your `.env` and encryption key are preserved.
+
+<Warning title="Review before piping to a shell">
+  Inspect the script before running it if you have not used it before:
+  `curl -fsSL https://freellmapi.co/install.sh | less`.
+</Warning>
+
+### Option B — Manual Docker Compose
+
+**Prerequisites:** Docker, Docker Compose, and OpenSSL.
+
+```bash
+git clone https://github.com/tashfeenahmed/freellmapi.git
+cd freellmapi
+
+# Generate the encryption key used for at-rest credential storage
+ENCRYPTION_KEY="$(openssl rand -hex 32)"
+printf "ENCRYPTION_KEY=%s\nPORT=3001\n" "$ENCRYPTION_KEY" > .env
+
+docker compose up -d
+```
+
+## 2. Add provider keys and mint a unified key
+
+Open the dashboard at <a href="http://localhost:3001">http://localhost:3001</a>, add free-tier API
+keys for the providers you want, and copy the **unified key** (it looks like
+`freellmapi-...`). That single key is what your iii workers will use; FreeLLMAPI routes each request
+to an available provider behind it.
+
+## 3. Verify the endpoint
+
+The gateway serves the OpenAI Chat Completions API at `http://localhost:3001/v1`:
+
+```bash
+curl http://localhost:3001/v1/chat/completions \
+  -H "Authorization: Bearer freellmapi-your-unified-key" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"auto","messages":[{"role":"user","content":"hi"}]}'
+```
+
+`"model": "auto"` lets FreeLLMAPI pick the best available model and fail over on rate limits. You can
+also pin a specific provider/model string from the dashboard.
+
+## 4. Call FreeLLMAPI from an iii worker
+
+Treat the gateway as the worker's LLM backend. Install the OpenAI SDK alongside `iii-sdk`:
+
+```bash
+npm install iii-sdk openai
+```
+
+Register a function that proxies prompts through FreeLLMAPI. Read both the engine URL and the
+gateway settings from the environment so nothing is hard-coded:
+
+```typescript
+import { registerWorker } from 'iii-sdk'
+import OpenAI from 'openai'
+
+const llm = new OpenAI({
+  baseURL: process.env.FREELLMAPI_URL ?? 'http://localhost:3001/v1',
+  apiKey: process.env.FREELLMAPI_KEY, // the freellmapi-... unified key
+})
+
+const worker = registerWorker(process.env.III_URL!, { workerName: 'llm' })
+
+worker.registerFunction(
+  'llm::complete',
+  async (req, logger) => {
+    const { prompt } = req.body as { prompt: string }
+    logger.info('Calling FreeLLMAPI', { model: 'auto' })
+
+    const completion = await llm.chat.completions.create({
+      model: 'auto',
+      messages: [{ role: 'user', content: prompt }],
+    })
+
+    return { status_code: 200, body: { text: completion.choices[0]?.message?.content ?? '' } }
+  },
+  { description: 'Generate a completion via the FreeLLMAPI gateway' },
+)
+```
+
+Any other worker — or an agent — can now call `llm::complete` through the engine and reach every
+provider FreeLLMAPI fronts, with rate-limit tracking and failover handled for you.
+
+## Environment variables
+
+FreeLLMAPI reads these (set them in its `.env`, not in iii):
+
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `ENCRYPTION_KEY` | Required; encrypts stored provider keys | Generated on setup |
+| `PORT` | Server / dashboard port | `3001` |
+| `HOST_BIND` | Bind address — use `0.0.0.0` for LAN access | `127.0.0.1` |
+| `FREELLMAPI_CONTEXT_HANDOFF` | Carry context across mid-conversation model switches | `off` |
+
+On the iii side, the worker above expects `FREELLMAPI_URL` and `FREELLMAPI_KEY` (plus the usual
+`III_URL`).
+
+## Notes
+
+- **Bind address.** FreeLLMAPI binds to `127.0.0.1` by default. If iii runs on another host or in a
+  separate container network, set `HOST_BIND=0.0.0.0` and point `FREELLMAPI_URL` at the reachable
+  address.
+- **Free tiers have limits.** `model: "auto"` smooths over per-provider quotas, but sustained or
+  latency-sensitive production traffic should still use a paid backend.
+- **Keep the unified key secret.** Inject `FREELLMAPI_KEY` as an environment variable or secret;
+  never commit it.
