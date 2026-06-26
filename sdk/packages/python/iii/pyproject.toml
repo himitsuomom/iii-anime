@@ -35,6 +35,11 @@ Repository = "https://github.com/iii-hq/iii"
 iii-observability = { path = "../observability", editable = true }
 
 [project.optional-dependencies]
+# Headless-browser fetchers (Fetcher, StealthyFetcher, PlayWrightFetcher).
+# After installing this extra, run `scrapling install` to download the browsers.
+fetchers = [
+    "scrapling[fetchers]>=0.4.9",
+]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
