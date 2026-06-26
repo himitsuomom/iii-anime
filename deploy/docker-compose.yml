@@ -1,0 +1,60 @@
+# Local stack: iii engine + EC worker + automation-studio (UI/API/worker).
+# Run from the repo root:
+#   make compose-up        # builds the engine binary, stages it, brings the stack up
+#   make compose-down
+#
+# The app images build from the repo root context (so the pnpm/uv workspaces and
+# the local iii SDKs resolve); see apps/*/Dockerfile.
+name: iii-resale
+
+services:
+  engine:
+    # Reuses the engine image (distroless) which copies a pre-built binary.
+    # `make compose-build` stages target/debug/iii → engine/iii-${ARCH} first.
+    build:
+      context: ../engine
+    command: ["/app/iii", "--config", "/app/config.yaml"]
+    volumes:
+      - ../deploy/config.yaml:/app/config.yaml:ro
+      - engine-data:/data
+    ports:
+      - "49134:49134" # worker WebSocket
+      - "3111:3111" # HTTP API
+    healthcheck:
+      test: ["CMD", "/app/iii", "--version"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  ec-worker:
+    build:
+      context: ..
+      dockerfile: apps/ec/Dockerfile
+    environment:
+      III_URL: ws://engine:49134
+      III_TELEMETRY_ENABLED: "false"
+      # Description generation falls back to local/offline when AS is unreachable.
+      EC_DESCRIBE_BACKEND: remote
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    depends_on:
+      - engine
+    restart: on-failure
+
+  automation-studio:
+    build:
+      context: ..
+      dockerfile: apps/automation-studio/Dockerfile
+    environment:
+      PORT: "8787"
+      III_URL: ws://engine:49134
+      III_TELEMETRY_ENABLED: "false"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      SHOPIFY_WEBHOOK_SECRET: ${SHOPIFY_WEBHOOK_SECRET:-}
+    ports:
+      - "8787:8787"
+    depends_on:
+      - engine
+    restart: on-failure
+
+volumes:
+  engine-data:

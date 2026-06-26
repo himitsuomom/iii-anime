@@ -20,6 +20,7 @@ export III_TELEMETRY_ENABLED := false
         sandbox sandbox-debug \
         test-sdk-node test-sdk-python test-sdk-rust test-sdk-all \
         install-ec lint-ec typecheck-ec test-ec ci-ec contracts-codegen seed-demo \
+        compose-build compose-up compose-down \
         lint-python lint-rust lint-console lint \
         fmt-check fmt-check-rust fmt-check-all \
         typecheck-node typecheck-python typecheck \
@@ -64,6 +65,27 @@ test-ec:
 # dashboard show real KPIs without a live Shopify store.
 seed-demo:
 	cd $(EC_DIR) && III_URL=$(III_URL) uv run --no-project python ../../scripts/seed-demo.py
+
+
+# ── Local container stack (deploy/docker-compose.yml) ───────────────────────────
+# Brings up engine + EC worker + automation-studio. The engine image copies a
+# pre-built binary, so stage the debug build into engine/iii-$(ARCH) first.
+
+COMPOSE      := docker compose -f deploy/docker-compose.yml
+COMPOSE_ARCH := $(if $(filter x86_64,$(shell uname -m)),amd64,arm64)
+
+compose-build:
+	cargo build -p iii --all-features
+	cp target/debug/iii engine/iii-$(COMPOSE_ARCH)
+	$(COMPOSE) build
+
+compose-up: compose-build
+	$(COMPOSE) up -d
+	@echo "automation-studio UI/API: http://localhost:8787"
+	@echo "engine: ws://localhost:49134 (HTTP http://localhost:3111)"
+
+compose-down:
+	$(COMPOSE) down
 
 
 # ── Contracts (packages/contracts — JSON Schema → TS & Pydantic) ─────────────────
