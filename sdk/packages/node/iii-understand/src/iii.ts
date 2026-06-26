@@ -1,0 +1,18 @@
+import { registerWorker } from 'iii-sdk'
+import { version } from '../package.json'
+
+// Engine WebSocket URL — override with III_URL.
+const engineWsUrl = process.env.III_URL ?? 'ws://localhost:49134'
+
+export const iii = registerWorker(engineWsUrl, {
+  otel: {
+    enabled: true,
+    serviceName: 'iii-understand',
+    metricsEnabled: true,
+    serviceVersion: version,
+    reconnectionConfig: {
+      maxRetries: 10,
+    },
+    metricsExportIntervalMs: 10000,
+  },
+})

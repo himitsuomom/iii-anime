@@ -1,0 +1,100 @@
+{
+  "version": "1.0",
+  "kind": "codebase",
+  "project": {
+    "name": "sample-orders-service",
+    "languages": ["TypeScript"],
+    "frameworks": ["iii"],
+    "description": "A tiny orders service used as a test fixture for the understand worker.",
+    "analyzedAt": "2026-06-26T00:00:00.000Z",
+    "gitCommitHash": "abc1234"
+  },
+  "nodes": [
+    {
+      "id": "file:src/orders.ts",
+      "type": "file",
+      "name": "orders.ts",
+      "filePath": "src/orders.ts",
+      "lineRange": [1, 120],
+      "summary": "Order domain logic: validation and persistence.",
+      "tags": ["orders", "domain"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "fn:validateOrder",
+      "type": "function",
+      "name": "validateOrder",
+      "filePath": "src/orders.ts",
+      "lineRange": [10, 40],
+      "summary": "Validates an incoming order payload and returns errors.",
+      "tags": ["orders", "validation"],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:saveOrder",
+      "type": "function",
+      "name": "saveOrder",
+      "filePath": "src/orders.ts",
+      "lineRange": [42, 80],
+      "summary": "Persists a validated order via the state store.",
+      "tags": ["orders", "persistence"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/db.ts",
+      "type": "file",
+      "name": "db.ts",
+      "filePath": "src/db.ts",
+      "lineRange": [1, 60],
+      "summary": "State store adapter wrapper.",
+      "tags": ["db", "state"],
+      "complexity": "simple"
+    },
+    {
+      "id": "ep:POST /orders",
+      "type": "endpoint",
+      "name": "POST /orders",
+      "filePath": "src/index.ts",
+      "lineRange": [5, 20],
+      "summary": "HTTP endpoint that creates an order.",
+      "tags": ["http", "orders"],
+      "complexity": "simple"
+    }
+  ],
+  "edges": [
+    { "source": "file:src/orders.ts", "target": "fn:validateOrder", "type": "contains", "direction": "forward", "weight": 1 },
+    { "source": "file:src/orders.ts", "target": "fn:saveOrder", "type": "contains", "direction": "forward", "weight": 1 },
+    { "source": "fn:saveOrder", "target": "fn:validateOrder", "type": "calls", "direction": "forward", "weight": 0.8 },
+    { "source": "fn:saveOrder", "target": "file:src/db.ts", "type": "depends_on", "direction": "forward", "weight": 0.9 },
+    { "source": "ep:POST /orders", "target": "fn:validateOrder", "type": "calls", "direction": "forward", "weight": 0.7 },
+    { "source": "ep:POST /orders", "target": "fn:saveOrder", "type": "calls", "direction": "forward", "weight": 0.7 }
+  ],
+  "layers": [
+    {
+      "id": "layer:domain",
+      "name": "Domain",
+      "description": "Core order business logic.",
+      "nodeIds": ["file:src/orders.ts", "fn:validateOrder", "fn:saveOrder"]
+    },
+    {
+      "id": "layer:infra",
+      "name": "Infrastructure",
+      "description": "Persistence and transport.",
+      "nodeIds": ["file:src/db.ts", "ep:POST /orders"]
+    }
+  ],
+  "tour": [
+    {
+      "order": 1,
+      "title": "Entry point",
+      "description": "Start at the HTTP endpoint that creates an order.",
+      "nodeIds": ["ep:POST /orders"]
+    },
+    {
+      "order": 2,
+      "title": "Validation then persistence",
+      "description": "Follow validateOrder into saveOrder and the db adapter.",
+      "nodeIds": ["fn:validateOrder", "fn:saveOrder", "file:src/db.ts"]
+    }
+  ]
+}

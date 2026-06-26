@@ -1,0 +1,23 @@
+{
+  "name": "@iii-hq/iii-understand",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "author": "III",
+  "description": "iii worker that serves an Understand-Anything codebase knowledge graph as functions + HTTP triggers",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@iii-dev/observability": "workspace:*",
+    "iii-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.0"
+  }
+}
