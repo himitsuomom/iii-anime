@@ -164,6 +164,25 @@ importers:
         specifier: 3.8.3
         version: 3.8.3
 
+  sdk/packages/node/freellmapi-worker:
+    dependencies:
+      iii-sdk:
+        specifier: workspace:*
+        version: link:../iii
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.11.0
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   sdk/packages/node/iii:
     dependencies:
       '@iii-dev/observability':
@@ -6432,7 +6451,7 @@ snapshots:
 
   '@types/cors@2.8.19':
     dependencies:
-      '@types/node': 25.3.3
+      '@types/node': 24.11.0
 
   '@types/d3-color@3.1.3': {}
 
@@ -6509,7 +6528,7 @@ snapshots:
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 25.3.3
+      '@types/node': 24.11.0
 
   '@ungap/structured-clone@1.3.1': {}
 
@@ -7259,7 +7278,7 @@ snapshots:
   engine.io@6.6.7:
     dependencies:
       '@types/cors': 2.8.19
-      '@types/node': 25.3.3
+      '@types/node': 24.11.0
       '@types/ws': 8.18.1
       accepts: 1.3.8
       base64id: 2.0.0
@@ -8599,7 +8618,7 @@ snapshots:
       '@protobufjs/path': 1.1.2
       '@protobufjs/pool': 1.1.0
       '@protobufjs/utf8': 1.1.0
-      '@types/node': 25.3.3
+      '@types/node': 24.11.0
       long: 5.3.2
 
   punycode.js@2.3.1: {}
