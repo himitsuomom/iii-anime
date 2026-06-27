@@ -29,6 +29,22 @@ npx skills add iii-hq/iii/skills --skill iii-core-primitives
 | [iii-architecture-patterns](./iii-architecture-patterns) | Workflows, reactive backends, agentic pipelines, CQRS, effect pipelines, and automation chains |
 | [iii-error-handling](./iii-error-handling)             | Engine and SDK errors, retryability, RBAC denial, and timeout handling |
 
+### Agent infrastructure skills
+
+These port the agent / automatic-code-generation tooling from the
+[`自動コード生成` starred list](../INTEGRATIONS.md) into native iii worker patterns.
+
+| Skill                                                  | What it does | Inspired by |
+| ------------------------------------------------------ | ------------ | ----------- |
+| [iii-agent-memory](./iii-agent-memory)                 | Long-term memory + context engine worker (`memory::add/search/get/forget`) over state and embeddings, with auto-capture triggers | supermemory |
+| [iii-agent-observability](./iii-agent-observability)   | LLM/agent tracing, token/cost/latency spans, and an `llm-eval` worker (`eval::score/hallucination/relevance`) wired to iii observability | opik |
+| [iii-doc-ingestion](./iii-doc-ingestion)               | Document → markdown conversion + chunk + ingest worker (`doc::convert/chunk/ingest`) for RAG | markitdown |
+| [iii-code-graph](./iii-code-graph)                     | Code knowledge graph worker (`codegraph::index/query/sync/explain`) with commit auto-sync | codegraph, Understand-Anything |
+| [iii-multi-agent-orchestration](./iii-multi-agent-orchestration) | Role-based agent teams, swarms, fan-out/fan-in, handoff, and shared blackboard state | MetaGPT, ruflo, herdr |
+| [iii-agent-harness](./iii-agent-harness)               | Plan → work → review loop as iii functions with a gated task state machine and compound write-back | claude-code-harness, harness, compound-engineering, ECC |
+| [iii-file-search](./iii-file-search)                   | Fast fuzzy file / content / symbol search worker for agents (`search::files/content/symbols`) | fff |
+| [iii-agent-routing](./iii-agent-routing)               | LLM gateway/router worker (`llm::complete/chat/embed`) with cost-aware provider failover | 9router, oh-my-pi |
+
 ## Shape
 
 Each skill is one folder with one `SKILL.md`. Code examples live directly in the skill, including

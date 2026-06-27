@@ -1,0 +1,20 @@
+{
+  "name": "iii",
+  "metadata": {
+    "description": "iii engine plugins: the plan-work-review coding harness and the iii agent-infrastructure skills.",
+    "version": "0.1.0"
+  },
+  "owner": {
+    "name": "iii",
+    "url": "https://iii.dev"
+  },
+  "plugins": [
+    {
+      "name": "iii-harness",
+      "source": "./claude-plugin",
+      "description": "Plan-work-review coding-agent harness for the iii engine, bundling role agents, slash commands, and the iii agent-infrastructure skills (memory, observability, doc ingestion, code graph, multi-agent orchestration, file search, LLM routing).",
+      "category": "agents",
+      "keywords": ["iii", "harness", "agent", "code-generation", "multi-agent"]
+    }
+  ]
+}

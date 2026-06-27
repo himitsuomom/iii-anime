@@ -1,0 +1,21 @@
+{
+  "name": "iii-harness",
+  "version": "0.1.0",
+  "description": "Plan-work-review coding-agent harness for building on the iii engine. Bundles role agents, slash commands, and the iii agent-infrastructure skills (memory, observability, doc ingestion, code graph, multi-agent orchestration, file search, LLM routing).",
+  "author": { "name": "iii", "url": "https://iii.dev" },
+  "homepage": "https://github.com/iii-hq/iii",
+  "repository": "https://github.com/iii-hq/iii",
+  "license": "Apache-2.0",
+  "keywords": [
+    "iii",
+    "agent",
+    "harness",
+    "plan-work-review",
+    "compound-engineering",
+    "multi-agent",
+    "code-generation"
+  ],
+  "agents": "./agents",
+  "commands": "./commands",
+  "skills": "../skills"
+}
