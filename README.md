@@ -119,6 +119,12 @@ npx skills add iii-hq/iii/skills
 These cover every iii primitive: HTTP endpoints, queues, cron, state, streams, custom triggers, and
 more. See [skills/](skills/) for the full list.
 
+The catalog also ships **agent-infrastructure skills** — memory, LLM observability, document
+ingestion, code graphs, multi-agent orchestration, file search, and LLM routing — plus the
+[`iii-harness` Claude Code plugin](claude-plugin/) (a plan → work → review coding loop). These port
+the agent tooling from the `自動コード生成` reference list into native iii workers; see
+[INTEGRATIONS.md](INTEGRATIONS.md) for the full mapping.
+
 Each worker in [iii-hq/workers](https://github.com/iii-hq/workers) also ships its own skill. Install
 them alongside the worker itself:
 
