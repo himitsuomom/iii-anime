@@ -1,0 +1,23 @@
+{
+  "name": "@iii-hq/freellmapi-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "iii worker that aggregates free-tier LLM providers (Groq, Google Gemini, Cerebras, Mistral, etc.) behind an OpenAI-compatible endpoint",
+  "author": "III",
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "iii-sdk": "workspace:*",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
