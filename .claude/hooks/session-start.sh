@@ -41,4 +41,21 @@ fi
 make install
 make install-hooks
 
+# ── QuDAG MCP server (qudag-cli) ──────────────────────────────────────────────
+# The .mcp.json `qudag` server runs `scripts/qudag-mcp.sh`, which shells out to
+# the `qudag` binary. crates.io has no prebuilt binary for this platform, so we
+# build it from source. The build takes a few minutes; only do it when the
+# binary is missing so subsequent sessions start fast.
+QUDAG_VERSION="0.5.0"
+export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
+if ! command -v qudag >/dev/null 2>&1; then
+  if command -v cargo >/dev/null 2>&1; then
+    echo "[session-start] installing qudag-cli ${QUDAG_VERSION} (this builds from source, ~5 min)"
+    cargo install qudag-cli --version "${QUDAG_VERSION}" \
+      || echo "[session-start] qudag-cli install failed; the qudag MCP server will be unavailable" >&2
+  else
+    echo "[session-start] cargo unavailable; skipping qudag-cli (qudag MCP server will be unavailable)" >&2
+  fi
+fi
+
 echo "[session-start] bootstrap complete"
