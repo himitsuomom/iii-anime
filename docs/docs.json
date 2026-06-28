@@ -108,6 +108,15 @@
                   "next/creating-workers/functions",
                   "next/creating-workers/channels"
                 ]
+              },
+              {
+                "group": "How-to Guides",
+                "pages": [
+                  "next/how-to/build-a-realtime-todo-app",
+                  "next/how-to/schedule-cron-task",
+                  "next/how-to/use-trigger-conditions",
+                  "next/how-to/install-freellmapi"
+                ]
               }
             ]
           },
@@ -211,6 +220,15 @@
                   "creating-workers/triggers",
                   "creating-workers/functions",
                   "creating-workers/channels"
+                ]
+              },
+              {
+                "group": "How-to Guides",
+                "pages": [
+                  "how-to/build-a-realtime-todo-app",
+                  "how-to/schedule-cron-task",
+                  "how-to/use-trigger-conditions",
+                  "how-to/install-freellmapi"
                 ]
               }
             ]
