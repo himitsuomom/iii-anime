@@ -49,9 +49,11 @@ jobs:
           - name: ec-worker
             dockerfile: apps/ec/Dockerfile
             repo: iii-ec-worker
+            service: iii-ec-worker
           - name: automation-studio
             dockerfile: apps/automation-studio/Dockerfile
             repo: iii-automation-studio
+            service: iii-automation-studio
     steps:
       - uses: actions/checkout@v4
         with:
@@ -92,11 +94,20 @@ jobs:
             ${{ vars.ECR_REGISTRY }}/${{ matrix.app.repo }}:latest
           provenance: false
 
-      # Deploy step is intentionally a no-op placeholder. Wire it to your runtime
-      # (e.g. `aws ecs update-service --force-new-deployment`, App Runner, or a
-      # kubectl/helm rollout) once the target exists.
-      - name: Deploy (placeholder)
-        if: env.HAVE_AWS == 'true'
+      # Rolling deploy on ECS. Runs only when vars.ECS_CLUSTER is set and the
+      # image push succeeded; the service must already run the pushed image's
+      # repo (the task pulls :latest or pin the tag in your task definition).
+      - name: Deploy (ECS rolling update)
+        if: ${{ env.HAVE_AWS == 'true' && vars.ECS_CLUSTER != '' }}
         run: |
-          echo "::notice::Built and pushed ${{ matrix.app.repo }}:${{ steps.tag.outputs.tag }}."
-          echo "Add a runtime rollout here (ECS/App Runner/k8s) to complete the deploy."
+          dep_id=$(aws ecs update-service \
+            --cluster "${{ vars.ECS_CLUSTER }}" \
+            --service "${{ matrix.app.service }}" \
+            --force-new-deployment \
+            --query 'service.deployments[0].id' --output text)
+          echo "::notice::ECS rollout started for ${{ matrix.app.service }} (deployment $dep_id)."
+
+      - name: Deploy skipped (no ECS target)
+        if: ${{ env.HAVE_AWS == 'true' && vars.ECS_CLUSTER == '' }}
+        run: |
+          echo "::notice::Pushed ${{ matrix.app.repo }}:${{ steps.tag.outputs.tag }}. Set vars.ECS_CLUSTER to enable the rolling deploy."
