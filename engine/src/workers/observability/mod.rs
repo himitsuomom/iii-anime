@@ -3628,6 +3628,7 @@ mod tests {
     }
 
     fn reset_observability_test_state() {
+        otel::clear_otel_config_for_test();
         metrics::ensure_default_meter();
 
         if let Some(storage) = otel::get_log_storage() {
