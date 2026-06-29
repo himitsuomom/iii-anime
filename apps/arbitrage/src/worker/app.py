@@ -20,6 +20,7 @@ from src.worker.analysis import (
     handle_verification_slot,
     handle_verification_summary,
 )
+from src.worker.fulfillment import handle_shipment_qr
 from src.worker.handlers import (
     handle_classify,
     handle_draft_listing,
@@ -33,6 +34,11 @@ from src.worker.handlers import (
     handle_shipping_estimate,
     handle_source_scan,
 )
+from src.worker.lifecycle import (
+    handle_approve_draft,
+    handle_optimize,
+    handle_publish_listing,
+)
 from src.worker.monitoring import (
     handle_daily_record,
     handle_mark_sold,
@@ -41,8 +47,10 @@ from src.worker.monitoring import (
 from src.worker.services import Services, build_services
 from src.worker.store import (
     TriggerFn,
+    handle_ledger_export,
     handle_ledger_list,
     handle_ledger_record,
+    handle_ledger_stats,
 )
 
 # 関数ID → (ハンドラ, HTTP パス)。HTTP メソッドはすべて POST。
@@ -74,6 +82,10 @@ STORE_FUNCTIONS: list[tuple[str, StoreHandler, str]] = [
     ("arb::verification-slot", handle_verification_slot, "/arb/verification/slot"),
     ("arb::verification-record", handle_verification_record, "/arb/verification/record"),
     ("arb::verification-summary", handle_verification_summary, "/arb/verification/summary"),
+    ("arb::approve-draft", handle_approve_draft, "/arb/approve-draft"),
+    ("arb::publish-listing", handle_publish_listing, "/arb/publish"),
+    ("arb::optimize", handle_optimize, "/arb/optimize"),
+    ("arb::shipment-qr", handle_shipment_qr, "/arb/shipment-qr"),
 ]
 
 # cron トリガー（HTTP でも手動実行可能）。expression は 6 フィールド（秒含む）。
@@ -86,6 +98,8 @@ CRON_TRIGGERS: list[tuple[str, str]] = [
 LEDGER_FUNCTIONS: list[tuple[str, LedgerHandler, str]] = [
     ("ledger::record", handle_ledger_record, "/arb/ledger/record"),
     ("ledger::list", handle_ledger_list, "/arb/ledger/list"),
+    ("ledger::export", handle_ledger_export, "/arb/ledger/export"),
+    ("ledger::stats", handle_ledger_stats, "/arb/ledger/stats"),
 ]
 
 

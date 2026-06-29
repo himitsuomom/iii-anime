@@ -28,6 +28,7 @@ LISTING_LIST_SCOPE = "arb-listing-list"
 DAILY_SCOPE = "arb-daily"
 ANALYSIS_SCOPE = "arb-analysis"
 VERIFICATION_SCOPE = "arb-verification"
+SHIPMENTS_SCOPE = "arb-shipments"
 
 
 def state_set(trigger: TriggerFn, scope: str, key: str, value: dict[str, Any]) -> None:
@@ -59,6 +60,25 @@ def handle_ledger_list(data: dict[str, Any], trigger: TriggerFn) -> dict[str, An
     return {"entries": entries, "count": len(entries)}
 
 
+def handle_ledger_export(data: dict[str, Any], trigger: TriggerFn) -> dict[str, Any]:
+    """`ledger::export` — 古物台帳を申告用CSVで出力する（M11）。"""
+    from src.ledger.export import to_csv
+
+    entries = [e for e in state_list(trigger, LEDGER_SCOPE) if isinstance(e, dict)]
+    tx_type = data.get("transactionType")
+    if tx_type:
+        entries = [e for e in entries if e.get("transactionType") == tx_type]
+    return {"csv": to_csv(entries), "rowCount": len(entries)}
+
+
+def handle_ledger_stats(data: dict[str, Any], trigger: TriggerFn) -> dict[str, Any]:
+    """`ledger::stats` — 購入/売却の件数・JPY 合計・粗利を集計する（M11）。"""
+    from src.ledger.export import summarize
+
+    entries = [e for e in state_list(trigger, LEDGER_SCOPE) if isinstance(e, dict)]
+    return summarize(entries)
+
+
 # ── 在庫同期 / 二重販売防止 (M6 前段) ──
 def active_listing_for_source(trigger: TriggerFn, source_listing_id: str) -> dict[str, Any] | None:
     """同一仕入れ品に対する有効な出品が既にあれば返す（二重出品検知）。
@@ -80,10 +100,12 @@ def mark_listing(
     sold_on_ebay: bool = False,
     url: str | None = None,
     title: str | None = None,
+    listed_at: str | None = None,
 ) -> dict[str, Any]:
     """在庫同期レコードを upsert する（出品〜成約のライフサイクルを追跡）。
 
-    url/title は成約時の通知（仕入れ元 URL 付き）に使う。
+    url/title は成約時の通知（仕入れ元 URL 付き）に使う。listed_at は最適化（M9）の
+    経過日数判定に使う。
     """
     record: dict[str, Any] = {
         "sourceListingId": source_listing_id,
@@ -96,6 +118,8 @@ def mark_listing(
         record["url"] = url
     if title is not None:
         record["title"] = title
+    if listed_at is not None:
+        record["listedAt"] = listed_at
     state_set(trigger, LISTINGS_SCOPE, source_listing_id, record)
     return record
 

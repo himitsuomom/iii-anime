@@ -219,6 +219,7 @@ def handle_draft_listing(
         status=draft.status.value,
         url=source.url,
         title=source.title,
+        listed_at=draft.created_at,
     )
     result: dict[str, Any] = {"skipped": False, "draft": draft_dict}
     if shipping is not None:
