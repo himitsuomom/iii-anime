@@ -1,0 +1,48 @@
+{
+  "name": "@iii/automation-studio",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "description": "Automation Studio — AI business-automation tool for EC/resale sellers (built on Claude)",
+  "scripts": {
+    "dev": "concurrently -n web,api -c cyan,magenta \"vite\" \"tsx watch server/index.ts\"",
+    "dev:web": "vite",
+    "dev:api": "tsx watch server/index.ts",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "start": "tsx server/index.ts",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "type-check": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit",
+    "lint": "biome check src server",
+    "lint:fix": "biome check src server --write",
+    "format": "biome format src server --write"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.105.0",
+    "@hono/node-server": "^2.0.5",
+    "clsx": "^2.1.1",
+    "hono": "^4.12.26",
+    "iii-sdk": "workspace:*",
+    "lucide-react": "^0.563.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.4.0",
+    "tsx": "^4.21.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^25",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^5.1.3",
+    "concurrently": "^9.1.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vite": "^7.3.1",
+    "vitest": "^2.1.9"
+  }
+}

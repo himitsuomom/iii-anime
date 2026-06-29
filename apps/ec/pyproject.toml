@@ -1,0 +1,87 @@
+[build-system]
+requires = ["setuptools>=70", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ec-pod-automation"
+version = "0.1.0"
+description = "AI-driven POD resale automation (Claude API + Shopify + PODtomatic)"
+requires-python = ">=3.11"
+readme = "README.md"
+
+# ==============================================================================
+# mypy - strict 型チェック
+# ==============================================================================
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
+# 追加の厳格オプション
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+no_implicit_reexport = true
+strict_equality = true
+
+# サードパーティライブラリのスタブがない場合に警告のみ
+[[tool.mypy.overrides]]
+module = [
+    "shopify.*",
+    "tenacity.*",
+    # iii SDK は workspace 内のローカルパッケージ。EC 単体の型チェックには
+    # インストール不要（worker アダプタが遅延 import するのみ）。
+    "iii",
+    "iii.*",
+]
+ignore_missing_imports = true
+
+# ==============================================================================
+# ruff - リント / フォーマット
+# ==============================================================================
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src"]
+
+[tool.ruff.lint]
+# E: pycodestyle errors
+# F: pyflakes
+# I: isort
+# N: pep8-naming
+# UP: pyupgrade
+# B: flake8-bugbear
+select = ["E", "F", "I", "N", "UP", "B"]
+ignore = [
+    "E501",  # line-length は formatter に任せる
+    "B008",  # function-call-in-default-argument (Pydantic で許容)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+# ==============================================================================
+# pytest
+# ==============================================================================
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["src", "tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--tb=short",
+    "-v",
+]

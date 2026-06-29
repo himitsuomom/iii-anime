@@ -1,0 +1,272 @@
+"""apps/ec を iii ワーカーとして登録するエントリポイント（Phase 2 アダプタ）。
+
+設計書（apps/automation-studio/docs/integration-architecture）の関数コントラクトを
+実モジュールに束ねる薄い層。`iii` SDK のインポートはこのファイル内に閉じてあり、
+ハンドラ・サービス・シリアライザはエンジン非依存（オフラインでテスト可能）。
+
+起動:
+    III_URL=ws://localhost:49134 python -m src.worker.app
+キーが無い環境ではオフライン代替で稼働する（説明生成・著作権チェック）。
+"""
+
+import asyncio
+import os
+from collections.abc import Awaitable, Callable, Coroutine
+from typing import Any
+
+from src.worker.handlers import (
+    handle_analytics_demand,
+    handle_analytics_price,
+    handle_copyright_check,
+    handle_describe,
+    handle_list_mercari,
+    handle_list_podtomatic,
+    handle_list_shopify,
+    handle_pipeline_run,
+    handle_products_load,
+)
+from src.worker.orchestration import (
+    handle_pipeline_run_batch,
+    handle_pipeline_run_tracked,
+    handle_pipeline_status,
+)
+from src.worker.services import Services, build_services
+from src.worker.store import (
+    handle_inventory_alerts,
+    handle_inventory_upsert,
+    handle_orders_ingest,
+    handle_orders_stats,
+)
+
+# 関数ID → (同期ハンドラ, HTTP パス)。HTTP メソッドはすべて POST。
+SyncHandler = Callable[[dict[str, Any], Services], dict[str, Any]]
+AsyncHandler = Callable[[dict[str, Any], Services], Awaitable[dict[str, Any]]]
+ReentrantHandler = Callable[[dict[str, Any], Services], Coroutine[Any, Any, dict[str, Any]]]
+# 注文/在庫ハンドラは (data, services, trigger) を取る（state を trigger 経由で読み書き）。
+StoreHandler = Callable[[dict[str, Any], Services, Callable[[dict[str, Any]], Any]], dict[str, Any]]
+
+SYNC_FUNCTIONS: list[tuple[str, SyncHandler, str]] = [
+    ("products::describe", handle_describe, "/ec/describe"),
+    ("products::load", handle_products_load, "/ec/products/load"),
+    ("copyright::check", handle_copyright_check, "/ec/copyright-check"),
+    ("analytics::price", handle_analytics_price, "/ec/analytics/price"),
+    ("analytics::demand", handle_analytics_demand, "/ec/analytics/demand"),
+]
+
+# ローカル async（httpx 出品のみ・エンジン再入なし）。loop 上で実行して問題ない。
+ASYNC_FUNCTIONS: list[tuple[str, AsyncHandler, str]] = [
+    ("listing::shopify", handle_list_shopify, "/ec/list/shopify"),
+    ("listing::mercari", handle_list_mercari, "/ec/list/mercari"),
+    ("listing::podtomatic", handle_list_podtomatic, "/ec/list/podtomatic"),
+]
+
+# エンジン再入する async（説明生成で `ai::describe-product` を sync trigger する）。
+# iii SDK の sync trigger は loop スレッドから呼べないため、**sync ハンドラ**として
+# 登録し（= 別スレッドで実行される）、内部で `asyncio.run` する。これで pipeline 内の
+# remote 説明生成・後続の state 書き込みが正しく動く。
+REENTRANT_FUNCTIONS: list[tuple[str, ReentrantHandler, str]] = [
+    ("pipeline::run", handle_pipeline_run, "/ec/pipeline/run"),
+]
+
+
+def _unwrap_payload(data: dict[str, Any]) -> dict[str, Any]:
+    """trigger() の生 payload と HTTP の ApiRequest 形式の両方を受け付ける。
+
+    ApiRequest 形（body + method/headers/path_params を持つ）なら body を取り出し、
+    そうでなければそのままドメイン payload として扱う。
+    """
+    if isinstance(data, dict) and "body" in data and (
+        "method" in data or "headers" in data or "path_params" in data
+    ):
+        body = data.get("body")
+        return body if isinstance(body, dict) else {}
+    return data
+
+
+def register_ec_functions(iii: Any, services: Services) -> None:
+    """エンジンインスタンス iii にEC関数群とHTTPトリガーを登録する。
+
+    `iii` は型注釈上 Any（SDK 非依存を保つため）だが、実体は III インスタンス。
+    """
+    for function_id, sync_handler, api_path in SYNC_FUNCTIONS:
+
+        def make_sync(h: SyncHandler) -> Callable[[dict[str, Any]], dict[str, Any]]:
+            def wrapper(data: dict[str, Any]) -> dict[str, Any]:
+                return h(_unwrap_payload(data), services)
+
+            return wrapper
+
+        iii.register_function(function_id, make_sync(sync_handler))
+        iii.register_trigger(
+            {
+                "type": "http",
+                "function_id": function_id,
+                "config": {"api_path": api_path, "http_method": "POST"},
+            }
+        )
+
+    for function_id, async_handler, api_path in ASYNC_FUNCTIONS:
+
+        def make_async(
+            h: AsyncHandler,
+        ) -> Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]:
+            async def wrapper(data: dict[str, Any]) -> dict[str, Any]:
+                return await h(_unwrap_payload(data), services)
+
+            return wrapper
+
+        iii.register_function(function_id, make_async(async_handler))
+        iii.register_trigger(
+            {
+                "type": "http",
+                "function_id": function_id,
+                "config": {"api_path": api_path, "http_method": "POST"},
+            }
+        )
+
+    for function_id, reentrant_handler, api_path in REENTRANT_FUNCTIONS:
+        iii.register_function(function_id, _sync_run(reentrant_handler, services))
+        iii.register_trigger(
+            {
+                "type": "http",
+                "function_id": function_id,
+                "config": {"api_path": api_path, "http_method": "POST"},
+            }
+        )
+
+
+def _sync_run(
+    handler: ReentrantHandler, services: Services
+) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    """エンジン再入する async ハンドラを sync ハンドラ化する（別スレッド＋asyncio.run）。
+
+    iii SDK は sync ハンドラを専用スレッドで実行するため、その中からなら sync trigger
+    （`ai::describe-product` / `state::*`）を安全に呼べる。
+    """
+
+    def wrapper(data: dict[str, Any]) -> dict[str, Any]:
+        return asyncio.run(handler(_unwrap_payload(data), services))
+
+    return wrapper
+
+
+def register_ec_orchestration(iii: Any, services: Services) -> None:
+    """非同期オーケストレーション関数を登録する（iii.trigger を内部で利用する）。
+
+    `pipeline::run-batch` / `pipeline::status` は HTTP トリガー付き。
+    `pipeline::run-tracked` は queue 専用（内部用）なので HTTP トリガーは付けない。
+    """
+    trigger = iii.trigger
+
+    # すべて sync ハンドラとして登録する。run-batch/status は sync trigger を、
+    # run-tracked は pipeline を await しつつ sync trigger で state を書くため、
+    # 専用スレッド上の `asyncio.run` で実行する（loop スレッドからは sync trigger 不可）。
+    def run_batch(data: dict[str, Any]) -> dict[str, Any]:
+        return handle_pipeline_run_batch(_unwrap_payload(data), services, trigger)
+
+    def status(data: dict[str, Any]) -> dict[str, Any]:
+        return handle_pipeline_status(_unwrap_payload(data), services, trigger)
+
+    def run_tracked(data: dict[str, Any]) -> dict[str, Any]:
+        return asyncio.run(
+            handle_pipeline_run_tracked(_unwrap_payload(data), services, trigger)
+        )
+
+    iii.register_function("pipeline::run-batch", run_batch)
+    iii.register_trigger(
+        {
+            "type": "http",
+            "function_id": "pipeline::run-batch",
+            "config": {"api_path": "/ec/pipeline/run-batch", "http_method": "POST"},
+        }
+    )
+    iii.register_function("pipeline::status", status)
+    iii.register_trigger(
+        {
+            "type": "http",
+            "function_id": "pipeline::status",
+            "config": {"api_path": "/ec/pipeline/status", "http_method": "POST"},
+        }
+    )
+    iii.register_function("pipeline::run-tracked", run_tracked)
+
+
+def register_ec_store(iii: Any, services: Services) -> None:
+    """注文/在庫の永続化・集計関数を登録する（iii.trigger で state を読み書き）。
+
+    すべて sync ハンドラ（state::* を sync trigger するため専用スレッドで実行される）。
+    """
+    trigger = iii.trigger
+
+    store_functions: list[tuple[str, StoreHandler, str]] = [
+        ("orders::ingest", handle_orders_ingest, "/ec/orders/ingest"),
+        ("orders::stats", handle_orders_stats, "/ec/orders/stats"),
+        ("inventory::upsert", handle_inventory_upsert, "/ec/inventory/upsert"),
+        ("inventory::alerts", handle_inventory_alerts, "/ec/inventory/alerts"),
+    ]
+
+    for function_id, store_handler, api_path in store_functions:
+
+        def make_store(h: StoreHandler) -> Callable[[dict[str, Any]], dict[str, Any]]:
+            def wrapper(data: dict[str, Any]) -> dict[str, Any]:
+                return h(_unwrap_payload(data), services, trigger)
+
+            return wrapper
+
+        iii.register_function(function_id, make_store(store_handler))
+        iii.register_trigger(
+            {
+                "type": "http",
+                "function_id": function_id,
+                "config": {"api_path": api_path, "http_method": "POST"},
+            }
+        )
+
+
+def main() -> None:
+    """ワーカーを起動してエンジンに接続し、常駐する。"""
+    from iii import InitOptions, register_worker  # 遅延 import: SDK 非依存を保つ
+
+    url = os.environ.get("III_URL", "ws://localhost:49134")
+    # OTel トレーシングを有効化（III_TELEMETRY_ENABLED=false で無効）。iii は
+    # traceparent を worker 間で伝播するため、EC→ai::describe-product のような
+    # クロスワーカー呼び出しが1つのトレースとして観測できる。
+    otel_enabled = os.environ.get("III_TELEMETRY_ENABLED", "").lower() != "false"
+    iii = register_worker(
+        url,
+        InitOptions(
+            worker_name="ec-worker",
+            otel={"enabled": otel_enabled, "service_name": "ec-worker"},
+        ),
+    )
+
+    # 説明生成は既定で remote（automation-studio の ai::describe-product / opus）へ
+    # 一本化し、失敗時はローカル/オフラインへ退避する。EC_DESCRIBE_BACKEND=local で
+    # 従来のローカル生成に固定できる。
+    use_remote = os.environ.get("EC_DESCRIBE_BACKEND", "remote").lower() != "local"
+    services = build_services(describe_trigger=iii.trigger if use_remote else None)
+
+    describe_mode = "remote ai::describe-product (opus)" if use_remote else "local"
+    base_mode = "offline (no ANTHROPIC_API_KEY)" if services.offline else "live (Claude API)"
+    print(f"[ec-worker] connecting to {url} — describe: {describe_mode}, local-fallback: {base_mode}")
+
+    # register_worker() は既に接続済み（_wait_until_connected）なので connect 呼び出しは不要。
+    register_ec_functions(iii, services)
+    register_ec_orchestration(iii, services)
+    register_ec_store(iii, services)
+    registered = [fid for fid, _, _ in SYNC_FUNCTIONS + ASYNC_FUNCTIONS + REENTRANT_FUNCTIONS]
+    registered += ["pipeline::run-batch", "pipeline::status", "pipeline::run-tracked"]
+    registered += ["orders::ingest", "orders::stats", "inventory::upsert", "inventory::alerts"]
+    print(f"[ec-worker] registered: {', '.join(registered)}")
+
+    try:
+        # 接続スレッドを生かしたまま常駐する。
+        import threading
+
+        threading.Event().wait()
+    except KeyboardInterrupt:
+        iii.shutdown()
+
+
+if __name__ == "__main__":
+    main()

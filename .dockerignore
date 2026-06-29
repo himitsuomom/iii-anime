@@ -1,0 +1,18 @@
+# Used by root-context image builds (apps/ec/Dockerfile, apps/automation-studio/Dockerfile).
+# Keeps the multi-GB Rust target/ and node_modules out of the build context.
+# (The engine image builds from engine/ with its own engine/.dockerignore.)
+.git/
+target/
+**/node_modules/
+**/.venv/
+**/__pycache__/
+**/*.pyc
+**/.mypy_cache/
+**/.pytest_cache/
+**/.ruff_cache/
+**/dist/
+**/.turbo/
+**/*.egg-info/
+apps/ec/data/*.db
+apps/ec/output/
+**/.env

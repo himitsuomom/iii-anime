@@ -1,0 +1,347 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iii.dev/contracts/commerce/v1",
+  "title": "CommerceContracts",
+  "description": "Canonical integration contracts shared between apps/ec (Python) and apps/automation-studio (TypeScript). This file is the single source of truth; TS types and Pydantic models are generated from it.",
+  "type": "object",
+  "$defs": {
+    "Money": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Minor-unit money to avoid float drift (e.g. 1200 = ¥1,200 when currency JPY has 0 decimals).",
+      "properties": {
+        "amount": { "type": "integer", "description": "Amount in the currency's minor unit." },
+        "currency": { "type": "string", "description": "ISO 4217 code, e.g. JPY, USD." }
+      },
+      "required": ["amount", "currency"]
+    },
+    "GeneratedDescription": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Output of ai::describe-product. Mirrors apps/automation-studio GeneratedDescription.",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "bullets": { "type": "array", "items": { "type": "string" } },
+        "seoKeywords": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["title", "description", "bullets", "seoKeywords"]
+    },
+    "DescribeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Input to ai::describe-product.",
+      "properties": {
+        "productName": { "type": "string" },
+        "features": { "type": "string" },
+        "keywords": { "type": "string" },
+        "tone": { "type": "string" }
+      },
+      "required": ["productName"]
+    },
+    "Product": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "sku": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "$ref": "#/$defs/Money" },
+        "imageUrls": { "type": "array", "items": { "type": "string", "format": "uri" } },
+        "status": { "type": "string", "enum": ["draft", "active", "archived"] }
+      },
+      "required": ["id", "sku", "name", "price", "status"]
+    },
+    "OrderItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sku": { "type": "string" },
+        "quantity": { "type": "integer", "minimum": 1 },
+        "unitPrice": { "$ref": "#/$defs/Money" }
+      },
+      "required": ["sku", "quantity", "unitPrice"]
+    },
+    "Order": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "paid", "shipped", "cancelled", "refunded"] },
+        "items": { "type": "array", "items": { "$ref": "#/$defs/OrderItem" } },
+        "total": { "$ref": "#/$defs/Money" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "status", "items", "total", "createdAt"]
+    },
+    "OrderStats": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Aggregates for the KPI dashboard (orders::stats).",
+      "properties": {
+        "period": { "type": "string", "description": "e.g. 2026-06 or last-30d." },
+        "revenue": { "$ref": "#/$defs/Money" },
+        "orderCount": { "type": "integer" },
+        "autoReplyRate": { "type": "number", "description": "0–1 fraction of inquiries auto-answered." }
+      },
+      "required": ["period", "revenue", "orderCount"]
+    },
+    "InventoryItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sku": { "type": "string" },
+        "onHand": { "type": "integer", "minimum": 0 },
+        "reorderPoint": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["sku", "onHand", "reorderPoint"]
+    },
+    "InventoryAlert": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sku": { "type": "string" },
+        "onHand": { "type": "integer" },
+        "severity": { "type": "string", "enum": ["low", "out"] }
+      },
+      "required": ["sku", "onHand", "severity"]
+    },
+    "Inquiry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Input to ai::answer-inquiry.",
+      "properties": {
+        "id": { "type": "string" },
+        "orderId": { "type": "string" },
+        "message": { "type": "string" }
+      },
+      "required": ["id", "message"]
+    },
+    "PricingContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Output of pricing::context; cost/fee inputs consumed by ai::suggest-price.",
+      "properties": {
+        "sku": { "type": "string" },
+        "cost": { "$ref": "#/$defs/Money" },
+        "platformFeePercent": { "type": "number" },
+        "paymentFeePercent": { "type": "number" },
+        "shipping": { "$ref": "#/$defs/Money" }
+      },
+      "required": ["sku", "cost", "platformFeePercent", "paymentFeePercent", "shipping"]
+    },
+    "PriceQuote": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Output of ai::suggest-price.",
+      "properties": {
+        "sku": { "type": "string" },
+        "suggestedPrice": { "$ref": "#/$defs/Money" },
+        "expectedMargin": { "type": "number", "description": "0–1 fraction." },
+        "rationale": { "type": "string" }
+      },
+      "required": ["sku", "suggestedPrice", "expectedMargin"]
+    },
+    "Platform": {
+      "type": "string",
+      "enum": ["shopify", "mercari", "etsy", "amazon"],
+      "description": "Target marketplace (mirrors apps/ec src/product/models.py Platform)."
+    },
+    "Language": {
+      "type": "string",
+      "enum": ["en", "ja"],
+      "description": "Listing language (mirrors apps/ec Language)."
+    },
+    "ProductInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Input to products::describe / pipeline::run. Mirrors apps/ec ProductInput (snake_case).",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "design_concept": { "type": "string" },
+        "target_audience": { "type": "string" },
+        "platform": { "$ref": "#/$defs/Platform" },
+        "language": { "$ref": "#/$defs/Language" },
+        "price_range": { "type": "string" },
+        "niche_keywords": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["name", "category", "design_concept", "target_audience"]
+    },
+    "ProductListing": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Output of products::describe / input to listing::*. Mirrors apps/ec ProductListing (snake_case). Distinct from the camelCase GeneratedDescription returned by ai::describe-product; RemoteProductGenerator maps between them.",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "bullet_points": { "type": "array", "items": { "type": "string" } },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "seo_keywords": { "type": "array", "items": { "type": "string" } },
+        "platform": { "$ref": "#/$defs/Platform" },
+        "language": { "$ref": "#/$defs/Language" }
+      },
+      "required": ["title", "description", "bullet_points", "tags", "seo_keywords", "platform", "language"]
+    },
+    "CopyrightCheckResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Output of copyright::check. Mirrors apps/ec CopyrightCheckResult.",
+      "properties": {
+        "is_safe": { "type": "boolean" },
+        "risk_level": { "type": "string", "enum": ["low", "medium", "high"] },
+        "issues": { "type": "array", "items": { "type": "string" } },
+        "recommendation": { "type": "string" }
+      },
+      "required": ["is_safe", "risk_level", "issues", "recommendation"]
+    },
+    "NicheScore": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Per-keyword item in the analytics::demand result. Mirrors apps/ec NicheScore.",
+      "properties": {
+        "keyword": { "type": "string" },
+        "demand_score": { "type": "number", "description": "0–1 mean trend score." },
+        "competition_level": { "type": "string", "enum": ["low", "medium", "high"] },
+        "recommended": { "type": "boolean" }
+      },
+      "required": ["keyword", "demand_score", "competition_level", "recommended"]
+    },
+    "SourceMarketplace": {
+      "type": "string",
+      "enum": ["magi", "snkrdunk", "mercari", "yahoo_auctions", "rakuma", "amazon_jp"],
+      "description": "Japanese domestic sourcing marketplace for arbitrage (apps/arbitrage)."
+    },
+    "SourceListing": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A candidate item found on a JP marketplace (M1 sourcing). One physical second-hand item — see arb-listings inventory-sync / 二重販売防止.",
+      "properties": {
+        "id": { "type": "string", "description": "Stable id; marketplace + native item id." },
+        "marketplace": { "$ref": "#/$defs/SourceMarketplace" },
+        "url": { "type": "string", "format": "uri", "description": "Source page (human buys here)." },
+        "title": { "type": "string" },
+        "price": { "$ref": "#/$defs/Money", "description": "Domestic asking price (JPY)." },
+        "condition": { "type": "string", "description": "Free-text condition, e.g. 美品 / used." },
+        "sellerId": { "type": "string" },
+        "imageUrls": { "type": "array", "items": { "type": "string", "format": "uri" } },
+        "fetchedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "marketplace", "url", "title", "price", "fetchedAt"]
+    },
+    "EbaySoldComp": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A completed (SOLD) eBay listing used as a comp for demand/price (M2 research). Sold price is the main signal, not asking price.",
+      "properties": {
+        "itemId": { "type": "string" },
+        "title": { "type": "string" },
+        "soldPrice": { "$ref": "#/$defs/Money", "description": "Actual sold price (typically USD)." },
+        "soldAt": { "type": "string", "format": "date-time" },
+        "shippingPrice": { "$ref": "#/$defs/Money" },
+        "condition": { "type": "string" },
+        "url": { "type": "string", "format": "uri" }
+      },
+      "required": ["itemId", "title", "soldPrice", "soldAt"]
+    },
+    "FxRate": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "FX rate with a conservative buffer (M3). effectiveRate is what profit calc uses: revenue is converted pessimistically so the ¥ profit floor is never overstated.",
+      "properties": {
+        "base": { "type": "string", "description": "Base currency, e.g. USD." },
+        "quote": { "type": "string", "description": "Quote currency, e.g. JPY." },
+        "rate": { "type": "number", "description": "Raw market rate (1 base = rate quote)." },
+        "bufferPercent": { "type": "number", "description": "Safety margin, e.g. 5 for ±5%." },
+        "effectiveRate": {
+          "type": "number",
+          "description": "rate adjusted by the buffer (rate * (1 - bufferPercent/100) when converting base revenue to quote)."
+        },
+        "source": { "type": "string", "description": "Rate provider or 'static-config' fallback." },
+        "asOf": { "type": "string", "format": "date-time" }
+      },
+      "required": ["base", "quote", "rate", "bufferPercent", "effectiveRate", "asOf"]
+    },
+    "ProfitBreakdown": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "FX-aware net-profit calculation (M4). meetsFloor = netProfit >= the configured ¥ floor, computed from the buffered effectiveRate.",
+      "properties": {
+        "sourceCost": { "$ref": "#/$defs/Money", "description": "Domestic purchase cost (JPY)." },
+        "soldPrice": { "$ref": "#/$defs/Money", "description": "Expected eBay sale price (base currency)." },
+        "fxRate": { "$ref": "#/$defs/FxRate" },
+        "ebayFee": { "$ref": "#/$defs/Money" },
+        "paymentFee": { "$ref": "#/$defs/Money" },
+        "shippingCost": { "$ref": "#/$defs/Money", "description": "International shipping (JPY)." },
+        "netProfit": { "$ref": "#/$defs/Money", "description": "All-in net profit in quote currency (JPY)." },
+        "marginPercent": { "type": "number", "description": "netProfit / revenue, 0–100." },
+        "meetsFloor": { "type": "boolean" }
+      },
+      "required": ["sourceCost", "soldPrice", "fxRate", "netProfit", "marginPercent", "meetsFloor"]
+    },
+    "ListingDraft": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "An eBay listing draft (M6). mode/status carry the dry-run + human-in-the-loop lifecycle: Phase 0 always emits mode=dry_run, status=draft. A human flips status draft→ready; auto-post (later) acts only on mode=auto & status=ready.",
+      "properties": {
+        "draftId": { "type": "string" },
+        "sourceListingId": { "type": "string", "description": "Links back to the SourceListing (inventory-sync key)." },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "$ref": "#/$defs/Money", "description": "Listing price (base currency, e.g. USD)." },
+        "categoryId": { "type": "string" },
+        "condition": { "type": "string" },
+        "imageUrls": { "type": "array", "items": { "type": "string", "format": "uri" } },
+        "tags": { "type": "array", "items": { "type": "string" }, "description": "Search tags (M5 SEO)." },
+        "seoKeywords": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "SEO keywords woven into the title (M5)."
+        },
+        "mode": { "type": "string", "enum": ["dry_run", "human_review", "auto"] },
+        "status": { "type": "string", "enum": ["draft", "ready", "published"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["draftId", "sourceListingId", "title", "price", "mode", "status", "createdAt"]
+    },
+    "LedgerEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "古物台帳 (antique-dealer ledger) / bookkeeping entry (M11). Columns mirror 古物営業法 record-keeping requirements; see docs/compliance.md.",
+      "properties": {
+        "id": { "type": "string" },
+        "transactionType": { "type": "string", "enum": ["purchase", "sale"] },
+        "itemDescription": { "type": "string" },
+        "counterpartyName": { "type": "string", "description": "Seller (purchase) or buyer (sale)." },
+        "counterpartyAddress": { "type": "string" },
+        "counterpartyVerification": {
+          "type": "string",
+          "description": "How identity was confirmed (e.g. platform account)."
+        },
+        "quantity": { "type": "integer", "minimum": 1 },
+        "amount": { "$ref": "#/$defs/Money" },
+        "sourceUrl": { "type": "string", "format": "uri" },
+        "occurredAt": { "type": "string", "format": "date-time" },
+        "recordedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "transactionType", "itemDescription", "quantity", "amount", "occurredAt", "recordedAt"]
+    },
+    "ShipmentQr": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "International shipping label/QR (M10, design-only at Phase 0). Japan Post international (eパケット/EMS).",
+      "properties": {
+        "shipmentId": { "type": "string" },
+        "orderId": { "type": "string" },
+        "carrier": { "type": "string", "enum": ["japan_post"] },
+        "service": { "type": "string", "description": "e.g. epacket, ems." },
+        "trackingNumber": { "type": "string" },
+        "qrPayload": { "type": "string" },
+        "labelUrl": { "type": "string", "format": "uri" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["shipmentId", "orderId", "carrier", "qrPayload", "createdAt"]
+    }
+  }
+}

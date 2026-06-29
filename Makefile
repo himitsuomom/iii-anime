@@ -9,6 +9,8 @@ STOP_SCRIPT         := bash scripts/stop-iii.sh
 III_URL             := ws://localhost:49199
 III_HTTP_URL        := http://localhost:3199
 PYTHON_SDK_DIR      := sdk/packages/python/iii
+EC_DIR              := apps/ec
+ARB_DIR             := apps/arbitrage
 
 export III_TELEMETRY_ENABLED := false
 
@@ -18,6 +20,9 @@ export III_TELEMETRY_ENABLED := false
         init-build-x86 init-build-aarch64 init-build-all \
         sandbox sandbox-debug \
         test-sdk-node test-sdk-python test-sdk-rust test-sdk-all \
+        install-ec lint-ec typecheck-ec test-ec ci-ec contracts-codegen seed-demo \
+        install-arb lint-arb typecheck-arb test-arb ci-arb \
+        compose-build compose-up compose-down \
         lint-python lint-rust lint-console lint \
         fmt-check fmt-check-rust fmt-check-all \
         typecheck-node typecheck-python typecheck \
@@ -39,6 +44,88 @@ install-python:
 install-hooks:
 	git config core.hooksPath .githooks
 	@echo "[hooks] pre-commit installed (core.hooksPath=.githooks)"
+
+
+# ── EC app (apps/ec — POD resale automation, Python) ────────────────────────────
+# Uses requirements.txt + a local .venv (not uv-project mode). Tests mock all
+# external APIs, so `test-ec` runs fully offline with no API key.
+
+install-ec:
+	cd $(EC_DIR) && uv venv --python 3.11 && uv pip install -r requirements.txt
+
+lint-ec:
+	cd $(EC_DIR) && uv run --no-project ruff check src
+
+typecheck-ec:
+	cd $(EC_DIR) && uv run --no-project mypy src
+
+test-ec:
+	cd $(EC_DIR) && uv run --no-project pytest -q
+
+# Seed sample orders/inventory into a running engine (requires engine + EC worker
+# up, e.g. via scripts/ec-e2e.sh or `make engine-up` + the worker). Lets the
+# dashboard show real KPIs without a live Shopify store.
+seed-demo:
+	cd $(EC_DIR) && III_URL=$(III_URL) uv run --no-project python ../../scripts/seed-demo.py
+
+
+# ── Local container stack (deploy/docker-compose.yml) ───────────────────────────
+# Brings up engine + EC worker + automation-studio. The engine image copies a
+# pre-built binary, so stage the debug build into engine/iii-$(ARCH) first.
+
+COMPOSE      := docker compose -f deploy/docker-compose.yml
+COMPOSE_ARCH := $(if $(filter x86_64,$(shell uname -m)),amd64,arm64)
+
+compose-build:
+	cargo build -p iii --all-features
+	cp target/debug/iii engine/iii-$(COMPOSE_ARCH)
+	$(COMPOSE) build
+
+compose-up: compose-build
+	$(COMPOSE) up -d
+	@echo "automation-studio UI/API: http://localhost:8787"
+	@echo "engine: ws://localhost:49134 (HTTP http://localhost:3111)"
+
+compose-down:
+	$(COMPOSE) down
+
+
+# ── Contracts (packages/contracts — JSON Schema → TS & Pydantic) ─────────────────
+# schemas/*.json is the single source of truth; regenerate both targets from it.
+
+CONTRACTS_DIR := packages/contracts
+
+contracts-codegen:
+	cd $(CONTRACTS_DIR) && \
+		npx -y json-schema-to-typescript@15 schemas/commerce.schema.json \
+			--unreachableDefinitions --no-additionalProperties \
+			> generated/typescript/commerce.ts && \
+		uvx --from datamodel-code-generator datamodel-codegen \
+			--input schemas/commerce.schema.json --input-file-type jsonschema \
+			--output generated/python/commerce.py
+	@echo "[contracts] regenerated TS + Pydantic from schemas/commerce.schema.json"
+
+
+ci-ec: install-ec lint-ec test-ec
+
+
+# ── Arbitrage app (apps/arbitrage — 越境転売 automation, Python) ─────────────────
+# Same uv venv + requirements.txt flow as apps/ec. Phase 0 tests run fully offline
+# (no engine, no API keys, dry-run) with mocked state.
+
+install-arb:
+	cd $(ARB_DIR) && uv venv --python 3.11 && uv pip install -r requirements.txt
+
+lint-arb:
+	cd $(ARB_DIR) && uv run --no-project ruff check src
+
+typecheck-arb:
+	cd $(ARB_DIR) && uv run --no-project mypy src
+
+test-arb:
+	cd $(ARB_DIR) && uv run --no-project pytest -q
+
+ci-arb: install-arb lint-arb test-arb
 
 
 # ── Engine ────────────────────────────────────────────────────────────────────

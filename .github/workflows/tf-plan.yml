@@ -20,9 +20,14 @@ jobs:
     name: fmt / validate / plan (website)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # fmt always runs (no creds needed); the init/validate/plan steps need AWS
+    # OIDC, so gate them on the read-only role secret. secrets can't be used in
+    # `if:`, hence the env mapping. Without it the job still validates formatting
+    # and ends green instead of failing on missing credentials (fork-safe).
     env:
       AWS_REGION: us-east-1
       TF_IN_AUTOMATION: 'true'
+      HAVE_AWS: ${{ secrets.AWS_READONLY_ROLE_ARN != '' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -35,21 +40,29 @@ jobs:
       - name: Terraform fmt (recursive)
         run: terraform fmt -check -recursive infra/terraform/
 
+      - name: Plan skipped (AWS OIDC not configured)
+        if: env.HAVE_AWS != 'true'
+        run: echo "::notice::Terraform fmt passed. init/validate/plan skipped — set AWS_READONLY_ROLE_ARN to enable."
+
       - name: Configure AWS credentials (read-only)
+        if: env.HAVE_AWS == 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_READONLY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Terraform init
+        if: env.HAVE_AWS == 'true'
         working-directory: infra/terraform/website
         run: terraform init -input=false
 
       - name: Terraform validate
+        if: env.HAVE_AWS == 'true'
         working-directory: infra/terraform/website
         run: terraform validate -no-color
 
       - name: Terraform plan
+        if: env.HAVE_AWS == 'true'
         id: plan
         working-directory: infra/terraform/website
         env:
@@ -65,7 +78,7 @@ jobs:
 
       - name: Comment plan on PR
         uses: actions/github-script@v7
-        if: github.event_name == 'pull_request'
+        if: ${{ env.HAVE_AWS == 'true' && github.event_name == 'pull_request' }}
         env:
           PLAN: ${{ steps.plan.outputs.plan }}
         with:

@@ -1,0 +1,79 @@
+[build-system]
+requires = ["setuptools>=70", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arbitrage-resale"
+version = "0.1.0"
+description = "越境転売 (cross-border resale arbitrage) iii worker — source JP marketplaces, research eBay, FX-aware profit, draft listings"
+requires-python = ">=3.11"
+readme = "README.md"
+
+# ==============================================================================
+# mypy - strict 型チェック（apps/ec と同設定）
+# ==============================================================================
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+no_implicit_reexport = true
+strict_equality = true
+
+# サードパーティ / workspace ローカルパッケージのスタブが無い場合は警告のみ。
+# iii SDK は worker アダプタが遅延 import するため EC 同様インストール不要。
+[[tool.mypy.overrides]]
+module = [
+    "tenacity.*",
+    "yaml",
+    "iii",
+    "iii.*",
+]
+ignore_missing_imports = true
+
+# ==============================================================================
+# ruff - リント / フォーマット
+# ==============================================================================
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B"]
+ignore = [
+    "E501",  # line-length は formatter に任せる
+    "B008",  # function-call-in-default-argument
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+# ==============================================================================
+# pytest
+# ==============================================================================
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["src", "tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--tb=short",
+    "-v",
+]

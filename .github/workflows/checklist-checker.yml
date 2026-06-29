@@ -24,6 +24,13 @@ jobs:
       github.actor != 'github-actions[bot]' &&
       github.event.pull_request.user.type != 'Bot'
     runs-on: ubuntu-latest
+    # `secrets` can't be used in `if:` directly, so map their presence to an env
+    # var the steps can gate on. When the GitHub App (III_CI_APP_ID /
+    # III_CI_APP_PRIVATE_KEY) is not configured — e.g. forks, or a repo that
+    # hasn't installed the App — the token + check steps skip and the job still
+    # succeeds, instead of failing red on `create-github-app-token`.
+    env:
+      HAVE_APP_CREDS: ${{ secrets.III_CI_APP_ID != '' && secrets.III_CI_APP_PRIVATE_KEY != '' }}
     # SECURITY: this is a `pull_request_target` job, so it runs in the base repo
     # context with access to secrets (APP_PRIVATE_KEY). It is safe ONLY because it
     # checks out the base branch and runs our own trusted script against the PR as
@@ -45,11 +52,19 @@ jobs:
       # only kind of PR this workflow ever processes.
       - uses: actions/create-github-app-token@v2
         id: app-token
+        if: env.HAVE_APP_CREDS == 'true'
         with:
           app-id: ${{ secrets.III_CI_APP_ID }}
           private-key: ${{ secrets.III_CI_APP_PRIVATE_KEY }}
 
       - name: Check license agreement
+        if: env.HAVE_APP_CREDS == 'true'
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: node .github/scripts/license-agreement-check.mjs
+
+      - name: Skip notice (GitHub App not configured)
+        if: env.HAVE_APP_CREDS != 'true'
+        run: |
+          echo "::notice::license-agreement skipped — III_CI_APP_ID / III_CI_APP_PRIVATE_KEY are not configured."
+          echo "Configure the GitHub App secrets to enable the contributor license check."

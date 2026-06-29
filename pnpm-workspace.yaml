@@ -1,4 +1,5 @@
 packages:
+  - apps/automation-studio
   - sdk/packages/node/iii
   - sdk/packages/node/iii-example
   - sdk/packages/node/iii-browser
