@@ -14,6 +14,12 @@ import os
 from collections.abc import Callable
 from typing import Any
 
+from src.worker.analysis import (
+    handle_analyze,
+    handle_verification_record,
+    handle_verification_slot,
+    handle_verification_summary,
+)
 from src.worker.handlers import (
     handle_classify,
     handle_draft_listing,
@@ -64,6 +70,10 @@ STORE_FUNCTIONS: list[tuple[str, StoreHandler, str]] = [
     ("arb::mark-sold", handle_mark_sold, "/arb/mark-sold"),
     ("arb::monitor-sales", handle_monitor_sales, "/arb/monitor-sales"),
     ("arb::daily-record", handle_daily_record, "/arb/daily-record"),
+    ("arb::analyze", handle_analyze, "/arb/analyze"),
+    ("arb::verification-slot", handle_verification_slot, "/arb/verification/slot"),
+    ("arb::verification-record", handle_verification_record, "/arb/verification/record"),
+    ("arb::verification-summary", handle_verification_summary, "/arb/verification/summary"),
 ]
 
 # cron トリガー（HTTP でも手動実行可能）。expression は 6 フィールド（秒含む）。

@@ -26,6 +26,8 @@ CANDIDATES_SCOPE = "arb-candidates"
 DRAFTS_SCOPE = "arb-drafts"
 LISTING_LIST_SCOPE = "arb-listing-list"
 DAILY_SCOPE = "arb-daily"
+ANALYSIS_SCOPE = "arb-analysis"
+VERIFICATION_SCOPE = "arb-verification"
 
 
 def state_set(trigger: TriggerFn, scope: str, key: str, value: dict[str, Any]) -> None:
