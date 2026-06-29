@@ -44,6 +44,7 @@ from src.worker.monitoring import (
     handle_mark_sold,
     handle_monitor_sales,
 )
+from src.worker.oversight import handle_health
 from src.worker.services import Services, build_services
 from src.worker.store import (
     TriggerFn,
@@ -86,12 +87,14 @@ STORE_FUNCTIONS: list[tuple[str, StoreHandler, str]] = [
     ("arb::publish-listing", handle_publish_listing, "/arb/publish"),
     ("arb::optimize", handle_optimize, "/arb/optimize"),
     ("arb::shipment-qr", handle_shipment_qr, "/arb/shipment-qr"),
+    ("arb::health", handle_health, "/arb/health"),
 ]
 
 # cron トリガー（HTTP でも手動実行可能）。expression は 6 フィールド（秒含む）。
 CRON_TRIGGERS: list[tuple[str, str]] = [
     ("arb::monitor-sales", "0 */30 * * * *"),  # 30分ごとに成約監視（§M6）
     ("arb::daily-record", "0 0 0 * * *"),  # 毎日 00:00 UTC に日次記録
+    ("arb::health", "0 0 1 * * *"),  # 毎日 01:00 UTC に健全性監視（§M11統括）
 ]
 
 # 古物台帳（trigger のみ・services 不要）。

@@ -140,4 +140,4 @@ def test_registration_wires_all_functions(services: Services) -> None:
     assert "/arb/monitor-sales" in paths
     # cron トリガーが monitor-sales / daily-record に登録される。
     cron = [t for t in engine.triggers if t.get("type") == "cron"]
-    assert {t["function_id"] for t in cron} == {"arb::monitor-sales", "arb::daily-record"}
+    assert {t["function_id"] for t in cron} == {"arb::monitor-sales", "arb::daily-record", "arb::health"}
