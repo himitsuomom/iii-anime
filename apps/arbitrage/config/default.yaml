@@ -23,6 +23,16 @@ sourcing:
   # 1回のスキャンで取得する最大件数。少量アクセスを徹底する。
   max_items_per_run: 10
 
+classify:
+  # 価格帯（小/中/大）の上限（円・仕入れ価格基準）。出品比率 小5:中3:大2 の土台（§M4）。
+  small_max_jpy: 5000
+  medium_max_jpy: 20000
+
+optimize:
+  # 売れ残り入替の経過日数（小・中 / 大）。小中:1〜1.5ヶ月、大:2〜3ヶ月（§M9）。
+  restock_days_small_medium: 45
+  restock_days_large: 75
+
 mode:
   # 空運転（Dry-run）。true の間は副作用（投稿・通知）の実呼び出しをしない（§3-3）。
   # env ARB_DRY_RUN で上書き。

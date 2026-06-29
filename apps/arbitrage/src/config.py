@@ -39,10 +39,26 @@ class SourcingSettings:
 
 
 @dataclass(frozen=True)
+class ClassifySettings:
+    # 価格帯（小/中/大）の上限（円・仕入れ価格基準）。
+    small_max_jpy: int
+    medium_max_jpy: int
+
+
+@dataclass(frozen=True)
+class OptimizeSettings:
+    # 売れ残り入替の経過日数（小・中 / 大）。
+    restock_days_small_medium: int
+    restock_days_large: int
+
+
+@dataclass(frozen=True)
 class Settings:
     profit: ProfitSettings
     fx: FxSettings
     sourcing: SourcingSettings
+    classify: ClassifySettings
+    optimize: OptimizeSettings
     # 空運転（Dry-run）。true の間は副作用関数が実呼び出しをしない。
     dry_run: bool
 
@@ -81,6 +97,8 @@ def load_settings(config_path: Path | None = None) -> Settings:
     profit_raw = raw.get("profit", {}) or {}
     fx_raw = raw.get("fx", {}) or {}
     sourcing_raw = raw.get("sourcing", {}) or {}
+    classify_raw = raw.get("classify", {}) or {}
+    optimize_raw = raw.get("optimize", {}) or {}
     mode_raw = raw.get("mode", {}) or {}
 
     profit = ProfitSettings(
@@ -97,6 +115,21 @@ def load_settings(config_path: Path | None = None) -> Settings:
         interval_seconds=int(sourcing_raw.get("interval_seconds", 3600)),
         max_items_per_run=int(sourcing_raw.get("max_items_per_run", 10)),
     )
+    classify = ClassifySettings(
+        small_max_jpy=int(classify_raw.get("small_max_jpy", 5000)),
+        medium_max_jpy=int(classify_raw.get("medium_max_jpy", 20000)),
+    )
+    optimize = OptimizeSettings(
+        restock_days_small_medium=int(optimize_raw.get("restock_days_small_medium", 45)),
+        restock_days_large=int(optimize_raw.get("restock_days_large", 75)),
+    )
     dry_run = _env_bool("ARB_DRY_RUN", bool(mode_raw.get("dry_run", True)))
 
-    return Settings(profit=profit, fx=fx, sourcing=sourcing, dry_run=dry_run)
+    return Settings(
+        profit=profit,
+        fx=fx,
+        sourcing=sourcing,
+        classify=classify,
+        optimize=optimize,
+        dry_run=dry_run,
+    )

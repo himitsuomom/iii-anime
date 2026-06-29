@@ -24,6 +24,7 @@ LEDGER_SCOPE = "kobutsu-ledger"
 LISTINGS_SCOPE = "arb-listings"
 CANDIDATES_SCOPE = "arb-candidates"
 DRAFTS_SCOPE = "arb-drafts"
+LISTING_LIST_SCOPE = "arb-listing-list"
 
 
 def state_set(trigger: TriggerFn, scope: str, key: str, value: dict[str, Any]) -> None:

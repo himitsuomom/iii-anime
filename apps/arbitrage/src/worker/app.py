@@ -15,9 +15,11 @@ from collections.abc import Callable
 from typing import Any
 
 from src.worker.handlers import (
+    handle_classify,
     handle_draft_listing,
     handle_evaluate,
     handle_fx_rate,
+    handle_listing_list,
     handle_notify_telegram,
     handle_pipeline_evaluate,
     handle_profit_calc,
@@ -50,6 +52,8 @@ SYNC_FUNCTIONS: list[tuple[str, SyncHandler, str]] = [
 # state を読み書きする sync（trigger 注入。専用スレッドで実行されるため sync trigger 可）。
 STORE_FUNCTIONS: list[tuple[str, StoreHandler, str]] = [
     ("arb::draft-listing", handle_draft_listing, "/arb/draft"),
+    ("arb::classify", handle_classify, "/arb/classify"),
+    ("arb::listing-list", handle_listing_list, "/arb/listing-list"),
 ]
 
 # 古物台帳（trigger のみ・services 不要）。

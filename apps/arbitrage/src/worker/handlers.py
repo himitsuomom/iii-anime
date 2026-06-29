@@ -26,9 +26,11 @@ from src.worker.serializers import (
 from src.worker.services import Services
 from src.worker.store import (
     DRAFTS_SCOPE,
+    LISTING_LIST_SCOPE,
     TriggerFn,
     active_listing_for_source,
     mark_listing,
+    state_list,
     state_set,
 )
 
@@ -227,6 +229,78 @@ def handle_pipeline_evaluate(data: dict[str, Any], services: Services) -> dict[s
         "fxRate": fx_rate_to_dict(fx),
         "researchLive": services.research_live,
     }
+
+
+# ── M4: 分類・出品リスト（state 書き込み） ──
+def handle_classify(
+    data: dict[str, Any], services: Services, trigger: TriggerFn
+) -> dict[str, Any]:
+    """`arb::classify` — 合格候補を価格帯×カテゴリ×PFで分類し出品リストに保存する。
+
+    入力 `{items: [{sourceListing, profit?, category?, decision?}], onlyListable?}`。
+    `onlyListable`（既定 True）なら decision==list / meetsFloor の品だけを残す。
+    """
+    from src.classify.classifier import price_band
+
+    items = data.get("items")
+    if not isinstance(items, list):
+        raise ValueError("classify には items 配列が必要です。")
+    only_listable = bool(data.get("onlyListable", True))
+    cfg = services.settings.classify
+
+    classified: list[dict[str, Any]] = []
+    by_band: dict[str, int] = {}
+    by_marketplace: dict[str, int] = {}
+
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        source = source_listing_from_dict(item.get("sourceListing", item))
+        raw_profit = item.get("profit")
+        profit: dict[str, Any] = raw_profit if isinstance(raw_profit, dict) else {}
+        decision = item.get("decision") or ("list" if profit.get("meetsFloor") else "skip")
+        if only_listable and decision != "list":
+            continue
+
+        band = price_band(source.price.amount, cfg)
+        category = str(item.get("category", "uncategorized"))
+        net_profit = money_from_dict(profit.get("netProfit"), default_currency="JPY")
+        entry = {
+            "id": source.id,
+            "marketplace": source.marketplace.value,
+            "title": source.title,
+            "url": source.url,
+            "price": money_to_dict(source.price),
+            "priceBand": band,
+            "category": category,
+            "decision": decision,
+            "netProfitJpy": net_profit.amount,
+        }
+        state_set(trigger, LISTING_LIST_SCOPE, source.id, entry)
+        classified.append(entry)
+        by_band[band] = by_band.get(band, 0) + 1
+        by_marketplace[source.marketplace.value] = by_marketplace.get(source.marketplace.value, 0) + 1
+
+    return {
+        "classified": classified,
+        "count": len(classified),
+        "byBand": by_band,
+        "byMarketplace": by_marketplace,
+    }
+
+
+def handle_listing_list(
+    data: dict[str, Any], services: Services, trigger: TriggerFn
+) -> dict[str, Any]:
+    """`arb::listing-list` — 保存済み出品リストを返す（価格帯/PFで任意フィルタ）。"""
+    entries = [e for e in state_list(trigger, LISTING_LIST_SCOPE) if isinstance(e, dict)]
+    band = data.get("priceBand")
+    marketplace = data.get("marketplace")
+    if band:
+        entries = [e for e in entries if e.get("priceBand") == band]
+    if marketplace:
+        entries = [e for e in entries if e.get("marketplace") == marketplace]
+    return {"entries": entries, "count": len(entries)}
 
 
 # ── M9: 通知 ──
