@@ -46,6 +46,10 @@ jobs:
       fail-fast: false
       matrix:
         app:
+          - name: engine
+            dockerfile: deploy/engine.Dockerfile
+            repo: iii-engine
+            service: iii-engine
           - name: ec-worker
             dockerfile: apps/ec/Dockerfile
             repo: iii-ec-worker

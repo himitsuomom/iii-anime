@@ -17,9 +17,9 @@ variable "github_environment" {
 }
 
 variable "app_repos" {
-  description = "ECR repository names, one per deployable app image."
+  description = "ECR repository names, one per deployable image (engine + workers)."
   type        = list(string)
-  default     = ["iii-ec-worker", "iii-automation-studio"]
+  default     = ["iii-engine", "iii-ec-worker", "iii-automation-studio"]
 }
 
 variable "image_retention_count" {
