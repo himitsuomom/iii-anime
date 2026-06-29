@@ -1,0 +1,181 @@
+"""ワーカー関数の本体（純粋: (data, services) → dict）。
+
+エンジン非依存。state を読み書きするハンドラ（draft-listing / ledger）は trigger を取り、
+store.py を介す。時刻はテスト決定性のため payload で受け取れる（無ければ現在 UTC）。
+"""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from typing import Any
+
+from src.fx.calculator import build_fx_rate, calculate_profit
+from src.listing.draft import build_listing_draft
+from src.research.offline import median_sold_price
+from src.worker.serializers import (
+    draft_to_dict,
+    fx_rate_from_dict,
+    fx_rate_to_dict,
+    money_from_dict,
+    money_to_dict,
+    profit_to_dict,
+    sold_comp_to_dict,
+    source_listing_from_dict,
+    source_listing_to_dict,
+)
+from src.worker.services import Services
+from src.worker.store import (
+    DRAFTS_SCOPE,
+    TriggerFn,
+    active_listing_for_source,
+    mark_listing,
+    state_set,
+)
+
+
+def _now_iso() -> str:
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _ts(data: dict[str, Any], key: str = "now") -> str:
+    raw = data.get(key)
+    return str(raw) if raw else _now_iso()
+
+
+# ── M1: 仕入れスキャン ──
+def handle_source_scan(data: dict[str, Any], services: Services) -> dict[str, Any]:
+    """`arb::source-scan` — 国内マーケットを走査し候補を返す（Phase 0: offline fixture）。"""
+    from src.domain.models import SourceMarketplace
+
+    marketplace = SourceMarketplace(str(data.get("marketplace", "mercari")))
+    query = str(data.get("query", ""))
+    limit = int(data.get("limit", services.settings.sourcing.max_items_per_run))
+    candidates = services.source_provider.scan(marketplace, query, limit)
+    return {
+        "candidates": [source_listing_to_dict(c) for c in candidates],
+        "count": len(candidates),
+    }
+
+
+# ── M2: eBay 成約リサーチ ──
+def handle_research_comps(data: dict[str, Any], services: Services) -> dict[str, Any]:
+    """`arb::research-comps` — eBay 成約コンプと中央値を返す（Phase 0: offline fixture）。"""
+    title = str(data.get("title", ""))
+    keywords = str(data.get("keywords", ""))
+    limit = int(data.get("limit", 5))
+    comps = services.research.find_comps(title, keywords, limit)
+    return {
+        "comps": [sold_comp_to_dict(c) for c in comps],
+        "median": money_to_dict(median_sold_price(comps)),
+        "count": len(comps),
+    }
+
+
+# ── M3: 為替レート ──
+def handle_fx_rate(data: dict[str, Any], services: Services) -> dict[str, Any]:
+    """`arb::fx-rate` — バッファ適用済みの FxRate を返す（Phase 0: 静的レート）。"""
+    fx = services.settings.fx
+    base = str(data.get("base", fx.base))
+    quote = str(data.get("quote", fx.quote))
+    rate = float(data.get("rate", fx.static_rate))
+    buffer_percent = float(data.get("bufferPercent", fx.buffer_percent))
+    result = build_fx_rate(
+        base=base,
+        quote=quote,
+        rate=rate,
+        buffer_percent=buffer_percent,
+        as_of=_ts(data, "asOf"),
+        source=str(data.get("source", "static-config")),
+    )
+    return fx_rate_to_dict(result)
+
+
+# ── M4: 利益計算 ──
+def handle_profit_calc(data: dict[str, Any], services: Services) -> dict[str, Any]:
+    """`arb::profit-calc` — FX込み純利益を ProfitBreakdown で返す。"""
+    fx_cfg = services.settings.fx
+    if isinstance(data.get("fxRate"), dict):
+        fx = fx_rate_from_dict(data["fxRate"])
+    else:
+        fx = build_fx_rate(
+            base=fx_cfg.base,
+            quote=fx_cfg.quote,
+            rate=float(data.get("rate", fx_cfg.static_rate)),
+            buffer_percent=fx_cfg.buffer_percent,
+            as_of=_ts(data, "asOf"),
+        )
+    breakdown = calculate_profit(
+        source_cost=money_from_dict(data.get("sourceCost"), default_currency="JPY"),
+        sold_price=money_from_dict(data.get("soldPrice"), default_currency="USD"),
+        fx=fx,
+        floor_jpy=services.settings.profit.floor_jpy,
+        min_margin_percent=services.settings.profit.min_margin_percent,
+        ebay_fee_percent=float(data.get("ebayFeePercent", 13.0)),
+        payment_fee_percent=float(data.get("paymentFeePercent", 3.0)),
+        shipping_jpy=int(data.get("shippingJpy", 0)),
+    )
+    return profit_to_dict(breakdown)
+
+
+# ── M5: 判定ゲート ──
+def handle_evaluate(data: dict[str, Any], services: Services) -> dict[str, Any]:
+    """`arb::evaluate` — 利益フロア/利益率で出品可否を判定する。"""
+    raw_profit = data.get("profit")
+    profit: dict[str, Any] = raw_profit if isinstance(raw_profit, dict) else data
+    net = money_from_dict(profit.get("netProfit"), default_currency="JPY")
+    margin = float(profit.get("marginPercent", 0.0))
+    meets_floor = bool(profit.get("meetsFloor", False))
+
+    floor = services.settings.profit.floor_jpy
+    min_margin = services.settings.profit.min_margin_percent
+
+    reasons: list[str] = []
+    if net.amount < floor:
+        reasons.append(f"純利益 {net.amount}{net.currency} が下限 {floor} 未満")
+    if margin < min_margin:
+        reasons.append(f"利益率 {margin}% が下限 {min_margin}% 未満")
+
+    decision = "list" if meets_floor and not reasons else "skip"
+    if decision == "list":
+        reasons.append(f"純利益 {net.amount}{net.currency} / 利益率 {margin}% が基準を満たす")
+
+    return {"decision": decision, "meetsFloor": meets_floor, "reasons": reasons}
+
+
+# ── M6: 出品下書き（在庫同期つき・state 書き込み） ──
+def handle_draft_listing(
+    data: dict[str, Any], services: Services, trigger: TriggerFn
+) -> dict[str, Any]:
+    """`arb::draft-listing` — 仕入れ候補から eBay 下書きを生成し永続化する。
+
+    二重販売防止: 同一仕入れ品に有効な出品が既にあれば下書きを作らずスキップする。
+    """
+    source = source_listing_from_dict(data.get("sourceListing", data))
+    price_usd = money_from_dict(data.get("priceUsd"), default_currency="USD")
+
+    existing = active_listing_for_source(trigger, source.id)
+    if existing is not None:
+        return {
+            "skipped": True,
+            "reason": "既に有効な出品が存在（二重販売防止）",
+            "existing": existing,
+        }
+
+    draft = build_listing_draft(source=source, price_usd=price_usd, created_at=_ts(data, "now"))
+    draft_dict = draft_to_dict(draft)
+    state_set(trigger, DRAFTS_SCOPE, draft.draft_id, draft_dict)
+    mark_listing(
+        trigger,
+        source_listing_id=source.id,
+        draft_id=draft.draft_id,
+        status=draft.status.value,
+    )
+    return {"skipped": False, "draft": draft_dict}
+
+
+# ── M9: 通知 ──
+def handle_notify_telegram(data: dict[str, Any], services: Services) -> dict[str, Any]:
+    """`notify::telegram` — Telegram 通知（dry-run/未設定時はプレビューのみ）。"""
+    text = str(data.get("text", ""))
+    source_url = data.get("sourceUrl")
+    return services.notifier.send(text, source_url=source_url if source_url else None)

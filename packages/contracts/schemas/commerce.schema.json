@@ -207,6 +207,135 @@
         "recommended": { "type": "boolean" }
       },
       "required": ["keyword", "demand_score", "competition_level", "recommended"]
+    },
+    "SourceMarketplace": {
+      "type": "string",
+      "enum": ["magi", "snkrdunk", "mercari", "yahoo_auctions", "rakuma", "amazon_jp"],
+      "description": "Japanese domestic sourcing marketplace for arbitrage (apps/arbitrage)."
+    },
+    "SourceListing": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A candidate item found on a JP marketplace (M1 sourcing). One physical second-hand item — see arb-listings inventory-sync / 二重販売防止.",
+      "properties": {
+        "id": { "type": "string", "description": "Stable id; marketplace + native item id." },
+        "marketplace": { "$ref": "#/$defs/SourceMarketplace" },
+        "url": { "type": "string", "format": "uri", "description": "Source page (human buys here)." },
+        "title": { "type": "string" },
+        "price": { "$ref": "#/$defs/Money", "description": "Domestic asking price (JPY)." },
+        "condition": { "type": "string", "description": "Free-text condition, e.g. 美品 / used." },
+        "sellerId": { "type": "string" },
+        "imageUrls": { "type": "array", "items": { "type": "string", "format": "uri" } },
+        "fetchedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "marketplace", "url", "title", "price", "fetchedAt"]
+    },
+    "EbaySoldComp": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A completed (SOLD) eBay listing used as a comp for demand/price (M2 research). Sold price is the main signal, not asking price.",
+      "properties": {
+        "itemId": { "type": "string" },
+        "title": { "type": "string" },
+        "soldPrice": { "$ref": "#/$defs/Money", "description": "Actual sold price (typically USD)." },
+        "soldAt": { "type": "string", "format": "date-time" },
+        "shippingPrice": { "$ref": "#/$defs/Money" },
+        "condition": { "type": "string" },
+        "url": { "type": "string", "format": "uri" }
+      },
+      "required": ["itemId", "title", "soldPrice", "soldAt"]
+    },
+    "FxRate": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "FX rate with a conservative buffer (M3). effectiveRate is what profit calc uses: revenue is converted pessimistically so the ¥ profit floor is never overstated.",
+      "properties": {
+        "base": { "type": "string", "description": "Base currency, e.g. USD." },
+        "quote": { "type": "string", "description": "Quote currency, e.g. JPY." },
+        "rate": { "type": "number", "description": "Raw market rate (1 base = rate quote)." },
+        "bufferPercent": { "type": "number", "description": "Safety margin, e.g. 5 for ±5%." },
+        "effectiveRate": {
+          "type": "number",
+          "description": "rate adjusted by the buffer (rate * (1 - bufferPercent/100) when converting base revenue to quote)."
+        },
+        "source": { "type": "string", "description": "Rate provider or 'static-config' fallback." },
+        "asOf": { "type": "string", "format": "date-time" }
+      },
+      "required": ["base", "quote", "rate", "bufferPercent", "effectiveRate", "asOf"]
+    },
+    "ProfitBreakdown": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "FX-aware net-profit calculation (M4). meetsFloor = netProfit >= the configured ¥ floor, computed from the buffered effectiveRate.",
+      "properties": {
+        "sourceCost": { "$ref": "#/$defs/Money", "description": "Domestic purchase cost (JPY)." },
+        "soldPrice": { "$ref": "#/$defs/Money", "description": "Expected eBay sale price (base currency)." },
+        "fxRate": { "$ref": "#/$defs/FxRate" },
+        "ebayFee": { "$ref": "#/$defs/Money" },
+        "paymentFee": { "$ref": "#/$defs/Money" },
+        "shippingCost": { "$ref": "#/$defs/Money", "description": "International shipping (JPY)." },
+        "netProfit": { "$ref": "#/$defs/Money", "description": "All-in net profit in quote currency (JPY)." },
+        "marginPercent": { "type": "number", "description": "netProfit / revenue, 0–100." },
+        "meetsFloor": { "type": "boolean" }
+      },
+      "required": ["sourceCost", "soldPrice", "fxRate", "netProfit", "marginPercent", "meetsFloor"]
+    },
+    "ListingDraft": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "An eBay listing draft (M6). mode/status carry the dry-run + human-in-the-loop lifecycle: Phase 0 always emits mode=dry_run, status=draft. A human flips status draft→ready; auto-post (later) acts only on mode=auto & status=ready.",
+      "properties": {
+        "draftId": { "type": "string" },
+        "sourceListingId": { "type": "string", "description": "Links back to the SourceListing (inventory-sync key)." },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "$ref": "#/$defs/Money", "description": "Listing price (base currency, e.g. USD)." },
+        "categoryId": { "type": "string" },
+        "condition": { "type": "string" },
+        "imageUrls": { "type": "array", "items": { "type": "string", "format": "uri" } },
+        "mode": { "type": "string", "enum": ["dry_run", "human_review", "auto"] },
+        "status": { "type": "string", "enum": ["draft", "ready", "published"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["draftId", "sourceListingId", "title", "price", "mode", "status", "createdAt"]
+    },
+    "LedgerEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "古物台帳 (antique-dealer ledger) / bookkeeping entry (M11). Columns mirror 古物営業法 record-keeping requirements; see docs/compliance.md.",
+      "properties": {
+        "id": { "type": "string" },
+        "transactionType": { "type": "string", "enum": ["purchase", "sale"] },
+        "itemDescription": { "type": "string" },
+        "counterpartyName": { "type": "string", "description": "Seller (purchase) or buyer (sale)." },
+        "counterpartyAddress": { "type": "string" },
+        "counterpartyVerification": {
+          "type": "string",
+          "description": "How identity was confirmed (e.g. platform account)."
+        },
+        "quantity": { "type": "integer", "minimum": 1 },
+        "amount": { "$ref": "#/$defs/Money" },
+        "sourceUrl": { "type": "string", "format": "uri" },
+        "occurredAt": { "type": "string", "format": "date-time" },
+        "recordedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "transactionType", "itemDescription", "quantity", "amount", "occurredAt", "recordedAt"]
+    },
+    "ShipmentQr": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "International shipping label/QR (M10, design-only at Phase 0). Japan Post international (eパケット/EMS).",
+      "properties": {
+        "shipmentId": { "type": "string" },
+        "orderId": { "type": "string" },
+        "carrier": { "type": "string", "enum": ["japan_post"] },
+        "service": { "type": "string", "description": "e.g. epacket, ems." },
+        "trackingNumber": { "type": "string" },
+        "qrPayload": { "type": "string" },
+        "labelUrl": { "type": "string", "format": "uri" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["shipmentId", "orderId", "carrier", "qrPayload", "createdAt"]
     }
   }
 }

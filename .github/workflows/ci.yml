@@ -898,6 +898,38 @@ jobs:
         run: make test-ec
 
   # ──────────────────────────────────────────────────────────────
+  # apps/arbitrage — 越境転売 automation (Python). Phase 0 tests run
+  # fully offline (no engine, no API keys, dry-run with mocked state).
+  # ──────────────────────────────────────────────────────────────
+
+  arb-python-ci:
+    name: Arbitrage Python (apps/arbitrage)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "apps/arbitrage/requirements.txt"
+
+      - name: Install dependencies
+        run: make install-arb
+
+      - name: Lint
+        run: make lint-arb
+
+      - name: Type check
+        run: make typecheck-arb
+
+      - name: Test (offline, mocked)
+        run: make test-arb
+
+  # ──────────────────────────────────────────────────────────────
   # apps/automation-studio — AI business-automation tool (TS). Unit
   # tests target pure logic and run offline (no engine, no API key).
   # ──────────────────────────────────────────────────────────────

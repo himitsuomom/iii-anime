@@ -58,6 +58,10 @@ jobs:
             dockerfile: apps/automation-studio/Dockerfile
             repo: iii-automation-studio
             service: iii-automation-studio
+          - name: arbitrage-worker
+            dockerfile: apps/arbitrage/Dockerfile
+            repo: iii-arbitrage-worker
+            service: iii-arbitrage-worker
     steps:
       - uses: actions/checkout@v4
         with:

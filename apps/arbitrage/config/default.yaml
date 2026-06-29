@@ -1,0 +1,29 @@
+# 越境転売ワーカーの既定設定。閾値はコード直書きせずここに集約する（マスター指示書 §3-8）。
+# 値は相談で変わる前提。変更前にコメントを必ず読むこと。
+# 環境変数で上書き可能なキーは src/config.py の Settings 参照（例: ARB_DRY_RUN, FX_STATIC_RATE）。
+
+profit:
+  # 1商品あたりの最低純利益（円）。これ未満は出品候補から外す（§M4）。
+  floor_jpy: 1500
+  # 最低利益率（%）。売上に対する純利益の下限。
+  min_margin_percent: 20
+
+fx:
+  # 売上(base)→円(quote)換算。base=USD, quote=JPY。
+  base: USD
+  quote: JPY
+  # 為替バッファ（%）。変動で「黒字のはずが赤字」を防ぐため悲観側に倒す（§3-6）。
+  buffer_percent: 5
+  # Phase 0 のフォールバック静的レート（live feed 未接続時）。env FX_STATIC_RATE が優先。
+  static_rate: 150.0
+
+sourcing:
+  # 仕入れ元スキャンの間隔（秒）。ToS順守のため低速（§1-2, §3-1）。
+  interval_seconds: 3600
+  # 1回のスキャンで取得する最大件数。少量アクセスを徹底する。
+  max_items_per_run: 10
+
+mode:
+  # 空運転（Dry-run）。true の間は副作用（投稿・通知）の実呼び出しをしない（§3-3）。
+  # env ARB_DRY_RUN で上書き。
+  dry_run: true

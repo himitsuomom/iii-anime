@@ -40,6 +40,21 @@ services:
       - engine
     restart: on-failure
 
+  arbitrage-worker:
+    build:
+      context: ..
+      dockerfile: apps/arbitrage/Dockerfile
+    environment:
+      III_URL: ws://engine:49134
+      III_TELEMETRY_ENABLED: "false"
+      # Dry-run on by default — no external posts/notifications until enabled.
+      ARB_DRY_RUN: "true"
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+    depends_on:
+      - engine
+    restart: on-failure
+
   automation-studio:
     build:
       context: ..

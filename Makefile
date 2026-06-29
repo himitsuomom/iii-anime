@@ -10,6 +10,7 @@ III_URL             := ws://localhost:49199
 III_HTTP_URL        := http://localhost:3199
 PYTHON_SDK_DIR      := sdk/packages/python/iii
 EC_DIR              := apps/ec
+ARB_DIR             := apps/arbitrage
 
 export III_TELEMETRY_ENABLED := false
 
@@ -20,6 +21,7 @@ export III_TELEMETRY_ENABLED := false
         sandbox sandbox-debug \
         test-sdk-node test-sdk-python test-sdk-rust test-sdk-all \
         install-ec lint-ec typecheck-ec test-ec ci-ec contracts-codegen seed-demo \
+        install-arb lint-arb typecheck-arb test-arb ci-arb \
         compose-build compose-up compose-down \
         lint-python lint-rust lint-console lint \
         fmt-check fmt-check-rust fmt-check-all \
@@ -105,6 +107,25 @@ contracts-codegen:
 
 
 ci-ec: install-ec lint-ec test-ec
+
+
+# ── Arbitrage app (apps/arbitrage — 越境転売 automation, Python) ─────────────────
+# Same uv venv + requirements.txt flow as apps/ec. Phase 0 tests run fully offline
+# (no engine, no API keys, dry-run) with mocked state.
+
+install-arb:
+	cd $(ARB_DIR) && uv venv --python 3.11 && uv pip install -r requirements.txt
+
+lint-arb:
+	cd $(ARB_DIR) && uv run --no-project ruff check src
+
+typecheck-arb:
+	cd $(ARB_DIR) && uv run --no-project mypy src
+
+test-arb:
+	cd $(ARB_DIR) && uv run --no-project pytest -q
+
+ci-arb: install-arb lint-arb test-arb
 
 
 # ── Engine ────────────────────────────────────────────────────────────────────

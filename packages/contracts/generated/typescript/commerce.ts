@@ -19,6 +19,13 @@ export type Platform = "shopify" | "mercari" | "etsy" | "amazon";
  * via the `definition` "Language".
  */
 export type Language = "en" | "ja";
+/**
+ * Japanese domestic sourcing marketplace for arbitrage (apps/arbitrage).
+ *
+ * This interface was referenced by `CommerceContracts`'s JSON-Schema
+ * via the `definition` "SourceMarketplace".
+ */
+export type SourceMarketplace = "magi" | "snkrdunk" | "mercari" | "yahoo_auctions" | "rakuma" | "amazon_jp";
 
 /**
  * Canonical integration contracts shared between apps/ec (Python) and apps/automation-studio (TypeScript). This file is the single source of truth; TS types and Pydantic models are generated from it.
@@ -229,4 +236,255 @@ export interface NicheScore {
   demand_score: number;
   competition_level: "low" | "medium" | "high";
   recommended: boolean;
+}
+/**
+ * A candidate item found on a JP marketplace (M1 sourcing). One physical second-hand item — see arb-listings inventory-sync / 二重販売防止.
+ *
+ * This interface was referenced by `CommerceContracts`'s JSON-Schema
+ * via the `definition` "SourceListing".
+ */
+export interface SourceListing {
+  /**
+   * Stable id; marketplace + native item id.
+   */
+  id: string;
+  marketplace: SourceMarketplace;
+  /**
+   * Source page (human buys here).
+   */
+  url: string;
+  title: string;
+  price: Money1;
+  /**
+   * Free-text condition, e.g. 美品 / used.
+   */
+  condition?: string;
+  sellerId?: string;
+  imageUrls?: string[];
+  fetchedAt: string;
+}
+/**
+ * Minor-unit money to avoid float drift (e.g. 1200 = ¥1,200 when currency JPY has 0 decimals).
+ */
+export interface Money1 {
+  /**
+   * Amount in the currency's minor unit.
+   */
+  amount: number;
+  /**
+   * ISO 4217 code, e.g. JPY, USD.
+   */
+  currency: string;
+}
+/**
+ * A completed (SOLD) eBay listing used as a comp for demand/price (M2 research). Sold price is the main signal, not asking price.
+ *
+ * This interface was referenced by `CommerceContracts`'s JSON-Schema
+ * via the `definition` "EbaySoldComp".
+ */
+export interface EbaySoldComp {
+  itemId: string;
+  title: string;
+  soldPrice: Money2;
+  soldAt: string;
+  shippingPrice?: Money;
+  condition?: string;
+  url?: string;
+}
+/**
+ * Minor-unit money to avoid float drift (e.g. 1200 = ¥1,200 when currency JPY has 0 decimals).
+ */
+export interface Money2 {
+  /**
+   * Amount in the currency's minor unit.
+   */
+  amount: number;
+  /**
+   * ISO 4217 code, e.g. JPY, USD.
+   */
+  currency: string;
+}
+/**
+ * FX rate with a conservative buffer (M3). effectiveRate is what profit calc uses: revenue is converted pessimistically so the ¥ profit floor is never overstated.
+ *
+ * This interface was referenced by `CommerceContracts`'s JSON-Schema
+ * via the `definition` "FxRate".
+ */
+export interface FxRate {
+  /**
+   * Base currency, e.g. USD.
+   */
+  base: string;
+  /**
+   * Quote currency, e.g. JPY.
+   */
+  quote: string;
+  /**
+   * Raw market rate (1 base = rate quote).
+   */
+  rate: number;
+  /**
+   * Safety margin, e.g. 5 for ±5%.
+   */
+  bufferPercent: number;
+  /**
+   * rate adjusted by the buffer (rate * (1 - bufferPercent/100) when converting base revenue to quote).
+   */
+  effectiveRate: number;
+  /**
+   * Rate provider or 'static-config' fallback.
+   */
+  source?: string;
+  asOf: string;
+}
+/**
+ * FX-aware net-profit calculation (M4). meetsFloor = netProfit >= the configured ¥ floor, computed from the buffered effectiveRate.
+ *
+ * This interface was referenced by `CommerceContracts`'s JSON-Schema
+ * via the `definition` "ProfitBreakdown".
+ */
+export interface ProfitBreakdown {
+  sourceCost: Money3;
+  soldPrice: Money4;
+  fxRate: FxRate;
+  ebayFee?: Money;
+  paymentFee?: Money;
+  shippingCost?: Money5;
+  netProfit: Money6;
+  /**
+   * netProfit / revenue, 0–100.
+   */
+  marginPercent: number;
+  meetsFloor: boolean;
+}
+/**
+ * Minor-unit money to avoid float drift (e.g. 1200 = ¥1,200 when currency JPY has 0 decimals).
+ */
+export interface Money3 {
+  /**
+   * Amount in the currency's minor unit.
+   */
+  amount: number;
+  /**
+   * ISO 4217 code, e.g. JPY, USD.
+   */
+  currency: string;
+}
+/**
+ * Minor-unit money to avoid float drift (e.g. 1200 = ¥1,200 when currency JPY has 0 decimals).
+ */
+export interface Money4 {
+  /**
+   * Amount in the currency's minor unit.
+   */
+  amount: number;
+  /**
+   * ISO 4217 code, e.g. JPY, USD.
+   */
+  currency: string;
+}
+/**
+ * Minor-unit money to avoid float drift (e.g. 1200 = ¥1,200 when currency JPY has 0 decimals).
+ */
+export interface Money5 {
+  /**
+   * Amount in the currency's minor unit.
+   */
+  amount: number;
+  /**
+   * ISO 4217 code, e.g. JPY, USD.
+   */
+  currency: string;
+}
+/**
+ * Minor-unit money to avoid float drift (e.g. 1200 = ¥1,200 when currency JPY has 0 decimals).
+ */
+export interface Money6 {
+  /**
+   * Amount in the currency's minor unit.
+   */
+  amount: number;
+  /**
+   * ISO 4217 code, e.g. JPY, USD.
+   */
+  currency: string;
+}
+/**
+ * An eBay listing draft (M6). mode/status carry the dry-run + human-in-the-loop lifecycle: Phase 0 always emits mode=dry_run, status=draft. A human flips status draft→ready; auto-post (later) acts only on mode=auto & status=ready.
+ *
+ * This interface was referenced by `CommerceContracts`'s JSON-Schema
+ * via the `definition` "ListingDraft".
+ */
+export interface ListingDraft {
+  draftId: string;
+  /**
+   * Links back to the SourceListing (inventory-sync key).
+   */
+  sourceListingId: string;
+  title: string;
+  description?: string;
+  price: Money7;
+  categoryId?: string;
+  condition?: string;
+  imageUrls?: string[];
+  mode: "dry_run" | "human_review" | "auto";
+  status: "draft" | "ready" | "published";
+  createdAt: string;
+}
+/**
+ * Minor-unit money to avoid float drift (e.g. 1200 = ¥1,200 when currency JPY has 0 decimals).
+ */
+export interface Money7 {
+  /**
+   * Amount in the currency's minor unit.
+   */
+  amount: number;
+  /**
+   * ISO 4217 code, e.g. JPY, USD.
+   */
+  currency: string;
+}
+/**
+ * 古物台帳 (antique-dealer ledger) / bookkeeping entry (M11). Columns mirror 古物営業法 record-keeping requirements; see docs/compliance.md.
+ *
+ * This interface was referenced by `CommerceContracts`'s JSON-Schema
+ * via the `definition` "LedgerEntry".
+ */
+export interface LedgerEntry {
+  id: string;
+  transactionType: "purchase" | "sale";
+  itemDescription: string;
+  /**
+   * Seller (purchase) or buyer (sale).
+   */
+  counterpartyName?: string;
+  counterpartyAddress?: string;
+  /**
+   * How identity was confirmed (e.g. platform account).
+   */
+  counterpartyVerification?: string;
+  quantity: number;
+  amount: Money;
+  sourceUrl?: string;
+  occurredAt: string;
+  recordedAt: string;
+}
+/**
+ * International shipping label/QR (M10, design-only at Phase 0). Japan Post international (eパケット/EMS).
+ *
+ * This interface was referenced by `CommerceContracts`'s JSON-Schema
+ * via the `definition` "ShipmentQr".
+ */
+export interface ShipmentQr {
+  shipmentId: string;
+  orderId: string;
+  carrier: "japan_post";
+  /**
+   * e.g. epacket, ems.
+   */
+  service?: string;
+  trackingNumber?: string;
+  qrPayload: string;
+  labelUrl?: string;
+  createdAt: string;
 }

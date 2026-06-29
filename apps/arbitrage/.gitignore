@@ -1,0 +1,19 @@
+# Python キャッシュ
+__pycache__/
+*.pyc
+*.pyo
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# 仮想環境
+.venv/
+*.egg-info/
+# uv は pyproject の存在で project 扱いするが、依存の正本は requirements.txt
+uv.lock
+
+# 生成物
+output/
+
+# 環境変数（コミット禁止）
+.env
