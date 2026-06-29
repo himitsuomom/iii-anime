@@ -148,14 +148,30 @@ def handle_evaluate(data: dict[str, Any], services: Services) -> dict[str, Any]:
     return {"decision": decision, "meetsFloor": meets_floor, "reasons": reasons}
 
 
-# ── M6: 出品下書き（在庫同期つき・state 書き込み） ──
+# ── M5: 国際送料の概算 ──
+def handle_shipping_estimate(data: dict[str, Any], services: Services) -> dict[str, Any]:
+    """`arb::shipping-estimate` — 容積/実重量の大きい方で複数キャリアの送料を比較する。"""
+    from src.shipping.estimator import estimate
+
+    return estimate(
+        actual_g=int(data.get("weightG", 0)),
+        length_cm=float(data.get("lengthCm", 0)),
+        width_cm=float(data.get("widthCm", 0)),
+        height_cm=float(data.get("heightCm", 0)),
+    )
+
+
+# ── M6: 出品下書き（SEO・送料・在庫同期つき・state 書き込み） ──
 def handle_draft_listing(
     data: dict[str, Any], services: Services, trigger: TriggerFn
 ) -> dict[str, Any]:
     """`arb::draft-listing` — 仕入れ候補から eBay 下書きを生成し永続化する。
 
-    二重販売防止: 同一仕入れ品に有効な出品が既にあれば下書きを作らずスキップする。
+    keywords があれば SEO タイトル/タグを付与し、寸法/重量があれば最安送料を概算して
+    説明に注記する。二重販売防止: 同一仕入れ品に有効な出品が既にあればスキップする。
     """
+    from src.shipping.estimator import estimate
+
     source = source_listing_from_dict(data.get("sourceListing", data))
     price_usd = money_from_dict(data.get("priceUsd"), default_currency="USD")
 
@@ -167,7 +183,33 @@ def handle_draft_listing(
             "existing": existing,
         }
 
-    draft = build_listing_draft(source=source, price_usd=price_usd, created_at=_ts(data, "now"))
+    keywords_raw = data.get("keywords")
+    keywords = [str(k) for k in keywords_raw] if isinstance(keywords_raw, list) else []
+
+    shipping_note: str | None = None
+    shipping: dict[str, Any] | None = None
+    if data.get("weightG") is not None:
+        shipping = estimate(
+            actual_g=int(data.get("weightG", 0)),
+            length_cm=float(data.get("lengthCm", 0)),
+            width_cm=float(data.get("widthCm", 0)),
+            height_cm=float(data.get("heightCm", 0)),
+        )
+        cheapest = shipping.get("cheapest")
+        if isinstance(cheapest, dict):
+            cost = cheapest.get("cost", {})
+            shipping_note = (
+                f"Shipping (est.): {cheapest.get('service')} ~"
+                f"¥{cost.get('amount')} from Japan."
+            )
+
+    draft = build_listing_draft(
+        source=source,
+        price_usd=price_usd,
+        created_at=_ts(data, "now"),
+        keywords=keywords,
+        shipping_note=shipping_note,
+    )
     draft_dict = draft_to_dict(draft)
     state_set(trigger, DRAFTS_SCOPE, draft.draft_id, draft_dict)
     mark_listing(
@@ -176,7 +218,10 @@ def handle_draft_listing(
         draft_id=draft.draft_id,
         status=draft.status.value,
     )
-    return {"skipped": False, "draft": draft_dict}
+    result: dict[str, Any] = {"skipped": False, "draft": draft_dict}
+    if shipping is not None:
+        result["shipping"] = shipping
+    return result
 
 
 # ── M1–M5 パイプライン: scan → research → fx → profit → evaluate ──

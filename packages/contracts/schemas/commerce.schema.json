@@ -293,6 +293,12 @@
         "categoryId": { "type": "string" },
         "condition": { "type": "string" },
         "imageUrls": { "type": "array", "items": { "type": "string", "format": "uri" } },
+        "tags": { "type": "array", "items": { "type": "string" }, "description": "Search tags (M5 SEO)." },
+        "seoKeywords": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "SEO keywords woven into the title (M5)."
+        },
         "mode": { "type": "string", "enum": ["dry_run", "human_review", "auto"] },
         "status": { "type": "string", "enum": ["draft", "ready", "published"] },
         "createdAt": { "type": "string", "format": "date-time" }

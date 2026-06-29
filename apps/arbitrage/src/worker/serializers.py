@@ -152,6 +152,10 @@ def draft_to_dict(d: ListingDraft) -> dict[str, Any]:
         out["condition"] = d.condition
     if d.image_urls:
         out["imageUrls"] = list(d.image_urls)
+    if d.tags:
+        out["tags"] = list(d.tags)
+    if d.seo_keywords:
+        out["seoKeywords"] = list(d.seo_keywords)
     return out
 
 
@@ -168,6 +172,8 @@ def draft_from_dict(data: dict[str, Any]) -> ListingDraft:
         category_id=data.get("categoryId"),
         condition=data.get("condition"),
         image_urls=list(data.get("imageUrls", []) or []),
+        tags=list(data.get("tags", []) or []),
+        seo_keywords=list(data.get("seoKeywords", []) or []),
     )
 
 

@@ -124,6 +124,8 @@ class ListingDraft:
     category_id: str | None = None
     condition: str | None = None
     image_urls: list[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
+    seo_keywords: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)

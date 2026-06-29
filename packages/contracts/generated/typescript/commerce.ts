@@ -427,6 +427,14 @@ export interface ListingDraft {
   categoryId?: string;
   condition?: string;
   imageUrls?: string[];
+  /**
+   * Search tags (M5 SEO).
+   */
+  tags?: string[];
+  /**
+   * SEO keywords woven into the title (M5).
+   */
+  seoKeywords?: string[];
   mode: "dry_run" | "human_review" | "auto";
   status: "draft" | "ready" | "published";
   createdAt: string;

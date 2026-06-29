@@ -14,6 +14,7 @@ from src.domain.models import (
     Money,
     SourceListing,
 )
+from src.listing.seo import build_seo_title, build_tags
 
 
 def build_listing_draft(
@@ -25,16 +26,23 @@ def build_listing_draft(
     title: str | None = None,
     description: str | None = None,
     category_id: str | None = None,
+    keywords: list[str] | None = None,
+    shipping_note: str | None = None,
 ) -> ListingDraft:
     """仕入れ候補から eBay 出品下書きを組み立てる。
 
     title/description 未指定なら候補から簡易生成する（後フェーズで AI 生成に差し替え可能）。
+    keywords を与えると SEO タイトル・タグを生成する（M5）。
     """
-    draft_title = title or source.title
+    kws = keywords or []
+    base_title = title or source.title
+    draft_title = build_seo_title(base_title, kws) if kws else base_title
     draft_description = description or (
         f"{source.title}\n\nCondition: {source.condition or 'see photos'}.\n"
         "Ships from Japan. Carefully packed."
     )
+    if shipping_note:
+        draft_description = f"{draft_description}\n\n{shipping_note}"
     return ListingDraft(
         draft_id=f"draft-{source.id}",
         source_listing_id=source.id,
@@ -47,4 +55,6 @@ def build_listing_draft(
         category_id=category_id,
         condition=source.condition,
         image_urls=list(source.image_urls),
+        tags=build_tags(kws),
+        seo_keywords=list(kws),
     )
