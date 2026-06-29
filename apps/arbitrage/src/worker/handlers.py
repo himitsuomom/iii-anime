@@ -73,20 +73,22 @@ def handle_research_comps(data: dict[str, Any], services: Services) -> dict[str,
 
 # ── M3: 為替レート ──
 def handle_fx_rate(data: dict[str, Any], services: Services) -> dict[str, Any]:
-    """`arb::fx-rate` — バッファ適用済みの FxRate を返す（Phase 0: 静的レート）。"""
+    """`arb::fx-rate` — バッファ適用済みの FxRate を返す。
+
+    `rate` 明示時はそれを使い、無ければ FxProvider（live or 静的）に委譲する。
+    """
     fx = services.settings.fx
-    base = str(data.get("base", fx.base))
-    quote = str(data.get("quote", fx.quote))
-    rate = float(data.get("rate", fx.static_rate))
-    buffer_percent = float(data.get("bufferPercent", fx.buffer_percent))
-    result = build_fx_rate(
-        base=base,
-        quote=quote,
-        rate=rate,
-        buffer_percent=buffer_percent,
-        as_of=_ts(data, "asOf"),
-        source=str(data.get("source", "static-config")),
-    )
+    if data.get("rate") is not None:
+        result = build_fx_rate(
+            base=str(data.get("base", fx.base)),
+            quote=str(data.get("quote", fx.quote)),
+            rate=float(data["rate"]),
+            buffer_percent=float(data.get("bufferPercent", fx.buffer_percent)),
+            as_of=_ts(data, "asOf"),
+            source=str(data.get("source", "override")),
+        )
+    else:
+        result = services.fx_provider.get_rate(data.get("base"), data.get("quote"))
     return fx_rate_to_dict(result)
 
 
@@ -96,14 +98,16 @@ def handle_profit_calc(data: dict[str, Any], services: Services) -> dict[str, An
     fx_cfg = services.settings.fx
     if isinstance(data.get("fxRate"), dict):
         fx = fx_rate_from_dict(data["fxRate"])
-    else:
+    elif data.get("rate") is not None:
         fx = build_fx_rate(
             base=fx_cfg.base,
             quote=fx_cfg.quote,
-            rate=float(data.get("rate", fx_cfg.static_rate)),
+            rate=float(data["rate"]),
             buffer_percent=fx_cfg.buffer_percent,
             as_of=_ts(data, "asOf"),
         )
+    else:
+        fx = services.fx_provider.get_rate()
     breakdown = calculate_profit(
         source_cost=money_from_dict(data.get("sourceCost"), default_currency="JPY"),
         sold_price=money_from_dict(data.get("soldPrice"), default_currency="USD"),
@@ -171,6 +175,58 @@ def handle_draft_listing(
         status=draft.status.value,
     )
     return {"skipped": False, "draft": draft_dict}
+
+
+# ── M1–M5 パイプライン: scan → research → fx → profit → evaluate ──
+def handle_pipeline_evaluate(data: dict[str, Any], services: Services) -> dict[str, Any]:
+    """`arb::pipeline-evaluate` — 仕入れ候補を一括で調査・利益判定する（read-only）。
+
+    出品はしない。各候補について eBay 成約中央値を売価に利益計算し、フロア合格分を
+    `listable` に挙げる。下書き作成（state 書き込み）は別途 `arb::draft-listing`。
+    """
+    from src.domain.models import SourceMarketplace
+
+    marketplace = SourceMarketplace(str(data.get("marketplace", "mercari")))
+    query = str(data.get("query", ""))
+    limit = int(data.get("limit", services.settings.sourcing.max_items_per_run))
+    shipping_jpy = int(data.get("shippingJpy", 0))
+
+    candidates = services.source_provider.scan(marketplace, query, limit)
+    fx = services.fx_provider.get_rate()
+
+    results: list[dict[str, Any]] = []
+    listable: list[str] = []
+    for c in candidates:
+        comps = services.research.find_comps(c.title)
+        median = median_sold_price(comps)
+        breakdown = calculate_profit(
+            source_cost=c.price,
+            sold_price=median,
+            fx=fx,
+            floor_jpy=services.settings.profit.floor_jpy,
+            min_margin_percent=services.settings.profit.min_margin_percent,
+            shipping_jpy=shipping_jpy,
+        )
+        decision = "list" if breakdown.meets_floor else "skip"
+        results.append(
+            {
+                "sourceListing": source_listing_to_dict(c),
+                "median": money_to_dict(median),
+                "profit": profit_to_dict(breakdown),
+                "decision": decision,
+            }
+        )
+        if decision == "list":
+            listable.append(c.id)
+
+    return {
+        "results": results,
+        "count": len(results),
+        "listable": listable,
+        "listableCount": len(listable),
+        "fxRate": fx_rate_to_dict(fx),
+        "researchLive": services.research_live,
+    }
 
 
 # ── M9: 通知 ──

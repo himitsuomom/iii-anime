@@ -19,6 +19,7 @@ from src.worker.handlers import (
     handle_evaluate,
     handle_fx_rate,
     handle_notify_telegram,
+    handle_pipeline_evaluate,
     handle_profit_calc,
     handle_research_comps,
     handle_source_scan,
@@ -41,6 +42,7 @@ SYNC_FUNCTIONS: list[tuple[str, SyncHandler, str]] = [
     ("arb::research-comps", handle_research_comps, "/arb/research/comps"),
     ("arb::fx-rate", handle_fx_rate, "/arb/fx/rate"),
     ("arb::profit-calc", handle_profit_calc, "/arb/profit/calc"),
+    ("arb::pipeline-evaluate", handle_pipeline_evaluate, "/arb/pipeline/evaluate"),
     ("arb::evaluate", handle_evaluate, "/arb/evaluate"),
     ("notify::telegram", handle_notify_telegram, "/arb/notify"),
 ]
