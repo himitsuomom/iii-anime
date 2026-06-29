@@ -27,6 +27,11 @@ from src.worker.handlers import (
     handle_shipping_estimate,
     handle_source_scan,
 )
+from src.worker.monitoring import (
+    handle_daily_record,
+    handle_mark_sold,
+    handle_monitor_sales,
+)
 from src.worker.services import Services, build_services
 from src.worker.store import (
     TriggerFn,
@@ -56,6 +61,15 @@ STORE_FUNCTIONS: list[tuple[str, StoreHandler, str]] = [
     ("arb::draft-listing", handle_draft_listing, "/arb/draft"),
     ("arb::classify", handle_classify, "/arb/classify"),
     ("arb::listing-list", handle_listing_list, "/arb/listing-list"),
+    ("arb::mark-sold", handle_mark_sold, "/arb/mark-sold"),
+    ("arb::monitor-sales", handle_monitor_sales, "/arb/monitor-sales"),
+    ("arb::daily-record", handle_daily_record, "/arb/daily-record"),
+]
+
+# cron トリガー（HTTP でも手動実行可能）。expression は 6 フィールド（秒含む）。
+CRON_TRIGGERS: list[tuple[str, str]] = [
+    ("arb::monitor-sales", "0 */30 * * * *"),  # 30分ごとに成約監視（§M6）
+    ("arb::daily-record", "0 0 0 * * *"),  # 毎日 00:00 UTC に日次記録
 ]
 
 # 古物台帳（trigger のみ・services 不要）。
@@ -119,6 +133,16 @@ def register_arbitrage_functions(iii: Any, services: Services) -> None:
 
         iii.register_function(function_id, make_ledger(ledger_handler))
         iii.register_trigger(_http_trigger(function_id, api_path))
+
+    # cron トリガー（対象関数は上の STORE_FUNCTIONS で登録済み）。
+    for function_id, expression in CRON_TRIGGERS:
+        iii.register_trigger(
+            {
+                "type": "cron",
+                "function_id": function_id,
+                "config": {"expression": expression},
+            }
+        )
 
 
 def registered_function_ids() -> list[str]:

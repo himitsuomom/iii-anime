@@ -25,6 +25,7 @@ LISTINGS_SCOPE = "arb-listings"
 CANDIDATES_SCOPE = "arb-candidates"
 DRAFTS_SCOPE = "arb-drafts"
 LISTING_LIST_SCOPE = "arb-listing-list"
+DAILY_SCOPE = "arb-daily"
 
 
 def state_set(trigger: TriggerFn, scope: str, key: str, value: dict[str, Any]) -> None:
@@ -75,13 +76,34 @@ def mark_listing(
     draft_id: str,
     status: str,
     sold_on_ebay: bool = False,
+    url: str | None = None,
+    title: str | None = None,
 ) -> dict[str, Any]:
-    """在庫同期レコードを upsert する（出品〜成約のライフサイクルを追跡）。"""
-    record = {
+    """在庫同期レコードを upsert する（出品〜成約のライフサイクルを追跡）。
+
+    url/title は成約時の通知（仕入れ元 URL 付き）に使う。
+    """
+    record: dict[str, Any] = {
         "sourceListingId": source_listing_id,
         "draftId": draft_id,
         "status": status,
         "soldOnEbay": sold_on_ebay,
+        "notified": False,
     }
+    if url is not None:
+        record["url"] = url
+    if title is not None:
+        record["title"] = title
+    state_set(trigger, LISTINGS_SCOPE, source_listing_id, record)
+    return record
+
+
+def update_listing(trigger: TriggerFn, source_listing_id: str, **fields: Any) -> dict[str, Any]:
+    """既存の在庫同期レコードへ部分更新をマージする（無ければ新規）。"""
+    existing = state_get(trigger, LISTINGS_SCOPE, source_listing_id)
+    record: dict[str, Any] = dict(existing) if isinstance(existing, dict) else {
+        "sourceListingId": source_listing_id
+    }
+    record.update(fields)
     state_set(trigger, LISTINGS_SCOPE, source_listing_id, record)
     return record

@@ -131,8 +131,13 @@ def test_registration_wires_all_functions(services: Services) -> None:
     register_arbitrage_functions(engine, services)
     for fid in registered_function_ids():
         assert fid in engine.functions
-    # 各関数に HTTP トリガーが 1 つ付く。
-    assert len(engine.triggers) == len(registered_function_ids())
-    paths = {t["config"]["api_path"] for t in engine.triggers}
+    # 各関数に HTTP トリガーが付く（cron トリガーが追加で乗るため >= で確認）。
+    http_triggers = [t for t in engine.triggers if t.get("type") == "http"]
+    assert len(http_triggers) == len(registered_function_ids())
+    paths = {t["config"]["api_path"] for t in http_triggers}
     assert "/arb/source/scan" in paths
     assert "/arb/ledger/record" in paths
+    assert "/arb/monitor-sales" in paths
+    # cron トリガーが monitor-sales / daily-record に登録される。
+    cron = [t for t in engine.triggers if t.get("type") == "cron"]
+    assert {t["function_id"] for t in cron} == {"arb::monitor-sales", "arb::daily-record"}

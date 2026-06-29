@@ -217,6 +217,8 @@ def handle_draft_listing(
         source_listing_id=source.id,
         draft_id=draft.draft_id,
         status=draft.status.value,
+        url=source.url,
+        title=source.title,
     )
     result: dict[str, Any] = {"skipped": False, "draft": draft_dict}
     if shipping is not None:
